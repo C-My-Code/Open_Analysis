@@ -20,6 +20,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 from oa_model.board import Board
+from oa_model.em import EMProblem
 from oa_model.io import dump_board
 
 from . import builders, emproblems, xsections
@@ -34,7 +35,7 @@ BOARDS: dict[str, Callable[[], Board]] = {
     "power_plane": builders.power_plane_board,
 }
 
-EM_PROBLEMS = {
+EM_PROBLEMS: dict[str, Callable[[], EMProblem]] = {
     "microstrip_thru_25mm_lumped": emproblems.microstrip_thru_problem,
     "stripline_thru_25mm_wave": emproblems.stripline_thru_problem,
     "via_transition_L1_L4_wave": emproblems.via_transition_problem,
@@ -77,8 +78,8 @@ def expected_files() -> Iterator[tuple[str, str]]:
             "xsection": json.loads(case.xs.model_dump_json()),
         }
         yield f"xsection/{case.name}.json", _json_text(doc)
-    for name, fn in EM_PROBLEMS.items():
-        yield f"em/{name}.json", fn().model_dump_json(indent=1) + "\n"
+    for name, em_fn in EM_PROBLEMS.items():
+        yield f"em/{name}.json", em_fn().model_dump_json(indent=1) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -97,7 +97,7 @@ class InMemoryArtifactStore:
 def _services_from(registry: Registry | None, services: Any) -> Services:
     if services is None:
         return registry.services() if registry is not None else DictServices()
-    return DictServices(services) if isinstance(services, Mapping) else services  # type: ignore[no-any-return]
+    return DictServices(services) if isinstance(services, Mapping) else services
 
 
 class _Shared:
@@ -281,7 +281,7 @@ def run_inline_full(
     errors = [d for d in diags if d.severity == "error"]
     if errors:
         err = SetupError("; ".join(f"{d.code}: {d.message}" for d in errors))
-        err.diagnostics = diags  # type: ignore[attr-defined]
+        err.diagnostics = diags
         raise err
 
     plan = inst.plan(pctx, cfg)
