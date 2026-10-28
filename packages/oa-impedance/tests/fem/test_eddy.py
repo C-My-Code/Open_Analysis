@@ -94,7 +94,6 @@ def _strip_with_copper_planes() -> CrossSection:
     return xs.model_copy(update={"conductors": cond})
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize("f", [1e9, 5e9, 10e9])
 def test_hf_asymptote_matches_surface_impedance_bem(f: float) -> None:
     """Stripline, 35 um copper: FEM R(f) within 5 % of the BEM perturbation where delta < t/4."""
