@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "$id": "oa.cmd.setups_put.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Create or replace a stored setup. A write: needs `confirm` and allow_writes.",
+  "properties": {
+    "analysis": {
+      "description": "Analysis kind.",
+      "title": "Analysis",
+      "type": "string"
+    },
+    "config": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "Analysis config.",
+      "title": "Config",
+      "type": "object"
+    },
+    "confirm": {
+      "default": false,
+      "description": "Must be true to write; otherwise CONFIRMATION_REQUIRED.",
+      "title": "Confirm",
+      "type": "boolean"
+    },
+    "description": {
+      "default": "",
+      "description": "Free text.",
+      "title": "Description",
+      "type": "string"
+    },
+    "name": {
+      "description": "Setup name (file stem).",
+      "title": "Name",
+      "type": "string"
+    },
+    "ports": {
+      "default": [],
+      "description": "Ports.",
+      "items": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": "object"
+      },
+      "title": "Ports",
+      "type": "array"
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "name",
+    "analysis",
+    "config"
+  ],
+  "title": "SetupPutIn",
+  "type": "object"
+}

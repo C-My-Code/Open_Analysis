@@ -1,0 +1,37 @@
+{
+  "$id": "oa.cmd.results_explain.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Explain one violation.",
+  "properties": {
+    "fingerprint": {
+      "description": "Violation fingerprint from results.violations.",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Violations item id, if several.",
+      "title": "Item Id"
+    },
+    "result_id": {
+      "description": "Result id (ULID).",
+      "title": "Result Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result_id",
+    "fingerprint"
+  ],
+  "title": "ExplainIn",
+  "type": "object"
+}

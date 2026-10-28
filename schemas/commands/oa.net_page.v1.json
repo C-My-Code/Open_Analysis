@@ -1,0 +1,162 @@
+{
+  "$defs": {
+    "NetInfo": {
+      "additionalProperties": false,
+      "description": "One net with its routed extent.",
+      "properties": {
+        "diff_partner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the differential partner.",
+          "title": "Diff Partner"
+        },
+        "id": {
+          "description": "Net id (equal to the net name).",
+          "title": "Id",
+          "type": "string"
+        },
+        "intent_tags": {
+          "description": "Intent tags: 'high_speed', 'rail', 'ground', 'diff_pair'.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Intent Tags",
+          "type": "array"
+        },
+        "kind": {
+          "description": "signal, power, ground or unknown (intent overrides ingest).",
+          "title": "Kind",
+          "type": "string"
+        },
+        "layers": {
+          "description": "Copper layer ids carrying this net, sorted.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers",
+          "type": "array"
+        },
+        "length_m": {
+          "description": "Total routed track length [m].",
+          "title": "Length M",
+          "type": "number"
+        },
+        "n_items": {
+          "description": "Tracks, vias, pads and zones on the net [1].",
+          "title": "N Items",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Net name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "net_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net class name.",
+          "title": "Net Class"
+        },
+        "target_z": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target impedance of the net (se or diff) [ohm].",
+          "title": "Target Z"
+        },
+        "via_count": {
+          "description": "Vias on the net [1].",
+          "title": "Via Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "n_items",
+        "length_m",
+        "layers",
+        "via_count",
+        "intent_tags"
+      ],
+      "title": "NetInfo",
+      "type": "object"
+    }
+  },
+  "$id": "oa.net_page/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "description": "The items of this page.",
+      "items": {
+        "$ref": "#/$defs/NetInfo"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "limit": {
+      "description": "Requested page size [1].",
+      "title": "Limit",
+      "type": "integer"
+    },
+    "next_offset": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Offset of the next page; null when exhausted.",
+      "title": "Next Offset"
+    },
+    "offset": {
+      "description": "Index of the first item [1].",
+      "title": "Offset",
+      "type": "integer"
+    },
+    "sort": {
+      "description": "The effective sort key, documented per command.",
+      "title": "Sort",
+      "type": "string"
+    },
+    "total": {
+      "description": "Total matching items after filtering [1].",
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "items",
+    "offset",
+    "limit",
+    "total",
+    "next_offset",
+    "sort"
+  ],
+  "title": "Page[NetInfo]",
+  "type": "object"
+}

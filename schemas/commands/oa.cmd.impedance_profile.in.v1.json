@@ -1,0 +1,186 @@
+{
+  "$defs": {
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_external": {
+          "default": true,
+          "description": "Whether external solver binaries may run.",
+          "title": "Allow External",
+          "type": "boolean"
+        },
+        "allowed_tools": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allow-list of logical tool names; None = all configured tools.",
+          "title": "Allowed Tools"
+        },
+        "max_cpus": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum concurrent worker processes/threads [1].",
+          "title": "Max Cpus"
+        },
+        "max_memory_gb": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Peak resident memory across workers and external processes [GB].",
+          "title": "Max Memory Gb"
+        },
+        "max_runtime_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wall-clock limit for the whole job [s].",
+          "title": "Max Runtime S"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "$id": "oa.cmd.impedance_profile.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Impedance profile along nets.",
+  "properties": {
+    "budget": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Budget"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Per-call budget, clamped to the ceiling."
+    },
+    "dry_run": {
+      "default": false,
+      "description": "Estimate only; start no job.",
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "ds": {
+      "anyOf": [
+        {
+          "description": "Length in metres, >= 0. Strings such as '5mil' or '0.2mm' parse.",
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Sampling step along the net [m]; '0.5mm' parses.",
+      "title": "Ds"
+    },
+    "executor": {
+      "default": "process",
+      "description": "Where tasks run.",
+      "enum": [
+        "inline",
+        "process"
+      ],
+      "title": "Executor",
+      "type": "string"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "enum": [
+            "auto",
+            "closed_form",
+            "bem",
+            "fem"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Impedance method; null lets the analysis choose.",
+      "title": "Method"
+    },
+    "nets": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "NetSelector: {names: [globs], net_classes: [...], kinds: [...]}.",
+      "title": "Nets",
+      "type": "object"
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "tolerance": {
+      "anyOf": [
+        {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Impedance tolerance as a fraction [1].",
+      "title": "Tolerance"
+    },
+    "wait_s": {
+      "default": 20.0,
+      "description": "Wait for the result [s].",
+      "maximum": 3600,
+      "minimum": 0,
+      "title": "Wait S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_id",
+    "nets"
+  ],
+  "title": "ProfileRunIn",
+  "type": "object"
+}

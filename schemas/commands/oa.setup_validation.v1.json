@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "Diagnostic": {
+      "additionalProperties": false,
+      "description": "A structured finding. Machine-readable: code, severity, path and hint.",
+      "properties": {
+        "code": {
+          "description": "Stable code, e.g. 'MODEL.DANGLING_REF' or 'INGEST.ZONE_UNFILLED'.",
+          "examples": [
+            "MODEL.DANGLING_REF"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Suggested fix, phrased as an action.",
+          "title": "Hint"
+        },
+        "item": {
+          "anyOf": [
+            {
+              "description": "Stable unique item id: 'k:<uuid>' (KiCad), 'i:<id>' (IPC-2581), 'h:<hash>'.",
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id (or key) of the offending item.",
+          "title": "Item"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "description": "Stack layer id: L1..Ln copper (top to bottom), D1..Dm dielectric (top to bottom), MT/MB top/bottom solder mask.",
+              "examples": [
+                "L1",
+                "D2",
+                "MT"
+              ],
+              "pattern": "^(L[1-9][0-9]*|D[1-9][0-9]*|MT|MB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Layer id involved, if any.",
+          "title": "Layer"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Board-frame XY in metres.",
+          "title": "Location"
+        },
+        "message": {
+          "description": "Human-readable description of the problem.",
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC 6901 JSON pointer into the board document locating the problem.",
+          "examples": [
+            "/tracks/12/layer"
+          ],
+          "title": "Path"
+        },
+        "severity": {
+          "description": "Severity level.",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    }
+  },
+  "$id": "oa.setup_validation/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Result of validating a setup against its analysis.",
+  "properties": {
+    "diagnostics": {
+      "description": "Diagnostics from the analysis.",
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "name": {
+      "description": "Setup name.",
+      "title": "Name",
+      "type": "string"
+    },
+    "valid": {
+      "description": "True when no error diagnostics.",
+      "title": "Valid",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "valid",
+    "diagnostics"
+  ],
+  "title": "SetupValidation",
+  "type": "object"
+}

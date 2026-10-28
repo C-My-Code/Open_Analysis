@@ -1,0 +1,584 @@
+{
+  "$defs": {
+    "BundleSummary": {
+      "additionalProperties": false,
+      "description": "Size-bounded summary of a result bundle (at most 8 KiB). Read this before fetching items.",
+      "properties": {
+        "analysis": {
+          "description": "Analysis kind.",
+          "title": "Analysis",
+          "type": "string"
+        },
+        "diagnostics": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Diagnostic counts by severity [1].",
+          "title": "Diagnostics",
+          "type": "object"
+        },
+        "items": {
+          "description": "Up to 20 item summaries, bundle order.",
+          "items": {
+            "$ref": "#/$defs/ItemSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "more": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How to get the remaining items.",
+          "title": "More"
+        },
+        "n_items": {
+          "description": "Total items in the bundle [1].",
+          "title": "N Items",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ProvenanceBrief",
+          "description": "Provenance."
+        },
+        "result_id": {
+          "description": "Result id (ULID).",
+          "title": "Result Id",
+          "type": "string"
+        },
+        "status": {
+          "description": "Verdict.",
+          "enum": [
+            "ok",
+            "warning",
+            "failed_quality",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "text": {
+          "description": "At most 1500 characters; equals ResultBundle.summary.",
+          "title": "Text",
+          "type": "string"
+        },
+        "top_diagnostics": {
+          "description": "Up to 10, errors first.",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Top Diagnostics",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result_id",
+        "analysis",
+        "status",
+        "text",
+        "items",
+        "n_items",
+        "diagnostics",
+        "top_diagnostics",
+        "provenance"
+      ],
+      "title": "BundleSummary",
+      "type": "object"
+    },
+    "Diagnostic": {
+      "additionalProperties": false,
+      "description": "A structured finding. Machine-readable: code, severity, path and hint.",
+      "properties": {
+        "code": {
+          "description": "Stable code, e.g. 'MODEL.DANGLING_REF' or 'INGEST.ZONE_UNFILLED'.",
+          "examples": [
+            "MODEL.DANGLING_REF"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Suggested fix, phrased as an action.",
+          "title": "Hint"
+        },
+        "item": {
+          "anyOf": [
+            {
+              "description": "Stable unique item id: 'k:<uuid>' (KiCad), 'i:<id>' (IPC-2581), 'h:<hash>'.",
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id (or key) of the offending item.",
+          "title": "Item"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "description": "Stack layer id: L1..Ln copper (top to bottom), D1..Dm dielectric (top to bottom), MT/MB top/bottom solder mask.",
+              "examples": [
+                "L1",
+                "D2",
+                "MT"
+              ],
+              "pattern": "^(L[1-9][0-9]*|D[1-9][0-9]*|MT|MB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Layer id involved, if any.",
+          "title": "Layer"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Board-frame XY in metres.",
+          "title": "Location"
+        },
+        "message": {
+          "description": "Human-readable description of the problem.",
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC 6901 JSON pointer into the board document locating the problem.",
+          "examples": [
+            "/tracks/12/layer"
+          ],
+          "title": "Path"
+        },
+        "severity": {
+          "description": "Severity level.",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "ItemSummary": {
+      "additionalProperties": false,
+      "description": "Size-bounded summary of one result item (at most 2 KiB).",
+      "properties": {
+        "accuracy_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "reference, validated, screening, estimate or unverified; null if not stated.",
+          "title": "Accuracy Class"
+        },
+        "digest": {
+          "description": "One or two plain-text sentences.",
+          "title": "Digest",
+          "type": "string"
+        },
+        "item_id": {
+          "description": "Item id within the bundle.",
+          "title": "Item Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Item kind: violations, profile, scalars, network, ...",
+          "title": "Kind",
+          "type": "string"
+        },
+        "stats": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Small statistics; lists are capped.",
+          "title": "Stats",
+          "type": "object"
+        },
+        "title": {
+          "description": "Item title.",
+          "title": "Title",
+          "type": "string"
+        },
+        "truncated": {
+          "default": false,
+          "description": "True when statistics were cut to fit.",
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "validity_flags": {
+          "description": "Validity statements.",
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "title": "Validity Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "item_id",
+        "kind",
+        "title",
+        "digest",
+        "stats",
+        "validity_flags"
+      ],
+      "title": "ItemSummary",
+      "type": "object"
+    },
+    "JobBrief": {
+      "additionalProperties": false,
+      "description": "Job state in agent-friendly form.",
+      "properties": {
+        "analysis": {
+          "description": "Analysis kind.",
+          "title": "Analysis",
+          "type": "string"
+        },
+        "cancel_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "'user', 'budget:max_runtime' or 'budget:max_memory'.",
+          "title": "Cancel Reason"
+        },
+        "created_utc": {
+          "description": "Creation time, ISO-8601 UTC.",
+          "title": "Created Utc",
+          "type": "string"
+        },
+        "job_id": {
+          "description": "Job id (ULID).",
+          "title": "Job Id",
+          "type": "string"
+        },
+        "message": {
+          "description": "Last status message.",
+          "title": "Message",
+          "type": "string"
+        },
+        "progress": {
+          "description": "Weighted progress [1], 0..1.",
+          "title": "Progress",
+          "type": "number"
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Result id once succeeded.",
+          "title": "Result Id"
+        },
+        "setup": {
+          "description": "Setup name.",
+          "title": "Setup",
+          "type": "string"
+        },
+        "state": {
+          "description": "Lifecycle state.",
+          "enum": [
+            "queued",
+            "planning",
+            "running",
+            "reducing",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "updated_utc": {
+          "description": "Last update time, ISO-8601 UTC.",
+          "title": "Updated Utc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id",
+        "state",
+        "analysis",
+        "setup",
+        "progress",
+        "message",
+        "created_utc",
+        "updated_utc"
+      ],
+      "title": "JobBrief",
+      "type": "object"
+    },
+    "JobEventView": {
+      "additionalProperties": false,
+      "description": "One job event.",
+      "properties": {
+        "data": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Event payload.",
+          "title": "Data",
+          "type": "object"
+        },
+        "seq": {
+          "description": "Monotonic event number [1].",
+          "title": "Seq",
+          "type": "integer"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Task the event belongs to.",
+          "title": "Task Id"
+        },
+        "type": {
+          "description": "Event type: state, progress, log, task_finished, ...",
+          "title": "Type",
+          "type": "string"
+        },
+        "utc": {
+          "description": "Event time, ISO-8601 UTC.",
+          "title": "Utc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "type",
+        "data",
+        "utc"
+      ],
+      "title": "JobEventView",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ProvenanceBrief": {
+      "additionalProperties": false,
+      "description": "Who produced a result and from what.",
+      "properties": {
+        "analysis": {
+          "description": "Analysis kind.",
+          "title": "Analysis",
+          "type": "string"
+        },
+        "analysis_version": {
+          "description": "Analysis version.",
+          "title": "Analysis Version",
+          "type": "string"
+        },
+        "board_hash": {
+          "description": "Hash of the raw board.",
+          "title": "Board Hash",
+          "type": "string"
+        },
+        "inputs_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hash of all inputs.",
+          "title": "Inputs Hash"
+        },
+        "physics_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hash of the physics sidecar.",
+          "title": "Physics Hash"
+        },
+        "setup_hash": {
+          "description": "Hash of the setup.",
+          "title": "Setup Hash",
+          "type": "string"
+        },
+        "solver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Solver name.",
+          "title": "Solver"
+        },
+        "solver_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Solver version.",
+          "title": "Solver Version"
+        }
+      },
+      "required": [
+        "analysis",
+        "analysis_version",
+        "board_hash",
+        "setup_hash"
+      ],
+      "title": "ProvenanceBrief",
+      "type": "object"
+    }
+  },
+  "$id": "oa.job_status/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Job status plus recent events and the summary of a finished job.",
+  "properties": {
+    "budget_used": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Live budget usage: elapsed_s [s], peak_memory_gb [GB].",
+      "title": "Budget Used",
+      "type": "object"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Failure ErrorInfo, if failed.",
+      "title": "Error"
+    },
+    "events": {
+      "description": "Up to 50 events after the given seq.",
+      "items": {
+        "$ref": "#/$defs/JobEventView"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/JobBrief",
+      "description": "Current job status."
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BundleSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Summary when succeeded."
+    }
+  },
+  "required": [
+    "status",
+    "events",
+    "budget_used"
+  ],
+  "title": "JobStatusOut",
+  "type": "object"
+}

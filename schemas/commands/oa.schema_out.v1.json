@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "SchemaEntry": {
+      "additionalProperties": false,
+      "description": "One published schema.",
+      "properties": {
+        "file": {
+          "description": "Relative file under schemas/.",
+          "title": "File",
+          "type": "string"
+        },
+        "id": {
+          "description": "Schema id.",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "description": "Title.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "file"
+      ],
+      "title": "SchemaEntry",
+      "type": "object"
+    }
+  },
+  "$id": "oa.schema_out/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A schema document or the schema list.",
+  "properties": {
+    "entries": {
+      "description": "Listing (when no id was given).",
+      "items": {
+        "$ref": "#/$defs/SchemaEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "schema_doc": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The JSON Schema when an id was given.",
+      "title": "Schema Doc"
+    }
+  },
+  "required": [
+    "entries"
+  ],
+  "title": "SchemaOut",
+  "type": "object"
+}

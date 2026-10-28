@@ -1,0 +1,43 @@
+{
+  "$id": "oa.setup_put_out/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A written setup file.",
+  "properties": {
+    "backup": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Backup of the replaced file.",
+      "title": "Backup"
+    },
+    "name": {
+      "description": "Setup name.",
+      "title": "Name",
+      "type": "string"
+    },
+    "path": {
+      "description": "Absolute path written.",
+      "title": "Path",
+      "type": "string"
+    },
+    "sha256": {
+      "description": "SHA-256 of the written file.",
+      "title": "Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "path",
+    "sha256"
+  ],
+  "title": "SetupPutOut",
+  "type": "object"
+}

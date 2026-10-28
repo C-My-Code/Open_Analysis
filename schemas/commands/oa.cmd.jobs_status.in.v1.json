@@ -1,0 +1,40 @@
+{
+  "$id": "oa.cmd.jobs_status.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Job status, optionally waiting for a change.",
+  "properties": {
+    "events_after_seq": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Also return job events with seq greater than this.",
+      "title": "Events After Seq"
+    },
+    "job_id": {
+      "description": "Job id (ULID).",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "wait_s": {
+      "default": 0.0,
+      "description": "Block up to this long for the job to finish [s].",
+      "maximum": 60,
+      "minimum": 0,
+      "title": "Wait S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "job_id"
+  ],
+  "title": "JobStatusIn",
+  "type": "object"
+}

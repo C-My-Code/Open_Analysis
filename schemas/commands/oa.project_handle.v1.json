@@ -1,0 +1,545 @@
+{
+  "$defs": {
+    "BoardMetaView": {
+      "additionalProperties": false,
+      "description": "Where the board came from.",
+      "properties": {
+        "board_hash": {
+          "description": "Content hash of the board without physics, 'sha256:...'.",
+          "title": "Board Hash",
+          "type": "string"
+        },
+        "name": {
+          "description": "Board name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "physics_applied": {
+          "description": "Whether a physics sidecar was applied.",
+          "title": "Physics Applied",
+          "type": "boolean"
+        },
+        "source_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source file name (not a path).",
+          "title": "Source File"
+        },
+        "source_tool": {
+          "description": "Source tool: kicad, ipc2581, altium, synthetic ...",
+          "title": "Source Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source_tool",
+        "board_hash",
+        "physics_applied"
+      ],
+      "title": "BoardMetaView",
+      "type": "object"
+    },
+    "BoardSummary": {
+      "additionalProperties": false,
+      "description": "Compact board description (size, stackup, counts, intent). Read it before listing nets.",
+      "properties": {
+        "components": {
+          "description": "Number of components [1].",
+          "title": "Components",
+          "type": "integer"
+        },
+        "copper_layers": {
+          "description": "Copper layers, top first.",
+          "items": {
+            "$ref": "#/$defs/CopperLayerInfo"
+          },
+          "title": "Copper Layers",
+          "type": "array"
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/DiagnosticDigest",
+          "description": "Ingest and validation diagnostics."
+        },
+        "diff_pairs": {
+          "description": "Number of differential pairs [1].",
+          "title": "Diff Pairs",
+          "type": "integer"
+        },
+        "intent": {
+          "$ref": "#/$defs/IntentBrief",
+          "description": "Resolved design intent."
+        },
+        "layer_count": {
+          "description": "Number of copper layers [1].",
+          "title": "Layer Count",
+          "type": "integer"
+        },
+        "meta": {
+          "$ref": "#/$defs/BoardMetaView",
+          "description": "Provenance of the board."
+        },
+        "net_classes": {
+          "description": "Net classes sorted by name.",
+          "items": {
+            "$ref": "#/$defs/NetClassInfo"
+          },
+          "title": "Net Classes",
+          "type": "array"
+        },
+        "nets": {
+          "$ref": "#/$defs/CountBy",
+          "description": "Nets by kind (signal, power, ground, unknown)."
+        },
+        "size_m": {
+          "description": "Outline bounding box width and height [m].",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size M",
+          "type": "array"
+        },
+        "total_thickness_m": {
+          "description": "Overall stack height [m].",
+          "title": "Total Thickness M",
+          "type": "number"
+        },
+        "vias": {
+          "$ref": "#/$defs/CountBy",
+          "description": "Vias by kind (through, blind, buried, micro)."
+        },
+        "zones": {
+          "$ref": "#/$defs/ZoneCounts"
+        }
+      },
+      "required": [
+        "meta",
+        "size_m",
+        "layer_count",
+        "copper_layers",
+        "total_thickness_m",
+        "nets",
+        "net_classes",
+        "diff_pairs",
+        "components",
+        "vias",
+        "zones",
+        "intent",
+        "diagnostics"
+      ],
+      "title": "BoardSummary",
+      "type": "object"
+    },
+    "CopperLayerInfo": {
+      "additionalProperties": false,
+      "description": "One copper layer of the stackup.",
+      "properties": {
+        "id": {
+          "description": "Layer id 'L1'..'Ln' (top to bottom).",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Source or user name, for example 'F.Cu'.",
+          "title": "Name",
+          "type": "string"
+        },
+        "thickness_m": {
+          "description": "Copper thickness [m].",
+          "title": "Thickness M",
+          "type": "number"
+        },
+        "z_m": {
+          "description": "Bottom surface height above the stack bottom [m].",
+          "title": "Z M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "z_m",
+        "thickness_m"
+      ],
+      "title": "CopperLayerInfo",
+      "type": "object"
+    },
+    "CountBy": {
+      "additionalProperties": false,
+      "description": "A total with a breakdown by kind.",
+      "properties": {
+        "by_kind": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Count per kind, keys sorted [1].",
+          "title": "By Kind",
+          "type": "object"
+        },
+        "total": {
+          "description": "Total count [1].",
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "by_kind"
+      ],
+      "title": "CountBy",
+      "type": "object"
+    },
+    "Diagnostic": {
+      "additionalProperties": false,
+      "description": "A structured finding. Machine-readable: code, severity, path and hint.",
+      "properties": {
+        "code": {
+          "description": "Stable code, e.g. 'MODEL.DANGLING_REF' or 'INGEST.ZONE_UNFILLED'.",
+          "examples": [
+            "MODEL.DANGLING_REF"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Suggested fix, phrased as an action.",
+          "title": "Hint"
+        },
+        "item": {
+          "anyOf": [
+            {
+              "description": "Stable unique item id: 'k:<uuid>' (KiCad), 'i:<id>' (IPC-2581), 'h:<hash>'.",
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id (or key) of the offending item.",
+          "title": "Item"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "description": "Stack layer id: L1..Ln copper (top to bottom), D1..Dm dielectric (top to bottom), MT/MB top/bottom solder mask.",
+              "examples": [
+                "L1",
+                "D2",
+                "MT"
+              ],
+              "pattern": "^(L[1-9][0-9]*|D[1-9][0-9]*|MT|MB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Layer id involved, if any.",
+          "title": "Layer"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Board-frame XY in metres.",
+          "title": "Location"
+        },
+        "message": {
+          "description": "Human-readable description of the problem.",
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "RFC 6901 JSON pointer into the board document locating the problem.",
+          "examples": [
+            "/tracks/12/layer"
+          ],
+          "title": "Path"
+        },
+        "severity": {
+          "description": "Severity level.",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message"
+      ],
+      "title": "Diagnostic",
+      "type": "object"
+    },
+    "DiagnosticDigest": {
+      "additionalProperties": false,
+      "description": "Counts of board or ingest diagnostics by severity plus the worst few.",
+      "properties": {
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Number of diagnostics per severity [1].",
+          "title": "Counts",
+          "type": "object"
+        },
+        "top": {
+          "description": "Up to 20 diagnostics, errors first.",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "title": "Top",
+          "type": "array"
+        }
+      },
+      "required": [
+        "counts",
+        "top"
+      ],
+      "title": "DiagnosticDigest",
+      "type": "object"
+    },
+    "IntentBrief": {
+      "additionalProperties": false,
+      "description": "Resolved design intent in one glance.",
+      "properties": {
+        "ground_nets": {
+          "description": "Ground net names, sorted.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Ground Nets",
+          "type": "array"
+        },
+        "high_speed_nets": {
+          "description": "Number of nets flagged high-speed [1].",
+          "title": "High Speed Nets",
+          "type": "integer"
+        },
+        "rails": {
+          "description": "Power rail net names, sorted.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Rails",
+          "type": "array"
+        }
+      },
+      "required": [
+        "high_speed_nets",
+        "rails",
+        "ground_nets"
+      ],
+      "title": "IntentBrief",
+      "type": "object"
+    },
+    "NetClassInfo": {
+      "additionalProperties": false,
+      "description": "A net class with its member count and impedance targets.",
+      "properties": {
+        "n_nets": {
+          "description": "Number of member nets [1].",
+          "title": "N Nets",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Net class name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "target_z_diff": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target differential impedance [ohm].",
+          "title": "Target Z Diff"
+        },
+        "target_z_se": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target single-ended impedance [ohm].",
+          "title": "Target Z Se"
+        }
+      },
+      "required": [
+        "name",
+        "n_nets"
+      ],
+      "title": "NetClassInfo",
+      "type": "object"
+    },
+    "ZoneCounts": {
+      "additionalProperties": false,
+      "description": "Zone totals.",
+      "properties": {
+        "count": {
+          "description": "Number of zones [1].",
+          "title": "Count",
+          "type": "integer"
+        },
+        "unfilled": {
+          "description": "Zones whose fill_state is not 'filled' [1].",
+          "title": "Unfilled",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "count",
+        "unfilled"
+      ],
+      "title": "ZoneCounts",
+      "type": "object"
+    }
+  },
+  "$id": "oa.project_handle/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An opened project. `project_id` is stable across restarts and keys every other command.",
+  "properties": {
+    "board_hash": {
+      "description": "Content hash of the board, 'sha256:...'.",
+      "title": "Board Hash",
+      "type": "string"
+    },
+    "board_path": {
+      "description": "Absolute path of the board file.",
+      "title": "Board Path",
+      "type": "string"
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/DiagnosticDigest",
+      "description": "Ingest diagnostics."
+    },
+    "ephemeral": {
+      "description": "True when a bare board file was opened: nothing is written next to it.",
+      "title": "Ephemeral",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "Project name.",
+      "title": "Name",
+      "type": "string"
+    },
+    "physics_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Hash of the physics sidecar.",
+      "title": "Physics Hash"
+    },
+    "project_id": {
+      "description": "'p_' + first 12 hex of sha1(absolute project path).",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "project_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Absolute path of oa-project.yaml; null for an ephemeral project.",
+      "title": "Project Path"
+    },
+    "source_tool": {
+      "description": "Source tool of the board.",
+      "title": "Source Tool",
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/BoardSummary",
+      "description": "Board summary."
+    }
+  },
+  "required": [
+    "project_id",
+    "name",
+    "board_path",
+    "ephemeral",
+    "board_hash",
+    "source_tool",
+    "diagnostics",
+    "summary"
+  ],
+  "title": "ProjectHandle",
+  "type": "object"
+}

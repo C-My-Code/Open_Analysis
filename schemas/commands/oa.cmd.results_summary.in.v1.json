@@ -1,0 +1,18 @@
+{
+  "$id": "oa.cmd.results_summary.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Address one result bundle.",
+  "properties": {
+    "result_id": {
+      "description": "Result id (ULID) from a finished job.",
+      "title": "Result Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result_id"
+  ],
+  "title": "ResultIn",
+  "type": "object"
+}

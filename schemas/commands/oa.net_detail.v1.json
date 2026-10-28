@@ -1,0 +1,301 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "LayerRun": {
+      "additionalProperties": false,
+      "description": "Routed copper of a net on one layer.",
+      "properties": {
+        "layer": {
+          "description": "Copper layer id.",
+          "title": "Layer",
+          "type": "string"
+        },
+        "length_m": {
+          "description": "Track length on the layer [m].",
+          "title": "Length M",
+          "type": "number"
+        },
+        "segments": {
+          "description": "Number of track segments [1].",
+          "title": "Segments",
+          "type": "integer"
+        },
+        "widths_m": {
+          "description": "Up to 10 distinct track widths, sorted [m].",
+          "items": {
+            "type": "number"
+          },
+          "title": "Widths M",
+          "type": "array"
+        }
+      },
+      "required": [
+        "layer",
+        "length_m",
+        "widths_m",
+        "segments"
+      ],
+      "title": "LayerRun",
+      "type": "object"
+    },
+    "NetInfo": {
+      "additionalProperties": false,
+      "description": "One net with its routed extent.",
+      "properties": {
+        "diff_partner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the differential partner.",
+          "title": "Diff Partner"
+        },
+        "id": {
+          "description": "Net id (equal to the net name).",
+          "title": "Id",
+          "type": "string"
+        },
+        "intent_tags": {
+          "description": "Intent tags: 'high_speed', 'rail', 'ground', 'diff_pair'.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Intent Tags",
+          "type": "array"
+        },
+        "kind": {
+          "description": "signal, power, ground or unknown (intent overrides ingest).",
+          "title": "Kind",
+          "type": "string"
+        },
+        "layers": {
+          "description": "Copper layer ids carrying this net, sorted.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers",
+          "type": "array"
+        },
+        "length_m": {
+          "description": "Total routed track length [m].",
+          "title": "Length M",
+          "type": "number"
+        },
+        "n_items": {
+          "description": "Tracks, vias, pads and zones on the net [1].",
+          "title": "N Items",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Net name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "net_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net class name.",
+          "title": "Net Class"
+        },
+        "target_z": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target impedance of the net (se or diff) [ohm].",
+          "title": "Target Z"
+        },
+        "via_count": {
+          "description": "Vias on the net [1].",
+          "title": "Via Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "n_items",
+        "length_m",
+        "layers",
+        "via_count",
+        "intent_tags"
+      ],
+      "title": "NetInfo",
+      "type": "object"
+    },
+    "PadBrief": {
+      "additionalProperties": false,
+      "description": "A pad on a net.",
+      "properties": {
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Copper layer id of the pad.",
+          "title": "Layer"
+        },
+        "pin": {
+          "description": "Pad number or name.",
+          "title": "Pin",
+          "type": "string"
+        },
+        "refdes": {
+          "description": "Owning component reference designator.",
+          "title": "Refdes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refdes",
+        "pin"
+      ],
+      "title": "PadBrief",
+      "type": "object"
+    },
+    "ViaBrief": {
+      "additionalProperties": false,
+      "description": "A via on a net.",
+      "properties": {
+        "drill_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Drill diameter [m].",
+          "title": "Drill M"
+        },
+        "id": {
+          "description": "Via item id.",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "through, blind, buried or micro.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "span": {
+          "description": "Start and end copper layer ids.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Span",
+          "type": "array"
+        },
+        "stub_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unused barrel length [m], if known.",
+          "title": "Stub M"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "span"
+      ],
+      "title": "ViaBrief",
+      "type": "object"
+    }
+  },
+  "$id": "oa.net_detail/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A net with per-layer extent, vias and pads. Lists are capped; `truncated` says so.",
+  "properties": {
+    "info": {
+      "$ref": "#/$defs/NetInfo",
+      "description": "The net summary."
+    },
+    "intent": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "Resolved intent: rise_time_s [s], target_z [ohm], tolerance [1].",
+      "title": "Intent",
+      "type": "object"
+    },
+    "pads": {
+      "description": "Up to 100 pads, sorted by refdes and pin.",
+      "items": {
+        "$ref": "#/$defs/PadBrief"
+      },
+      "title": "Pads",
+      "type": "array"
+    },
+    "per_layer": {
+      "description": "Routed copper per layer.",
+      "items": {
+        "$ref": "#/$defs/LayerRun"
+      },
+      "title": "Per Layer",
+      "type": "array"
+    },
+    "truncated": {
+      "description": "True when vias or pads were capped.",
+      "title": "Truncated",
+      "type": "boolean"
+    },
+    "vias": {
+      "description": "Up to 50 vias, sorted by id.",
+      "items": {
+        "$ref": "#/$defs/ViaBrief"
+      },
+      "title": "Vias",
+      "type": "array"
+    }
+  },
+  "required": [
+    "info",
+    "per_layer",
+    "vias",
+    "pads",
+    "intent",
+    "truncated"
+  ],
+  "title": "NetDetail",
+  "type": "object"
+}

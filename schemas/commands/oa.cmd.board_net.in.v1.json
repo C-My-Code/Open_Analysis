@@ -1,0 +1,24 @@
+{
+  "$id": "oa.cmd.board_net.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Address one net.",
+  "properties": {
+    "net": {
+      "description": "Net name or id.",
+      "title": "Net",
+      "type": "string"
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "net"
+  ],
+  "title": "NetRefIn",
+  "type": "object"
+}

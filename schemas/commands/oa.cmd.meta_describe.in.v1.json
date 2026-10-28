@@ -1,0 +1,35 @@
+{
+  "$id": "oa.cmd.meta_describe.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Introspection: the catalog, one command, the analyses or the rules.",
+  "properties": {
+    "analyses": {
+      "default": false,
+      "description": "Also list installed analyses.",
+      "title": "Analyses",
+      "type": "boolean"
+    },
+    "command": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Command name (for example 'erc.run'); omit to list all.",
+      "title": "Command"
+    },
+    "rules": {
+      "default": false,
+      "description": "Also list installed rules.",
+      "title": "Rules",
+      "type": "boolean"
+    }
+  },
+  "title": "DescribeIn",
+  "type": "object"
+}

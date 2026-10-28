@@ -1,0 +1,95 @@
+{
+  "$id": "oa.job_brief/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Job state in agent-friendly form.",
+  "properties": {
+    "analysis": {
+      "description": "Analysis kind.",
+      "title": "Analysis",
+      "type": "string"
+    },
+    "cancel_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "'user', 'budget:max_runtime' or 'budget:max_memory'.",
+      "title": "Cancel Reason"
+    },
+    "created_utc": {
+      "description": "Creation time, ISO-8601 UTC.",
+      "title": "Created Utc",
+      "type": "string"
+    },
+    "job_id": {
+      "description": "Job id (ULID).",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "message": {
+      "description": "Last status message.",
+      "title": "Message",
+      "type": "string"
+    },
+    "progress": {
+      "description": "Weighted progress [1], 0..1.",
+      "title": "Progress",
+      "type": "number"
+    },
+    "result_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Result id once succeeded.",
+      "title": "Result Id"
+    },
+    "setup": {
+      "description": "Setup name.",
+      "title": "Setup",
+      "type": "string"
+    },
+    "state": {
+      "description": "Lifecycle state.",
+      "enum": [
+        "queued",
+        "planning",
+        "running",
+        "reducing",
+        "succeeded",
+        "failed",
+        "cancelled"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "updated_utc": {
+      "description": "Last update time, ISO-8601 UTC.",
+      "title": "Updated Utc",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "state",
+    "analysis",
+    "setup",
+    "progress",
+    "message",
+    "created_utc",
+    "updated_utc"
+  ],
+  "title": "JobBrief",
+  "type": "object"
+}

@@ -1,0 +1,18 @@
+{
+  "$id": "oa.cmd.project_reload.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Address an opened project.",
+  "properties": {
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "ProjectIn",
+  "type": "object"
+}
