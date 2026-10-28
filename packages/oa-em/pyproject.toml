@@ -19,8 +19,14 @@ dependencies = [
     "oa-geometry",
     "oa-mesh",
     "oa-network",
+    "oa-jobs",
     "numpy>=1.26",
+    "shapely>=2.0",
+    "scikit-rf>=1.0",
 ]
+
+[project.entry-points."open_analysis.analyses"]
+"em.sparams" = "oa_em.analysis:EmSparams"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_em"]
@@ -33,3 +39,4 @@ oa-physics = { workspace = true }
 oa-geometry = { workspace = true }
 oa-mesh = { workspace = true }
 oa-network = { workspace = true }
+oa-jobs = { workspace = true }

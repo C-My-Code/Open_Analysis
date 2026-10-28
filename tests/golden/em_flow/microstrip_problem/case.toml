@@ -1,0 +1,27 @@
+source = "regression snapshot of build_problem(microstrip_board, bbox 1..24 mm)"
+
+[tolerance]
+rtol = 1e-09
+atol = 1e-12
+
+[inputs]
+board = "microstrip_board"
+nets = "SIG"
+
+[expected]
+bbox = [0.001, -0.003, 0.0, 0.024, 0.003, 0.00027]
+n_conductors = 2
+conductors = ["L1:SIG:signal", "L2:GND:reference"]
+n_vias = 0
+boundaries = ["absorbing", "absorbing", "absorbing", "absorbing", "pec", "absorbing"]
+air_padding = 0.0029979245799999998
+"P1.face" = "xmin"
+"P1.line_type" = "microstrip"
+"P1.signal" = ["L1:SIG"]
+"P1.rect" = [-0.003, 0.003, 0.0, 0.0032679245799999996]
+"P1.excite" = true
+"P2.face" = "xmax"
+"P2.line_type" = "microstrip"
+"P2.signal" = ["L1:SIG"]
+"P2.rect" = [-0.003, 0.003, 0.0, 0.0032679245799999996]
+"P2.excite" = true
