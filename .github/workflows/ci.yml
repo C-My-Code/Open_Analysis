@@ -40,6 +40,14 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
+      # The PyPI gmsh wheel (oa-mesh) links libGLU.so.1 and a few X11 client libraries, which
+      # the wheel does not bundle and the Ubuntu runner image does not guarantee. Windows and
+      # macOS wheels are self-contained.
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync --all-packages --python ${{ matrix.python }}
       # Markers needing external tools (external, kicad) are opt-in.
       - run: uv run pytest -m "not external and not kicad"

@@ -5,6 +5,11 @@ gmsh meshing for Open_Analysis. WP-109 (2D) is implemented; `src/oa_mesh/occ3d/`
 Layer L2 (interfaces.md section 0). Contract: interfaces.md section 9 plus the details in
 `docs/change-requests/WP-109-interface-details.md`.
 
+On Linux the PyPI `gmsh` wheel needs a few system libraries it does not bundle (missing ones
+show up as `OSError: libGLU.so.1: cannot open shared object file` on first use). On
+Debian/Ubuntu: `sudo apt-get install libglu1-mesa libxcursor1 libxft2 libxinerama1`. The
+Windows and macOS wheels are self-contained.
+
 ## Public API
 
 ```python
