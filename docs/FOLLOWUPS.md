@@ -34,3 +34,22 @@ The integrator tracks known gaps found while merging work packages here. Each it
 
 ## Jobs
 - [ ] WP-107: CR: Budget, PlanEstimate, cancel_reason and the Provenance extensions are missing from the frozen contracts. Job priority doesn't reorder dispatch. Docker is untested.
+
+## Impedance (WP-105)
+- [ ] The embedded-microstrip exponent: no primary source was reached. The default is 1.55, flagged approximate; 2 scores about the same against BEM.
+- [ ] The Cannonball-Huray geometry comes from secondary sources only (also listed under WP-106).
+- [ ] There is no closed form for broadside-coupled lines (BEM only), and no dispersion for coupled lines or CPW.
+- [ ] The free-space CPW golden is 0.22% off from the 20× domain truncation. Revisit this when the WP-202 FEM is in.
+- [ ] CRs: accuracy fields missing from the contracts; testkit thin-strip tolerance.
+
+## openEMS (WP-108, feeds WP-205)
+- [ ] Stripline wave-port runs stall at about −33 dB energy and give non-passive S.
+- [ ] CPW, coax and coupled ports are not supported, and every port must be excited.
+- [ ] The single-pole Debye fit has about 11% tanδ error over 0.5–10 GHz. Use a multi-pole fit or note the band limit.
+- [ ] `est_time_s` is pessimistic (316 s estimated vs 21 s actual).
+- [ ] The far field is behind a flag and untested. The MSL notch tutorial reproduction is not done.
+- [ ] CR: EMSolveOutput vs NetworkResult quality requirement.
+
+## MCP (WP-210), held unmerged until WP-207 lands
+- [ ] Reconcile `OaServiceLike` with the real oa-service: schema_ids, read_resource, the progress hook, the service factory name.
+- [ ] Not done: `oa_service.proposals`, MCP elicitation for apply_proposal, the `tests/agents/` M1 workflow test, CLI parity, the socket guard, `llms-full.txt`.
