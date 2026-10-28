@@ -121,8 +121,10 @@ class StubGate(StubErc):
 
 
 def make_registry() -> Registry:
-    """Installed readers (entry points) plus the stub analyses."""
-    reg = Registry.load()
-    for cls in (DummyAnalysis, StubErc, StubGate):
-        reg.analyses.setdefault(cls.kind, cls)  # type: ignore[arg-type]
-    return reg
+    """Installed readers (entry points) plus the stub analyses, and nothing else.
+
+    No real analyses, rules or services are loaded, so these tests do not depend on which
+    analyses (erc, impedance, pi.dc, ...) happen to be installed.
+    """
+    readers = tuple(Registry.load().readers.values())
+    return Registry.for_tests(analyses=(DummyAnalysis, StubErc, StubGate), readers=readers)
