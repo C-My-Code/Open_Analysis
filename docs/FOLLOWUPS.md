@@ -17,3 +17,20 @@ The integrator tracks known gaps found while merging work packages here. Each it
 ## Tooling
 - [ ] The CI `schema-compat` job is a placeholder, and the cross-OS `content_hash` artifact comparison isn't wired up yet.
 - [ ] The CI has never run, because there is no GitHub remote yet.
+
+## Ingest (feeds WP-208)
+- [ ] WP-101: per-net copper-area checks against expected.yaml are not done yet. Footprint-owned zones, padstack mode syntax and `die_delay` units are only lightly tested. Copper text is skipped.
+- [ ] WP-103: KiCad's IPC-2581 export loses zone outline, priority and hatch; it has no backdrill diameter and no stub length; its materials carry Dk/Df only and always a 10 µm mask. Micro vias read as blind.
+- [ ] WP-103: CR: `ReadOptions` is defined twice (`oa_model.setup` and `oa_framework.ingest`). `Backdrill` has no MAX_STUB_LENGTH field.
+- [ ] WP-103: Altium and other-vendor IPC-2581 samples are env-gated only (license). Find CC-licensed samples.
+
+## Geometry and mesh
+- [ ] WP-104: backdrill depth and stub conventions need confirming against WP-101's reader (KiCad: the end layer is itself drilled).
+- [ ] WP-104: `physics_temp` has its own ρ(T) formula. Switch to `oa_physics` (WP-106 is now merged).
+- [ ] WP-104: reference_map takes 51 s at 50k tracks. Profile it and consider the Rust/PyO3 path (ADR-0002).
+- [ ] WP-104: testkit builders lack the variants the acceptance text expects (a backdrilled via, a VDD via-array switch).
+- [ ] WP-109: the mesh2d golden signatures are Windows-recorded and skip on gmsh version mismatch. Check them on Linux CI.
+- [ ] WP-109: the default `simplify` is 0, not 1–5 µm. Gaps below 1 µm close and are reported.
+
+## Jobs
+- [ ] WP-107: CR: Budget, PlanEstimate, cancel_reason and the Provenance extensions are missing from the frozen contracts. Job priority doesn't reorder dispatch. Docker is untested.
