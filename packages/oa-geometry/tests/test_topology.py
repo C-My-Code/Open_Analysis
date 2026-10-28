@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import pytest
-from helpers import poly, rect_ring, track, with_items, zone
+from geometry_helpers import poly, rect_ring, track, with_items, zone
 
 from oa_geometry import BoardGeometry, UnknownItem
 from oa_model.copper import Zone, ZoneFill
@@ -99,7 +99,7 @@ def test_t_junction_splits_and_branch_stub() -> None:
 def test_arc_segment_oriented_and_measured() -> None:
     import math
 
-    from helpers import arc_track
+    from geometry_helpers import arc_track
 
     b = microstrip_board()
     r = 5e-3

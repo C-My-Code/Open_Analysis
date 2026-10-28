@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 import pytest
-from helpers import circle, piece, poly, random_centres, rect
+from mesh_helpers import circle, piece, poly, random_centres, rect
 
 from oa_mesh import (
     CleanOptions,

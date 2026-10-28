@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Make the sibling helper module ``helpers`` importable under ``--import-mode=importlib``."""
+"""Make the sibling ``geometry_helpers`` module importable under ``--import-mode=importlib``."""
 
 import sys
 from pathlib import Path

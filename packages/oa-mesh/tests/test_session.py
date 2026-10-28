@@ -9,7 +9,7 @@ import sys
 import threading
 
 import pytest
-from helpers import piece, poly, rect
+from mesh_helpers import piece, poly, rect
 
 from oa_mesh import MeshError, mesh_copper_sheets
 from oa_mesh._session import gmsh_session, gmsh_version

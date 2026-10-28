@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from helpers import circle, piece, poly, random_centres, rect
+from mesh_helpers import circle, piece, poly, random_centres, rect
 from shapely.geometry import Polygon as ShPolygon  # type: ignore[import-untyped]
 
 from oa_mesh import CleanOptions, Contact, MeshError, SheetMesh, mesh_copper_sheets

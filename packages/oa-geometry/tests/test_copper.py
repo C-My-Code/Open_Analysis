@@ -9,7 +9,7 @@ import math
 
 import pytest
 import shapely
-from helpers import arc_track, track, with_items
+from geometry_helpers import arc_track, track, with_items
 from hypothesis import given, settings
 from hypothesis import strategies as st
 

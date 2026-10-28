@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import pytest
-from helpers import poly, rect_ring, track, with_items, zone
+from geometry_helpers import poly, rect_ring, track, with_items, zone
 
 from oa_geometry import BoardGeometry
 from oa_model.stackup import Etch

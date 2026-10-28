@@ -7,7 +7,7 @@ from __future__ import annotations
 import math
 
 import pytest
-from helpers import arc_track, poly, rect_ring, with_items, zone
+from geometry_helpers import arc_track, poly, rect_ring, with_items, zone
 
 from oa_geometry import BoardGeometry
 from oa_model.board import Component

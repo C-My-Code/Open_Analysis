@@ -8,7 +8,7 @@ import math
 import time
 
 import pytest
-from helpers import circle, piece, poly, random_centres, rect
+from mesh_helpers import circle, piece, poly, random_centres, rect
 
 from oa_mesh import Contact, SizeField, mesh_copper_sheets
 
