@@ -9,9 +9,17 @@ Layer L2 (interfaces.md section 0). Contract: interfaces.md section 9 plus the d
 
 ```python
 from oa_mesh import (
-    mesh_cross_section, mesh_copper_sheets,       # the two meshers
-    XsMesh, SheetMesh, SheetPiece, Contact, SizeField, CleanOptions,   # types
-    MeshError, to_meshio, write_vtu,
+    mesh_cross_section,
+    mesh_copper_sheets,  # the two meshers
+    XsMesh,
+    SheetMesh,
+    SheetPiece,
+    Contact,
+    SizeField,
+    CleanOptions,  # types
+    MeshError,
+    to_meshio,
+    write_vtu,
 )
 ```
 
