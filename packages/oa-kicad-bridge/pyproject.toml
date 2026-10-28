@@ -22,3 +22,6 @@ packages = ["src/oa_kicad_bridge"]
 [tool.uv.sources]
 oa-model = { workspace = true }
 oa-ingest-kicad = { workspace = true }
+
+[project.entry-points."open_analysis.ingest"]
+altium = "oa_kicad_bridge:AltiumReader"

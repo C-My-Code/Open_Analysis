@@ -59,7 +59,10 @@ def track_geom(t: Any) -> Any:
             d = d % (2 * math.pi) if s.ccw else -((-d) % (2 * math.pi))
             n = 24
             pts.extend(
-                (s.center[0] + r * math.cos(a0 + d * i / n), s.center[1] + r * math.sin(a0 + d * i / n))
+                (
+                    s.center[0] + r * math.cos(a0 + d * i / n),
+                    s.center[1] + r * math.sin(a0 + d * i / n),
+                )
                 for i in range(1, n + 1)
             )
         else:
@@ -103,11 +106,20 @@ def board_stats(b: Board) -> dict[str, Any]:
         total = unary_union([g for gs in by.values() for g in gs]).area
         area[lid] = {
             "total": total,
-            "nets": {(n or ""): unary_union(gs).area for n, gs in sorted(by.items(), key=lambda kv: kv[0] or "")},
+            "nets": {
+                (n or ""): unary_union(gs).area
+                for n, gs in sorted(by.items(), key=lambda kv: kv[0] or "")
+            },
         }
     vias = {"through": 0, "blind": 0, "buried": 0}
     for v in b.vias:
-        vias["through" if v.kind == "through" else "blind" if v.kind in ("blind", "micro") else "buried"] += 1
+        vias[
+            "through"
+            if v.kind == "through"
+            else "blind"
+            if v.kind in ("blind", "micro")
+            else "buried"
+        ] += 1
     del pad_by_id
     return {
         "counts": {

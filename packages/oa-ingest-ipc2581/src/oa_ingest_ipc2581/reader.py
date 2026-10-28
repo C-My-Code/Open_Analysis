@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# ruff: noqa: E501, E741
+# mypy: disable-error-code="arg-type,index,assignment,no-redef,unused-ignore,misc"
 """IPC-2581 rev B/C reader producing an ``oa_model.Board``.
 
 Mapping notes (see the package README for the fidelity table):
@@ -27,7 +29,6 @@ from typing import Any, ClassVar
 
 from lxml import etree
 from shapely.geometry import LineString, MultiPoint
-from shapely.geometry import Polygon as ShPolygon
 from shapely.geometry.base import BaseGeometry
 
 from oa_ingest_ipc2581._geom import (
@@ -63,7 +64,6 @@ from oa_model.padstack import (
     PadShape,
     Padstack,
     PadstackLayer,
-    PolygonShape,
 )
 from oa_model.setup import ReadOptions
 from oa_model.stackup import ConductorLayer, DielectricLayer, MaskLayer, Stackup
@@ -83,12 +83,16 @@ _POWER_RE = re.compile(r"^[/+\-]?(\d+V\d*|V(CC|DD|BAT|BUS|IN|OUT|REF)\w*|VPP|VBA
 _PAIR_SUFFIXES = (("_P", "_N"), ("P", "N"), ("+", "-"), ("_DP", "_DN"), ("_T", "_C"))
 
 
+def _net(v: str | None) -> str | None:
+    return None if v is None or v.strip() in ("", "No Net", "NONE") else v
+
+
 def _nm(v: float) -> int:
     return round(v * 1e9)
 
 
 def _h(*parts: object) -> str:
-    return "h:" + hashlib.sha1(repr(parts).encode()).hexdigest()[:16]  # noqa: S324 - id only
+    return "h:" + hashlib.sha1(repr(parts).encode()).hexdigest()[:16]
 
 
 @dataclass
@@ -102,6 +106,7 @@ class _PadRec:
     layers: dict[str, PadShape] = field(default_factory=dict)
     mask: dict[str, PadShape] = field(default_factory=dict)  # "top"/"bottom"
     slot: tuple[float, float, float] | None = None  # (width, length, board angle)
+    hole: tuple[float, str, tuple[float, float]] | None = None  # rev B PadStack instance hole
 
 
 @dataclass
@@ -112,6 +117,8 @@ class _Hole:
     net: str | None
     layer: str
     def_ref: str | None
+    spec: str | None = None
+    span: tuple[str | None, str | None] | None = None
 
 
 class Ipc2581Reader:
@@ -222,7 +229,10 @@ class _Parse:
                 ld = _child(el, "LineDesc")
                 if ld is not None:
                     s = self.units_of(el.getparent())
-                    self.lines[el.get("id", "")] = (fnum(ld, "lineWidth", s), ld.get("lineEnd", "ROUND"))
+                    self.lines[el.get("id", "")] = (
+                        fnum(ld, "lineWidth", s),
+                        ld.get("lineEnd", "ROUND"),
+                    )
             elif tag == "EntryStandard":
                 if len(el):
                     self.std[el.get("id", "")] = (el[0], self.units_of(el.getparent()))
@@ -236,7 +246,9 @@ class _Parse:
                 self.layer_defs[el.get("name", "")] = {
                     "function": el.get("layerFunction", "").upper(),
                     "side": el.get("side", "").upper(),
-                    "span": (span.get("fromLayer"), span.get("toLayer")) if span is not None else None,
+                    "span": (span.get("fromLayer"), span.get("toLayer"))
+                    if span is not None
+                    else None,
                 }
                 self.layer_order.append(el.get("name", ""))
             elif tag == "Stackup" and local(el.getparent()) == "CadData":
@@ -266,9 +278,13 @@ class _Parse:
                 "package": el.get("packageRef"),
                 "part": el.get("part"),
                 "layer": el.get("layerRef", ""),
-                "pos": (fnum(loc, "x", self.u), fnum(loc, "y", self.u)) if loc is not None else (0.0, 0.0),
+                "pos": (fnum(loc, "x", self.u), fnum(loc, "y", self.u))
+                if loc is not None
+                else (0.0, 0.0),
                 "rot": math.radians(float(xf.get("rotation", 0))) if xf is not None else 0.0,
             }
+        elif tag == "PadStack":
+            self.padstack_instance(el)
         elif tag == "LogicalNet":
             name = el.get("name", "")
             if name:
@@ -294,6 +310,11 @@ class _Parse:
                         d["text"] = txt
                     if txt and txt.lower().startswith("type :"):
                         d["ctype"] = txt.split(":", 1)[1].strip().lower()
+            elif t == "Backdrill":
+                prop = _child(ch, "Property")
+                if prop is not None:
+                    bd = d.setdefault("backdrill", {})
+                    bd[ch.get("type", "")] = prop.get("layerOrGroupRef") or prop.get("value")
             elif t in ("Dielectric", "Conductor"):
                 prop = _child(ch, "Property")
                 if prop is None or prop.get("value") is None:
@@ -306,9 +327,11 @@ class _Parse:
                     d["df"] = v
                 elif kind == "CONDUCTIVITY":
                     unit = (prop.get("unit") or "SIEMENS/M").upper()
-                    d["sigma"] = v * {"MHO/CM": 100.0, "SIEMENS/MM": 1000.0, "SIEMENS/CM": 100.0}.get(
-                        unit, 1.0
-                    )
+                    d["sigma"] = v * {
+                        "MHO/CM": 100.0,
+                        "SIEMENS/MM": 1000.0,
+                        "SIEMENS/CM": 100.0,
+                    }.get(unit, 1.0)
         if name == "SURFACE_FINISH":
             return
         self.specs[name] = d
@@ -327,9 +350,17 @@ class _Parse:
             for e in refs:
                 sr = _child(e, "SpecRef")
                 entries.append(
-                    (e.get("layerOrGroupRef", ""), fnum(e, "thickness", self.u), sr.get("id") if sr is not None else None)
+                    (
+                        e.get("layerOrGroupRef", ""),
+                        fnum(e, "thickness", self.u),
+                        sr.get("id") if sr is not None else None,
+                    )
                 )
-            cu_entries = [e for e in entries if e[0] in self.layer_defs and self.layer_defs[e[0]]["function"] in _COND_FUNCS]
+            cu_entries = [
+                e
+                for e in entries
+                if e[0] in self.layer_defs and self.layer_defs[e[0]]["function"] in _COND_FUNCS
+            ]
             if (
                 len(cu_entries) >= 2
                 and self.layer_defs[cu_entries[0][0]]["side"] == "BOTTOM"
@@ -339,7 +370,9 @@ class _Parse:
         known = bool(entries)
         if not entries:
             self.diag(
-                "warning", "INGEST.STACKUP_DEFAULTED", "no Stackup element: default 1.6 mm FR-4 stack"
+                "warning",
+                "INGEST.STACKUP_DEFAULTED",
+                "no Stackup element: default 1.6 mm FR-4 stack",
             )
             n = len(cond)
             gap = (1.6e-3 - n * 35e-6) / max(n - 1, 1)
@@ -347,7 +380,11 @@ class _Parse:
                 entries.append((c, 35e-6, None))
                 if i < n - 1:
                     entries.append((f"DIELECTRIC_{i + 1}", gap, None))
-                    self.layer_defs[f"DIELECTRIC_{i + 1}"] = {"function": "DIELCORE", "side": "INTERNAL", "span": None}
+                    self.layer_defs[f"DIELECTRIC_{i + 1}"] = {
+                        "function": "DIELCORE",
+                        "side": "INTERNAL",
+                        "span": None,
+                    }
         self.stackup = self.build_stackup(entries, known)
 
     def build_stackup(self, entries: list[tuple[str, float, str | None]], known: bool) -> Stackup:
@@ -364,7 +401,11 @@ class _Parse:
             else:
                 dk, df = sp.get("dk"), sp.get("df")
                 if dk is None:
-                    self.diag("warning", "INGEST.DIELECTRIC_PROPS_MISSING", f"no Dk for '{base}': default 4.2/0.02")
+                    self.diag(
+                        "warning",
+                        "INGEST.DIELECTRIC_PROPS_MISSING",
+                        f"no Dk for '{base}': default 4.2/0.02",
+                    )
                 key = ("d", base, dk, df)
             if key in keys:
                 return keys[key]
@@ -382,7 +423,9 @@ class _Parse:
                     )
                 else:
                     materials[name] = DielectricMaterial(
-                        name=name, model=ConstantDkDf(dk=max(dk, 1.0), df=df or 0.0), source="ingest"
+                        name=name,
+                        model=ConstantDkDf(dk=max(dk, 1.0), df=df or 0.0),
+                        source="ingest",
                     )
             keys[key] = name
             return name
@@ -397,8 +440,12 @@ class _Parse:
                 items.append(("c", ref, t, material("conductor", spec, "copper"), fn))
             elif fn.startswith("DIEL") and t > 0:
                 ctype = self.specs.get(spec or "", {}).get("ctype")
-                cons = ctype if ctype in ("core", "prepreg") else (
-                    "core" if fn == "DIELCORE" else "prepreg" if fn == "DIELPREG" else "unknown"
+                cons = (
+                    ctype
+                    if ctype in ("core", "prepreg")
+                    else (
+                        "core" if fn == "DIELCORE" else "prepreg" if fn == "DIELPREG" else "unknown"
+                    )
                 )
                 items.append(("d", ref, t, material("dielectric", spec, "FR4"), cons))
             elif fn == "SOLDERMASK" and t > 0:
@@ -416,17 +463,32 @@ class _Parse:
                 self.cu_ids[ref] = f"L{ci}"
                 layers.append(
                     ConductorLayer(
-                        id=f"L{ci}", index=ci, source_name=ref, thickness=t, z_bottom=z_bot,
-                        z_top=z_top, material=mat,
-                        role="plane" if extra == "PLANE" else "mixed" if extra == "MIXED" else "signal",
+                        id=f"L{ci}",
+                        index=ci,
+                        source_name=ref,
+                        thickness=t,
+                        z_bottom=z_bot,
+                        z_top=z_top,
+                        material=mat,
+                        role="plane"
+                        if extra == "PLANE"
+                        else "mixed"
+                        if extra == "MIXED"
+                        else "signal",
                     )
                 )
             elif kind == "d":
                 di += 1
                 layers.append(
                     DielectricLayer(
-                        id=f"D{di}", index=di, source_name=ref, construction=extra,  # type: ignore[arg-type]
-                        thickness=t, z_bottom=z_bot, z_top=z_top, material=mat,
+                        id=f"D{di}",
+                        index=di,
+                        source_name=ref,
+                        construction=extra,  # type: ignore[arg-type]
+                        thickness=t,
+                        z_bottom=z_bot,
+                        z_top=z_top,
+                        material=mat,
                     )
                 )
             else:
@@ -435,12 +497,22 @@ class _Parse:
                     continue
                 seen_mask.add(mid)
                 layers.append(
-                    MaskLayer(id=mid, source_name=ref, thickness=t, z_bottom=z_bot, z_top=z_top, material=mat)
+                    MaskLayer(
+                        id=mid,
+                        source_name=ref,
+                        thickness=t,
+                        z_bottom=z_bot,
+                        z_top=z_top,
+                        material=mat,
+                    )
                 )
         # recompute z so the bottom-most layer starts at 0 even when masks were skipped
         shift = layers[-1].z_bottom if layers else 0.0
         if abs(shift) > 1e-15:
-            layers = [l.model_copy(update={"z_bottom": l.z_bottom - shift, "z_top": l.z_top - shift}) for l in layers]
+            layers = [
+                l.model_copy(update={"z_bottom": l.z_bottom - shift, "z_top": l.z_top - shift})
+                for l in layers
+            ]
         used = {l.material for l in layers}
         return Stackup(
             layers=tuple(layers),
@@ -525,14 +597,20 @@ class _Parse:
             return self._shape_cache[key]
         native, geom = self.prim_geom(ref_el)
         shape: PadShape | None
-        if native is not None and (not mirror or native.kind in ("circle", "rect", "obround", "roundrect")):
+        if native is not None and (
+            not mirror or native.kind in ("circle", "rect", "obround", "roundrect")
+        ):
             shape = native
         else:
             if geom is not None and mirror:
                 geom = xform_geom(geom, 0.0, True, 0.0, 0.0)
             shape = pad_shape_from_geom(geom) if geom is not None else None
             if shape is None:
-                self.diag("warning", "INGEST.PRIMITIVE_UNSUPPORTED", f"cannot convert primitive '{ref_el.get('id')}'")
+                self.diag(
+                    "warning",
+                    "INGEST.PRIMITIVE_UNSUPPORTED",
+                    f"cannot convert primitive '{ref_el.get('id')}'",
+                )
         self._shape_cache[key] = shape
         return shape
 
@@ -548,6 +626,84 @@ class _Parse:
             )
         self.padstack_defs[el.get("name", "")] = d
 
+    def free_key(self, key: tuple[Any, ...], lid: str) -> tuple[Any, ...]:
+        """Pads stacked at one spot with the same pin (e.g. hole pad + ring pad) stay separate."""
+        n = 0
+        while True:
+            k = (*key, n)
+            rec = self.padrecs.get(k)
+            if rec is None or lid not in rec.layers:
+                return k
+            n += 1
+
+    def padstack_instance(self, el: Any) -> None:
+        """Rev B ``PadStack`` instance: net, LayerHole(s) and LayerPad(s) in one element."""
+        net = _net(el.get("net"))
+        if net:
+            self.net_names.add(net)
+        hole = _child(el, "LayerHole")
+        pads = [c for c in el if local(c) == "LayerPad"]
+        has_pin = any(_child(p, "PinRef") is not None for p in pads)
+        hinfo = None
+        if hole is not None:
+            hx, hy = fnum(hole, "x", self.u), fnum(hole, "y", self.u)
+            status = hole.get("platingStatus", "PLATED").upper()
+            dia = fnum(hole, "diameter", self.u)
+            span_el = _child(hole, "Span")
+            span = (
+                (span_el.get("fromLayer"), span_el.get("toLayer")) if span_el is not None else None
+            )
+            if status == "VIA" and not has_pin:
+                self.holes.append(_Hole((hx, hy), dia, "VIA", net, "", None, _specref(hole), span))
+            hinfo = (dia, status, hx, hy)
+            if status != "VIA" and not pads:
+                self.holes.append(_Hole((hx, hy), dia, status, net, "", None))
+        for p in pads:
+            ref = p.get("layerRef", "")
+            d = self.layer_defs.get(ref)
+            loc = _child(p, "Location")
+            prim = _prim_child(p)
+            if d is None or loc is None or prim is None:
+                continue
+            x, y = fnum(loc, "x", self.u), fnum(loc, "y", self.u)
+            xf = _child(p, "Xform")
+            rot = math.radians(float(xf.get("rotation", 0))) if xf is not None else 0.0
+            mirror = xf is not None and xf.get("mirror", "false").lower() == "true"
+            pr = _child(p, "PinRef")
+            if d["function"] == "SOLDERMASK":
+                if pr is not None:
+                    shape = self.pad_shape(prim, mirror)
+                    if shape is not None:
+                        key = (pr.get("componentRef"), pr.get("pin"), _nm(x), _nm(y))
+                        self.mask_pending.setdefault(key, {})[
+                            "bottom" if d["side"] == "BOTTOM" else "top"
+                        ] = shape
+                continue
+            lid = self.cu_ids.get(ref)
+            if lid is None:
+                continue
+            shape = self.pad_shape(prim, mirror)
+            if shape is None:
+                continue
+            if pr is None and hinfo is not None and hinfo[1] == "VIA":
+                self.viapads[(_nm(x), _nm(y))][lid] = shape
+                continue
+            comp = pr.get("componentRef") if pr is not None else None
+            pin = pr.get("pin", "") if pr is not None else ""
+            key = (comp, pin, _nm(x), _nm(y)) if comp else ("free", "", _nm(x), _nm(y))
+            key = self.free_key(key, lid)
+            rec = self.padrecs.get(key)
+            if rec is None:
+                pnet = net
+                if pnet is None and comp:
+                    pnet = self.logical.get(f"{comp}\x00{pin}")
+                rec = self.padrecs[key] = _PadRec(comp, pin, (x, y), rot, pnet, "")
+                if hinfo is not None:
+                    c, s_ = math.cos(-rot), math.sin(-rot)
+                    ox, oy = hinfo[2] - x, hinfo[3] - y
+                    rec.hole = (hinfo[0], hinfo[1], (ox * c - oy * s_, ox * s_ + oy * c))
+            rec.layers[lid] = shape
+
     # ------------------------------------------------------------------ layer features
     def layer_feature(self, lf: Any) -> None:
         ref = lf.get("layerRef", "")
@@ -558,7 +714,11 @@ class _Parse:
         if fn in _COND_FUNCS:
             lid = self.cu_ids.get(ref)
             if lid is None:
-                self.diag("warning", "INGEST.LAYER_NOT_IN_STACKUP", f"conductor layer '{ref}' not in stackup")
+                self.diag(
+                    "warning",
+                    "INGEST.LAYER_NOT_IN_STACKUP",
+                    f"conductor layer '{ref}' not in stackup",
+                )
                 return
             for st in lf:
                 if local(st) == "Set":
@@ -571,18 +731,24 @@ class _Parse:
                         if local(p) == "Pad":
                             self.mask_pad(p, side)
         elif fn in ("DRILL", "ROUT") or "BACKDRILL" in fn:
-            span = d["span"]
             for st in lf:
                 if local(st) != "Set":
                     continue
-                net = st.get("net") or None
+                net = _net(st.get("net"))
                 for h in st:
                     k = local(h)
                     if k == "Hole":
                         pos = (fnum(h, "x", self.u), fnum(h, "y", self.u))
                         self.holes.append(
-                            _Hole(pos, fnum(h, "diameter", self.u), h.get("platingStatus", "PLATED").upper(),
-                                  net, ref if span else ref, st.get("geometry"))
+                            _Hole(
+                                pos,
+                                fnum(h, "diameter", self.u),
+                                h.get("platingStatus", "PLATED").upper(),
+                                net,
+                                ref,
+                                st.get("geometry"),
+                                _specref(h),
+                            )
                         )
                     elif k == "SlotCavity":
                         self.slots.append((h, net, d))
@@ -598,11 +764,16 @@ class _Parse:
         shape = self.pad_shape(prim, mirror)
         if shape is None:
             return
-        key = (pr.get("componentRef"), pr.get("pin"), _nm(fnum(loc, "x", self.u)), _nm(fnum(loc, "y", self.u)))
+        key = (
+            pr.get("componentRef"),
+            pr.get("pin"),
+            _nm(fnum(loc, "x", self.u)),
+            _nm(fnum(loc, "y", self.u)),
+        )
         self.mask_pending.setdefault(key, {})[side] = shape
 
     def copper_set(self, st: Any, lid: str) -> None:
-        net = st.get("net") or None
+        net = _net(st.get("net"))
         if net:
             self.net_names.add(net)
         via_set = st.get("padUsage", "").upper() == "VIA"
@@ -638,6 +809,7 @@ class _Parse:
         comp = pr.get("componentRef") if pr is not None else None
         pin = pr.get("pin", "") if pr is not None else ""
         key = (comp, pin, _nm(x), _nm(y)) if comp else ("free", def_ref, _nm(x), _nm(y))
+        key = self.free_key(key, lid)
         rec = self.padrecs.get(key)
         if rec is None:
             if net is None and comp:
@@ -662,7 +834,10 @@ class _Parse:
             else:
                 width, end = 0.0, "ROUND"
             if k == "Polyline":
-                verts = [(x + dx, y + dy, (c[0] + dx, c[1] + dy) if c else None, cw) for x, y, c, cw in poly_vertices(f, s)]
+                verts = [
+                    (x + dx, y + dy, (c[0] + dx, c[1] + dy) if c else None, cw)
+                    for x, y, c, cw in poly_vertices(f, s)
+                ]
             elif k == "Line":
                 verts = [
                     (fnum(f, "startX", s) + dx, fnum(f, "startY", s) + dy, None, False),
@@ -672,7 +847,8 @@ class _Parse:
                 verts = [
                     (fnum(f, "startX", s) + dx, fnum(f, "startY", s) + dy, None, False),
                     (
-                        fnum(f, "endX", s) + dx, fnum(f, "endY", s) + dy,
+                        fnum(f, "endX", s) + dx,
+                        fnum(f, "endY", s) + dy,
                         (fnum(f, "centerX", s) + dx, fnum(f, "centerY", s) + dy),
                         f.get("clockwise", "false").lower() == "true",
                     ),
@@ -709,10 +885,25 @@ class _Parse:
 
     def add_shape(self, g: BaseGeometry, lid: str, net: str | None) -> None:
         for poly in to_model_polygons(g):
-            sid = self.uid(_h("shape", lid, net, _nm(poly.exterior.array[0][0]), _nm(poly.exterior.array[0][1]), len(poly.exterior)))
-            self.shapes.append(CopperShape(id=sid, net=net, layer=lid, polygon=poly, source=SourceRef(tool="ipc2581")))  # type: ignore[arg-type]
+            sid = self.uid(
+                _h(
+                    "shape",
+                    lid,
+                    net,
+                    _nm(poly.exterior.array[0][0]),
+                    _nm(poly.exterior.array[0][1]),
+                    len(poly.exterior),
+                )
+            )
+            self.shapes.append(
+                CopperShape(
+                    id=sid, net=net, layer=lid, polygon=poly, source=SourceRef(tool="ipc2581")
+                )
+            )  # type: ignore[arg-type]
 
-    def make_track(self, verts: list[Vertex], lid: str, net: str, width: float, end: str) -> Track | None:
+    def make_track(
+        self, verts: list[Vertex], lid: str, net: str, width: float, end: str
+    ) -> Track | None:
         path: list[PathSeg] = []
         cur = (verts[0][0], verts[0][1])
         for x, y, c, cw in verts[1:]:
@@ -725,9 +916,33 @@ class _Parse:
             cur = nxt
         if not path:
             return None
-        tid = self.uid(_h("track", lid, net, width, tuple((round(s.start[0] * 1e9), round(s.start[1] * 1e9), round(s.end[0] * 1e9), round(s.end[1] * 1e9)) for s in path)))
+        tid = self.uid(
+            _h(
+                "track",
+                lid,
+                net,
+                width,
+                tuple(
+                    (
+                        round(s.start[0] * 1e9),
+                        round(s.start[1] * 1e9),
+                        round(s.end[0] * 1e9),
+                        round(s.end[1] * 1e9),
+                    )
+                    for s in path
+                ),
+            )
+        )
         caps = {"ROUND": "round", "SQUARE": "square", "NONE": "flat"}.get(end.upper(), "round")
-        return Track(id=tid, net=net, layer=lid, width=width, path=tuple(path), end_caps=caps, source=SourceRef(tool="ipc2581"))  # type: ignore[arg-type]
+        return Track(
+            id=tid,
+            net=net,
+            layer=lid,
+            width=width,
+            path=tuple(path),
+            end_caps=caps,
+            source=SourceRef(tool="ipc2581"),
+        )  # type: ignore[arg-type]
 
     # ------------------------------------------------------------------ assembly
     def build(self) -> Board:
@@ -738,16 +953,39 @@ class _Parse:
         padstacks: dict[str, Padstack] = {}
         ps_keys: dict[tuple[Any, ...], str] = {}
 
-        def padstack_for(def_ref: str, drill: Drill | None, layers: dict[str, PadShape], mask: dict[str, PadShape]) -> str:
-            lay = tuple(PadstackLayer(layer=lid, pad=layers[lid]) for lid in cu_list if lid in layers)
-            key = (def_ref, drill.model_dump_json() if drill else None, tuple((l.layer, l.pad.model_dump_json()) for l in lay if l.pad), tuple(sorted((k, v.model_dump_json()) for k, v in mask.items())))
+        def padstack_for(
+            def_ref: str,
+            drill: Drill | None,
+            layers: dict[str, PadShape],
+            mask: dict[str, PadShape],
+        ) -> str:
+            lay = tuple(
+                PadstackLayer(layer=lid, pad=layers[lid]) for lid in cu_list if lid in layers
+            )
+            key = (
+                def_ref,
+                drill.model_dump_json() if drill else None,
+                tuple((l.layer, l.pad.model_dump_json()) for l in lay if l.pad),
+                tuple(sorted((k, v.model_dump_json()) for k, v in mask.items())),
+            )
             if key in ps_keys:
                 return ps_keys[key]
-            pid = f"i:{def_ref}" if f"i:{def_ref}" not in padstacks else f"i:{def_ref}#{sum(1 for p in padstacks if p.startswith(f'i:{def_ref}')) + 1}"
-            padstacks[pid] = Padstack(id=pid, drill=drill, layers=lay, mask_opening_top=mask.get("top"), mask_opening_bottom=mask.get("bottom"))
+            pid = (
+                f"i:{def_ref}"
+                if f"i:{def_ref}" not in padstacks
+                else f"i:{def_ref}#{sum(1 for p in padstacks if p.startswith(f'i:{def_ref}')) + 1}"
+            )
+            padstacks[pid] = Padstack(
+                id=pid,
+                drill=drill,
+                layers=lay,
+                mask_opening_top=mask.get("top"),
+                mask_opening_bottom=mask.get("bottom"),
+            )
             ps_keys[key] = pid
             return pid
 
+        hole_keys: set[tuple[int, int, int]] = set()
         # ---- slots that belong to a component pad
         pos_index: dict[tuple[int, int], list[_PadRec]] = defaultdict(list)
         for rec in self.padrecs.values():
@@ -762,7 +1000,9 @@ class _Parse:
             if shp is None:
                 continue
             w, hh = fnum(shp, "width", self.u), fnum(shp, "height", self.u)
-            pos = (fnum(loc, "x", self.u), fnum(loc, "y", self.u)) if loc is not None else (0.0, 0.0)
+            pos = (
+                (fnum(loc, "x", self.u), fnum(loc, "y", self.u)) if loc is not None else (0.0, 0.0)
+            )
             hit = None
             kx, ky = round(pos[0] / 2e-7), round(pos[1] / 2e-7)
             for i in (-1, 0, 1):
@@ -773,37 +1013,69 @@ class _Parse:
                 free_slots.append(slot)
             else:
                 hit.slot = (min(w, hh), max(w, hh), 0.0 if w >= hh else math.pi / 2)
-                hole_keys.add((kx, ky))
 
         # ---- pads
         pads: list[Pad] = []
         comp_pads: dict[str, list[str]] = defaultdict(list)
-        hole_keys: set[tuple[int, int]] = set()
         used_ids: dict[str, int] = defaultdict(int)
-        for key, rec in self.padrecs.items():
-            hd = self.padstack_defs.get(rec.def_ref, {}).get("hole")
+        for rec in self.padrecs.values():
+            hd = rec.hole or self.padstack_defs.get(rec.def_ref, {}).get("hole")
             drill = None
             if hd is not None:
                 dia, status, off = hd
-                drill = Drill(kind="npth" if status == "NONPLATED" else "plated", diameter=dia, offset=off)
+                drill = Drill(
+                    kind="npth" if status == "NONPLATED" else "plated", diameter=dia, offset=off
+                )
                 if rec.slot is not None:
                     rel = (rec.slot[2] - rec.rot) % math.pi
                     if min(rel, math.pi - rel) < 1e-6:
-                        drill = Drill(kind=drill.kind, shape="slot", diameter=rec.slot[0], slot_length=rec.slot[1], offset=off)
+                        drill = Drill(
+                            kind=drill.kind,
+                            shape="slot",
+                            diameter=rec.slot[0],
+                            slot_length=rec.slot[1],
+                            offset=off,
+                        )
                     else:
-                        self.diag("warning", "INGEST.SLOT_ORIENTATION", f"slot of {rec.comp}.{rec.pin} is not aligned with the pad frame: round drill kept")
+                        self.diag(
+                            "warning",
+                            "INGEST.SLOT_ORIENTATION",
+                            f"slot of {rec.comp}.{rec.pin} is not aligned with the pad frame: round drill kept",
+                        )
                 c, s_ = math.cos(rec.rot), math.sin(rec.rot)
                 hx = rec.pos[0] + off[0] * c - off[1] * s_
                 hy = rec.pos[1] + off[0] * s_ + off[1] * c
-                hole_keys.add((round(hx / 2e-7), round(hy / 2e-7)))
-            mask = self.mask_pending.get((rec.comp, rec.pin, _nm(rec.pos[0]), _nm(rec.pos[1])), {}) if rec.comp else {}
-            psid = padstack_for(rec.def_ref or "pad", drill, rec.layers, mask)
-            base = f"i:{rec.comp}.{rec.pin}" if rec.comp else _h("pad", rec.def_ref, _nm(rec.pos[0]), _nm(rec.pos[1]))
+                hole_keys.add((round(hx / 2e-7), round(hy / 2e-7), round(dia / 1e-8)))
+            mask = (
+                self.mask_pending.get((rec.comp, rec.pin, _nm(rec.pos[0]), _nm(rec.pos[1])), {})
+                if rec.comp
+                else {}
+            )
+            psid = padstack_for(rec.def_ref or f"PAD_{rec.comp or 'free'}", drill, rec.layers, mask)
+            base = (
+                f"i:{rec.comp}.{rec.pin}"
+                if rec.comp
+                else _h("pad", rec.def_ref, _nm(rec.pos[0]), _nm(rec.pos[1]))
+            )
             n = used_ids[base]
             used_ids[base] += 1
             pid = base if n == 0 else f"{base}#{n}"
             kind = "smd" if drill is None else ("npth" if drill.kind == "npth" else "through_hole")
-            pads.append(Pad(id=pid, component=rec.comp, number=rec.pin, padstack=psid, position=rec.pos, rotation=rec.rot, net=rec.net, kind=kind, source=SourceRef(tool="ipc2581", name=f"{rec.comp}.{rec.pin}" if rec.comp else None)))  # type: ignore[arg-type]
+            pads.append(
+                Pad(
+                    id=pid,
+                    component=rec.comp,
+                    number=rec.pin,
+                    padstack=psid,
+                    position=rec.pos,
+                    rotation=rec.rot,
+                    net=rec.net,
+                    kind=kind,
+                    source=SourceRef(
+                        tool="ipc2581", name=f"{rec.comp}.{rec.pin}" if rec.comp else None
+                    ),
+                )
+            )  # type: ignore[arg-type]
             if rec.comp:
                 comp_pads[rec.comp].append(pid)
             if rec.net:
@@ -821,16 +1093,27 @@ class _Parse:
                     top_side = cu_list.index(self.cu_ids[span[0]]) == 0
                     last = self.cu_ids[span[1]]
                     idx = cu_list.index(last)
-                    nxt = cu_list[idx + 1] if top_side and idx + 1 < len(cu_list) else (cu_list[idx - 1] if idx > 0 else None)
+                    nxt = (
+                        cu_list[idx + 1]
+                        if top_side and idx + 1 < len(cu_list)
+                        else (cu_list[idx - 1] if idx > 0 else None)
+                    )
                     backdrills[(_nm(h.pos[0]), _nm(h.pos[1]))].append(
-                        Backdrill(side="top" if top_side else "bottom", diameter=h.diameter, last_removed_layer=last, must_not_cut=nxt)  # type: ignore[arg-type]
+                        Backdrill(
+                            side="top" if top_side else "bottom",
+                            diameter=h.diameter,
+                            last_removed_layer=last,
+                            must_not_cut=nxt,
+                        )  # type: ignore[arg-type]
                     )
                 continue
             if h.status == "VIA":
                 via_holes.append(h)
                 continue
-            hk = (round(h.pos[0] / 2e-7), round(h.pos[1] / 2e-7))
-            if any((hk[0] + i, hk[1] + j) in hole_keys for i in (-1, 0, 1) for j in (-1, 0, 1)):
+            hk = (round(h.pos[0] / 2e-7), round(h.pos[1] / 2e-7), round(h.diameter / 1e-8))
+            if any(
+                (hk[0] + i, hk[1] + j, hk[2]) in hole_keys for i in (-1, 0, 1) for j in (-1, 0, 1)
+            ):
                 continue
             hole_keys.add(hk)
             drill = Drill(kind="npth" if h.status == "NONPLATED" else "plated", diameter=h.diameter)
@@ -839,8 +1122,20 @@ class _Parse:
             used_ids[pid] += 1
             if used_ids[pid] > 1:
                 pid = f"{pid}#{used_ids[pid] - 1}"
-            pads.append(Pad(id=pid, component=None, number="", padstack=psid, position=h.pos, rotation=0.0, net=h.net, kind="npth" if drill.kind == "npth" else "through_hole", source=SourceRef(tool="ipc2581")))  # type: ignore[arg-type]
-        for el, net, d in free_slots:
+            pads.append(
+                Pad(
+                    id=pid,
+                    component=None,
+                    number="",
+                    padstack=psid,
+                    position=h.pos,
+                    rotation=0.0,
+                    net=h.net,
+                    kind="npth" if drill.kind == "npth" else "through_hole",
+                    source=SourceRef(tool="ipc2581"),
+                )
+            )  # type: ignore[arg-type]
+        for el, net, _d in free_slots:
             shp = _child(el, "Oval")
             if shp is None:
                 shp = _child(el, "RectCenter")
@@ -848,29 +1143,92 @@ class _Parse:
             if shp is None:
                 continue
             w, hh = fnum(shp, "width", self.u), fnum(shp, "height", self.u)
-            pos = (fnum(loc, "x", self.u), fnum(loc, "y", self.u)) if loc is not None else (0.0, 0.0)
+            pos = (
+                (fnum(loc, "x", self.u), fnum(loc, "y", self.u)) if loc is not None else (0.0, 0.0)
+            )
             status = el.get("platingStatus", "NONPLATED").upper()
-            drill = Drill(kind="npth" if status == "NONPLATED" else "plated", shape="slot", diameter=min(w, hh), slot_length=max(w, hh))
+            drill = Drill(
+                kind="npth" if status == "NONPLATED" else "plated",
+                shape="slot",
+                diameter=min(w, hh),
+                slot_length=max(w, hh),
+            )
             rot = 0.0 if w >= hh else math.pi / 2
             psid = padstack_for("slot", drill, {}, {})
             pid = _h("pad", "slot", _nm(pos[0]), _nm(pos[1]))
-            pads.append(Pad(id=pid, component=None, number="", padstack=psid, position=pos, rotation=rot, net=net, kind="npth" if drill.kind == "npth" else "through_hole", source=SourceRef(tool="ipc2581")))  # type: ignore[arg-type]
+            pads.append(
+                Pad(
+                    id=pid,
+                    component=None,
+                    number="",
+                    padstack=psid,
+                    position=pos,
+                    rotation=rot,
+                    net=net,
+                    kind="npth" if drill.kind == "npth" else "through_hole",
+                    source=SourceRef(tool="ipc2581"),
+                )
+            )  # type: ignore[arg-type]
 
+        seen_via: set[tuple[int, int]] = set()
         for h in via_holes:
+            if (_nm(h.pos[0]), _nm(h.pos[1])) in seen_via:
+                continue
+            seen_via.add((_nm(h.pos[0]), _nm(h.pos[1])))
             pk = (_nm(h.pos[0]), _nm(h.pos[1]))
-            span = self.layer_defs.get(h.layer, {}).get("span")
+            span = h.span or self.layer_defs.get(h.layer, {}).get("span")
             s_id = self.cu_ids.get(span[0]) if span else None
             e_id = self.cu_ids.get(span[1]) if span else None
             if s_id is None or e_id is None:
                 s_id, e_id = cu_list[0], cu_list[-1]
             if cu_list.index(s_id) > cu_list.index(e_id):
                 s_id, e_id = e_id, s_id
-            kind = "through" if (s_id, e_id) == (cu_list[0], cu_list[-1]) else (
-                "blind" if s_id == cu_list[0] or e_id == cu_list[-1] else "buried")
+            kind = (
+                "through"
+                if (s_id, e_id) == (cu_list[0], cu_list[-1])
+                else ("blind" if s_id == cu_list[0] or e_id == cu_list[-1] else "buried")
+            )
             drill = Drill(kind="plated", diameter=h.diameter)
             psid = padstack_for(h.def_ref or "via", drill, self.viapads.get(pk, {}), {})
+            bds = list(backdrills.get(pk, ()))
+            bd = self.specs.get(h.spec or "", {}).get("backdrill")
+            if bd and bd.get("START_LAYER") in self.cu_ids:
+                start = self.cu_ids[bd["START_LAYER"]]
+                mnc = self.cu_ids.get(bd.get("MUST_NOT_CUT_LAYER") or "")
+                top = cu_list.index(start) == 0
+                if mnc is not None:
+                    i = cu_list.index(mnc) + (-1 if top else 1)
+                    last = cu_list[i] if 0 <= i < len(cu_list) else start
+                else:
+                    last = start
+                bds.append(
+                    Backdrill(
+                        side="top" if top else "bottom",
+                        diameter=h.diameter,
+                        last_removed_layer=last,
+                        must_not_cut=mnc,
+                    )
+                )  # type: ignore[arg-type]
+                self.diag(
+                    "info",
+                    "INGEST.BACKDRILL_SIZE_UNKNOWN",
+                    f"via at {pk}: IPC-2581 gives no backdrill diameter; the via drill diameter is used",
+                    layer=last,
+                )  # type: ignore[arg-type]
             vid = self.uid(_h("via", h.net, pk, s_id, e_id))
-            vias.append(Via(id=vid, padstack=psid, position=h.pos, net=h.net, kind=kind, start_layer=s_id, end_layer=e_id, backdrills=tuple(backdrills.get(pk, ())), source=SourceRef(tool="ipc2581")))  # type: ignore[arg-type]
+            vias.append(
+                Via(
+                    id=vid,
+                    padstack=psid,
+                    position=h.pos,
+                    net=h.net,
+                    kind=kind,
+                    start_layer=s_id,
+                    end_layer=e_id,
+                    backdrills=tuple(bds),
+                    source=SourceRef(tool="ipc2581"),
+                )
+            )  # type: ignore[arg-type]
             if h.net:
                 self.net_names.add(h.net)
 
@@ -886,34 +1244,73 @@ class _Parse:
             hull = MultiPoint([tuple(p) for p in pts]).convex_hull
             outline = (to_model_polygons(hull) or polys[:1])[0]
             zid = self.uid(_h("zone", net, lid))
-            zones.append(Zone(id=zid, net=net, layers=(lid,), outline=outline, fills=(ZoneFill(layer=lid, polygons=tuple(polys)),), fill_state="filled", source=SourceRef(tool="ipc2581")))  # type: ignore[arg-type]
+            zones.append(
+                Zone(
+                    id=zid,
+                    net=net,
+                    layers=(lid,),
+                    outline=outline,
+                    fills=(ZoneFill(layer=lid, polygons=tuple(polys)),),
+                    fill_state="filled",
+                    source=SourceRef(tool="ipc2581"),
+                )
+            )  # type: ignore[arg-type]
         if zones:
-            self.diag("info", "INGEST.ZONE_OUTLINE_APPROX", "IPC-2581 has no zone objects: zone outlines are the convex hull of the filled copper, priority and hatch are unknown")
+            self.diag(
+                "info",
+                "INGEST.ZONE_OUTLINE_APPROX",
+                "IPC-2581 has no zone objects: zone outlines are the convex hull of the filled copper, priority and hatch are unknown",
+            )
 
         # ---- components
         bom = self.bom_values
         comps: list[Component] = []
         for ref, c in self.comp_els.items():
-            side = "bottom" if self.layer_defs.get(c["layer"], {}).get("side") == "BOTTOM" else "top"
-            comps.append(Component(refdes=ref, value=bom.get(c["part"] or "") or None, footprint=c["package"], side=side, position=c["pos"], rotation=c["rot"], pads=tuple(comp_pads.get(ref, ())), source=SourceRef(tool="ipc2581", name=ref)))  # type: ignore[arg-type]
+            side = (
+                "bottom" if self.layer_defs.get(c["layer"], {}).get("side") == "BOTTOM" else "top"
+            )
+            comps.append(
+                Component(
+                    refdes=ref,
+                    value=bom.get(c["part"] or "") or None,
+                    footprint=c["package"],
+                    side=side,
+                    position=c["pos"],
+                    rotation=c["rot"],
+                    pads=tuple(comp_pads.get(ref, ())),
+                    source=SourceRef(tool="ipc2581", name=ref),
+                )
+            )  # type: ignore[arg-type]
 
-        for k in self.logical:
-            pass
         nets_all = sorted(self.net_names | self.lognets)
-        nets = tuple(Net(id=n, kind=_net_kind(n), source=SourceRef(tool="ipc2581", name=n)) for n in nets_all)  # type: ignore[arg-type]
+        nets = tuple(
+            Net(id=n, kind=_net_kind(n), source=SourceRef(tool="ipc2581", name=n)) for n in nets_all
+        )  # type: ignore[arg-type]
         stat = self.path.read_bytes()
         meta = BoardMeta(
-            name=self.step_name, source_tool="ipc2581", source_version=f"IPC-2581{self.rev}",
-            source_file=self.path.name, source_hash=hashlib.sha256(stat).hexdigest(),
-            reader=READER_NAME, arc_tolerance=self.tol,
+            name=self.step_name,
+            source_tool="ipc2581",
+            source_version=f"IPC-2581{self.rev}",
+            source_file=self.path.name,
+            source_hash=hashlib.sha256(stat).hexdigest(),
+            reader=READER_NAME,
+            arc_tolerance=self.tol,
             created_utc=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
         return Board(
-            meta=meta, outline=self.build_outline(), stackup=st, nets=nets,
+            meta=meta,
+            outline=self.build_outline(),
+            stackup=st,
+            nets=nets,
             diff_pairs=_diff_pairs(nets_all),
-            padstacks=tuple(padstacks.values()), pads=tuple(pads), vias=tuple(vias),
-            tracks=tuple(self.tracks), zones=tuple(zones), shapes=tuple(self.shapes),
-            components=tuple(comps), diagnostics=tuple(self.diags),
+            padstacks=tuple(padstacks.values()),
+            pads=tuple(pads),
+            vias=tuple(vias),
+            tracks=tuple(self.tracks),
+            zones=tuple(zones),
+            shapes=tuple(self.shapes),
+            components=tuple(comps),
+            diagnostics=tuple(self.diags),
         )
 
     def build_outline(self) -> BoardOutline:
@@ -929,9 +1326,15 @@ class _Parse:
             if local(cut) == "Cutout":
                 g = g.difference(ring_polygon(poly_vertices(cut, self.u), self.tol))
         polys = to_model_polygons(g)
-        main = max(polys, key=lambda p: abs(_area(p))) if polys else Polygon(exterior=_pts([(0, 0), (1e-3, 0), (1e-3, 1e-3)]))  # type: ignore[arg-type]
+        main = (
+            max(polys, key=lambda p: abs(_area(p)))
+            if polys
+            else Polygon(exterior=_pts([(0, 0), (1e-3, 0), (1e-3, 1e-3)]))
+        )  # type: ignore[arg-type]
         edges = _edges(verts)
-        return BoardOutline(polygon=main, edges=edges, extra_boards=tuple(p for p in polys if p is not main))
+        return BoardOutline(
+            polygon=main, edges=edges, extra_boards=tuple(p for p in polys if p is not main)
+        )
 
 
 # ---------------------------------------------------------------------- module helpers
@@ -952,6 +1355,11 @@ def _child(el: Any, name: str) -> Any:
         if local(c) == name:
             return c
     return None
+
+
+def _specref(el: Any) -> str | None:
+    sr = _child(el, "SpecRef")
+    return sr.get("id") if sr is not None else None
 
 
 def _prim_child(el: Any) -> Any:
@@ -977,7 +1385,8 @@ def poly_vertices(el: Any, s: float) -> list[Vertex]:
         elif k == "PolyStepCurve":
             out.append(
                 (
-                    fnum(c, "x", s), fnum(c, "y", s),
+                    fnum(c, "x", s),
+                    fnum(c, "y", s),
                     (fnum(c, "centerX", s), fnum(c, "centerY", s)),
                     c.get("clockwise", "false").lower() == "true",
                 )
@@ -1004,7 +1413,10 @@ def _arcs(
 ) -> list[PathSeg]:
     if math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-12:  # full circle: two half arcs
         opp = (2 * c[0] - a[0], 2 * c[1] - a[1])
-        return [ArcSeg(start=a, end=opp, center=c, ccw=not cw), ArcSeg(start=opp, end=a, center=c, ccw=not cw)]
+        return [
+            ArcSeg(start=a, end=opp, center=c, ccw=not cw),
+            ArcSeg(start=opp, end=a, center=c, ccw=not cw),
+        ]
     return [ArcSeg(start=a, end=b, center=_fix_center(a, b, c), ccw=not cw)]
 
 
@@ -1023,7 +1435,10 @@ def _edges(verts: list[Vertex]) -> tuple[PathSeg, ...]:
     if not segs:
         return ()
     pts = path_points(verts, 1e-6)
-    area2 = sum(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1] for i in range(len(pts)))
+    area2 = sum(
+        pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+        for i in range(len(pts))
+    )
     if area2 < 0:
         rev: list[PathSeg] = []
         for sg in reversed(segs):

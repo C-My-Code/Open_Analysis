@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# ruff: noqa: E501
 """pcbnew oracle: record counts, stackup and per-layer copper areas of a ``.kicad_pcb``.
 
 Runs ONLY under KiCad's bundled Python (``kicad python oracle_pcbnew.py BOARD OUT.json``); it is
@@ -37,9 +38,7 @@ def to_shapely(poly_set):
         holes = []
         for h in range(poly_set.HoleCount(i)):
             hole = poly_set.Hole(i, h)
-            holes.append(
-                [(hole.CPoint(k).x, hole.CPoint(k).y) for k in range(hole.PointCount())]
-            )
+            holes.append([(hole.CPoint(k).x, hole.CPoint(k).y) for k in range(hole.PointCount())])
         if len(ext) >= 3:
             p = Polygon(ext, holes)
             if not p.is_valid:
@@ -115,8 +114,15 @@ def read_stackup(board_path: str) -> list[dict]:
     for layer in tree[1:]:
         if not isinstance(layer, list) or layer[0] != "layer":
             continue
-        rec = {"name": layer[1], "type": None, "thickness_m": 0.0, "epsilon_r": None,
-               "loss_tangent": None, "material": None, "sublayers": []}
+        rec = {
+            "name": layer[1],
+            "type": None,
+            "thickness_m": 0.0,
+            "epsilon_r": None,
+            "loss_tangent": None,
+            "material": None,
+            "sublayers": [],
+        }
         cur = rec
         for f in layer[2:]:
             if not isinstance(f, list):
@@ -125,8 +131,12 @@ def read_stackup(board_path: str) -> list[dict]:
             if key == "type":
                 rec["type"] = f[1]
             elif key == "addsublayer":
-                cur = {"thickness_m": 0.0, "epsilon_r": None, "loss_tangent": None,
-                       "material": None}
+                cur = {
+                    "thickness_m": 0.0,
+                    "epsilon_r": None,
+                    "loss_tangent": None,
+                    "material": None,
+                }
                 rec["sublayers"].append(cur)
             elif key == "thickness":
                 cur["thickness_m"] = float(f[1]) * 1e-3
@@ -145,7 +155,6 @@ def main(board_path: str, out_path: str) -> None:
     cu = list(b.GetEnabledLayers().CuStack())
     names = {lid: b.GetLayerName(lid) for lid in cu}
     top, bottom = cu[0], cu[-1]
-    inner = set(cu[1:-1])
 
     per_layer: dict[int, dict[str, list]] = {lid: {} for lid in cu}
     nets_with_copper: set[str] = set()
@@ -176,11 +185,21 @@ def main(board_path: str, out_path: str) -> None:
             lid = t.GetLayer()
             add(lid, t.GetNetname(), item_poly(t, lid))
 
-    n_pads = 0
+    pad_bins = {}
     for fp in b.GetFootprints():
         for pad in fp.Pads():
-            if pad.GetDrillSizeX() > 0 or any(pad.FlashLayer(lid) for lid in cu):
-                n_pads += 1  # copper-less paste/mask-only apertures are not counted
+            flashed = frozenset(lid for lid in cu if pad.FlashLayer(lid))
+            if pad.GetDrillSizeX() > 0 or flashed:
+                # copper-less paste/mask-only apertures are not counted; pads with one number at
+                # one position on disjoint layers are one pad (IPC-2581 cannot tell them apart)
+                p = pad.GetPosition()
+                bins = pad_bins.setdefault((fp.GetReference(), pad.GetNumber(), p.x, p.y), [])
+                for i, used in enumerate(bins):
+                    if not (used & flashed) or (not flashed):
+                        bins[i] = used | flashed
+                        break
+                else:
+                    bins.append(flashed)
             for lid in cu:
                 if pad.FlashLayer(lid):
                     add(lid, pad.GetNetname(), item_poly(pad, lid))
@@ -236,7 +255,7 @@ def main(board_path: str, out_path: str) -> None:
             "nets": len(nets_with_copper),
             "tracks": n_tracks,
             "vias": vias,
-            "pads": n_pads,
+            "pads": sum(len(v) for v in pad_bins.values()),
             "components": len(list(b.GetFootprints())),
             "zone_fills": len(fills),
         },

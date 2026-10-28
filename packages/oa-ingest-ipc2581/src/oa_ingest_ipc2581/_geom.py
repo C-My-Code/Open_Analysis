@@ -9,7 +9,8 @@ from typing import Any
 
 import numpy as np
 from shapely import affinity
-from shapely.geometry import LineString, MultiPolygon, Point, Polygon as ShPolygon
+from shapely.geometry import LineString, MultiPolygon, Point
+from shapely.geometry import Polygon as ShPolygon
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import orient
 from shapely.ops import unary_union
@@ -43,9 +44,9 @@ def fnum(el: Any, name: str, scale: float, default: float = 0.0) -> float:
 def arc_steps(radius: float, sweep: float, tol: float) -> int:
     """Number of chords so the sagitta error stays below ``tol``."""
     if radius <= tol:
-        return max(2, int(math.ceil(abs(sweep) / (math.pi / 2))))
+        return max(2, math.ceil(abs(sweep) / (math.pi / 2)))
     step = 2.0 * math.acos(max(-1.0, min(1.0, 1.0 - tol / radius)))
-    return max(2, int(math.ceil(abs(sweep) / max(step, 1e-3))))
+    return max(2, math.ceil(abs(sweep) / max(step, 1e-3)))
 
 
 def arc_sweep(
@@ -146,7 +147,7 @@ def to_model_polygons(geom: BaseGeometry | None) -> list[Polygon]:
     return out
 
 
-def Polygon_pts(a: np.ndarray) -> Any:  # noqa: N802 - tiny constructor helper
+def Polygon_pts(a: np.ndarray) -> Any:
     from oa_model.arrays import Points
 
     return Points(a)
@@ -251,7 +252,10 @@ def polygon_prim(kind: str, el: Any, s: float, tol: float) -> BaseGeometry | Non
         d = fnum(el, "length", s) or fnum(el, "diameter", s)
         r = d / 2.0 / math.cos(math.pi / n)
         return ShPolygon(
-            [(r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n)) for k in range(n)]
+            [
+                (r * math.cos(2 * math.pi * k / n), r * math.sin(2 * math.pi * k / n))
+                for k in range(n)
+            ]
         )
     if kind == "Donut":
         shape = el.get("shape", "ROUND").upper()
