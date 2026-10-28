@@ -12,7 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 from board_stats import board_stats
-from conftest import DATA, SYNTHETIC
+DATA = Path(__file__).parent / "data"
+SYNTHETIC = Path(__file__).resolve().parents[3] / "tests" / "boards" / "kicad10"
 
 from oa_ingest_ipc2581 import Ipc2581Reader
 from oa_model import validate_board
