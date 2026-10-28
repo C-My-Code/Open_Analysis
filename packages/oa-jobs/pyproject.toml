@@ -16,6 +16,10 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "pydantic>=2.7",
+    "psutil>=5.9",
+    # used by oa_results.io (owned by WP-107); declared here, see change request
+    "meshio>=5.3",
+    "jsonschema>=4.20",
 ]
 
 [tool.hatch.build.targets.wheel]
