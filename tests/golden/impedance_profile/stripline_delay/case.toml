@@ -1,0 +1,12 @@
+source = "analytic: homogeneous stripline, delay per metre = sqrt(er) / c0, er = 4.3 (WP-102 stripline board, SL_SYM)"
+
+[tolerance]
+rtol = 5e-3
+atol = 0.0
+
+[inputs]
+board = "tests/boards/kicad10/stripline"
+er = 4.3
+
+[expected]
+delay_s_per_m = 6.916932297652304e-09

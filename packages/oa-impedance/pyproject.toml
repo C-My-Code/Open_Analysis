@@ -36,6 +36,7 @@ impedance = "oa_impedance.service:ImpedanceServiceImpl"
 
 [project.entry-points."open_analysis.analyses"]
 "impedance.xsection" = "oa_impedance.analysis:ImpedanceXsection"
+"impedance.profile" = "oa_impedance.profile.analysis:ImpedanceProfile"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_impedance"]
