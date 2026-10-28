@@ -1,6 +1,6 @@
 # Board Model v1 (FROZEN)
 
-Status: **FROZEN v1.0 (commit 6b4d083)**, the merge of WP-000A/B/C. Accepted additive changes: docs/change-requests/WP-000B-*.md and the addendum in ai-integration.md §13. Any further change needs an ADR and must follow the versioning policy in section 14.
+Status: **FROZEN v1.0 (commit bac3099)**, the merge of WP-000A/B/C. Accepted additive changes: docs/change-requests/WP-000B-*.md and the addendum in ai-integration.md §13. Any further change needs an ADR and must follow the versioning policy in section 14.
 Package: `packages/oa-model` (import name `oa_model`). Owner: WP-000 until it merges, then the architecture group (changes go through ADRs).
 Related: [interfaces.md](interfaces.md) (CrossSection, EMProblem, results, plugins), [ADR-0003](../adr/0003-board-model-format.md).
 
