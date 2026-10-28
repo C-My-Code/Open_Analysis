@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-results"
+version = "0.1.0"
+description = "Result containers and violation types"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "numpy>=1.26",
+    "pydantic>=2.7",
+    "scikit-rf>=1.0",
+    "pyarrow>=15",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_results"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
