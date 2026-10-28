@@ -161,7 +161,7 @@ def _hj_eeff(u: float, er: float) -> float:
         + math.log(1.0 + (u / 18.1) ** 3) / 18.7
     )
     b = 0.564 * ((er - 0.9) / (er + 3.0)) ** 0.053
-    return (er + 1.0) / 2.0 + (er - 1.0) / 2.0 * (1.0 + 10.0 / u) ** (-a * b)
+    return float((er + 1.0) / 2.0 + (er - 1.0) / 2.0 * (1.0 + 10.0 / u) ** (-a * b))
 
 
 def hammerstad_jensen(u: float, er: float, t_over_h: float = 0.0) -> tuple[float, float]:

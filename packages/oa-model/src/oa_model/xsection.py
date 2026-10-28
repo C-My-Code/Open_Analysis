@@ -163,7 +163,7 @@ def _shape_u_range(s: XsShape) -> tuple[float, float] | None:
         return s.u_center - half, s.u_center + half
     if isinstance(s, XsPolygon):
         u = s.polygon.exterior.array[:, 0]
-        return float(u.min()), float(u.max())
+        return float(np.min(u)), float(np.max(u))
     if isinstance(s, XsCircle):
         return s.u_center - s.radius, s.u_center + s.radius
     if s.u_min is None or s.u_max is None:
@@ -173,7 +173,7 @@ def _shape_u_range(s: XsShape) -> tuple[float, float] | None:
 
 def _shape_z_min(s: XsShape) -> float:
     if isinstance(s, XsPolygon):
-        return float(s.polygon.exterior.array[:, 1].min())
+        return float(np.min(s.polygon.exterior.array[:, 1]))
     if isinstance(s, XsCircle):
         return s.z_center - s.radius
     return s.z_bottom
@@ -255,7 +255,7 @@ class CrossSection(OAModel):
             if isinstance(d.region, XsSlab):
                 zs.append(d.region.z_bottom)
             else:
-                zs.append(float(d.region.polygon.exterior.array[:, 1].min()))
+                zs.append(float(np.min(d.region.polygon.exterior.array[:, 1])))
         dz = min(zs)
         # Shifts are snapped to the 1 nm grid so that sub-nanometre jitter of one coordinate
         # cannot move the whole section across a rounding boundary in key().

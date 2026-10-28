@@ -193,12 +193,12 @@ def _compare(actual: Any, expected: Any, tol: Tolerance, path: str, errs: list[s
         if not _is_number(actual):
             errs.append(f"{path}: expected a number, got {actual!r}")
             return
-        a, e = float(actual), float(expected)
-        ok = math.isnan(a) if math.isnan(e) else abs(a - e) <= tol.atol + tol.rtol * abs(e)
+        av, ev = float(actual), float(expected)
+        ok = math.isnan(av) if math.isnan(ev) else abs(av - ev) <= tol.atol + tol.rtol * abs(ev)
         if not ok:
-            rel = abs(a - e) / abs(e) if e else float("inf")
+            rel = abs(av - ev) / abs(ev) if ev else float("inf")
             errs.append(
-                f"{path}: actual {a!r} vs expected {e!r} (rel diff {rel:.3g}, "
+                f"{path}: actual {av!r} vs expected {ev!r} (rel diff {rel:.3g}, "
                 f"rtol={tol.rtol:g}, atol={tol.atol:g})"
             )
         return

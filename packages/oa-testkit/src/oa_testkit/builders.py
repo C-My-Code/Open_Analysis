@@ -106,7 +106,9 @@ def make_stackup(
     if len(cu) != n_cu:
         raise ValueError(f"need {n_cu} copper thicknesses, got {len(cu)}")
     roles = list(roles) if roles is not None else ["signal"] * n_cu
-    cons = list(constructions) if constructions is not None else ["core"] * len(dielectrics)
+    cons: list[Literal["core", "prepreg"]] = (
+        list(constructions) if constructions is not None else ["core"] * len(dielectrics)
+    )
 
     layers: list[ConductorLayer | DielectricLayer] = []
     z = 0.0
