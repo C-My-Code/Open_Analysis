@@ -1,0 +1,14 @@
+source = "analytic: Cohn 1955 edge-coupled stripline (zdiff = 2 Z0o, zcomm = Z0e/2), W/b = 0.5, er = 1, t = 1e-6 b"
+
+[tolerance]
+rtol = 0.003
+atol = 0.0
+
+[inputs]
+w_over_b = 0.5
+s_over_b = [0.1, 0.25, 0.5]
+t_over_b = 1e-06
+
+[expected]
+zdiff = [139.73218150533796, 167.04596026355262, 186.4343935674324]
+zcomm = [61.44283262033493, 57.384086859209106, 53.577189273586036]
