@@ -74,7 +74,8 @@ class EmSparamsConfig(OAModel):
     raise_fmin: bool = Field(
         default=True,
         description="Start the sweep at the lowest frequency the solver excitation covers "
-        "(openEMS: 0.1 x f_max) instead of the requested f_min.",
+        "(openEMS: 0.2 x f_max; the gate then runs with require_dc=none) instead of the "
+        "requested f_min.",
     )
     fix_quality: bool = Field(
         default=False,

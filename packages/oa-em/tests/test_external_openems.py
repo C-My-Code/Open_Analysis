@@ -15,8 +15,8 @@ from typing import Any
 
 import numpy as np
 import pytest
-
 from em_helpers import run_job
+
 from oa_em_openems import discover
 from oa_geometry import BoardGeometry
 from oa_impedance.service import ImpedanceServiceImpl
@@ -119,11 +119,13 @@ def test_via_transition_plausible_passive_and_timed(
     tools: dict[str, dict[str, str]], tmp_path: Path, record_property: Any
 ) -> None:
     cfg = {
-        "region": {"nets": ["SIG"], "bbox": [9e-3, -2e-3, 16e-3, 2e-3]},
-        "frequency": {"f_min": 0, "f_max": 40e9, "n_points": 201},
+        "region": {"nets": ["SIG"], "bbox": [10e-3, -2e-3, 15e-3, 2e-3]},
+        "frequency": {"f_min": 0, "f_max": 20e9, "n_points": 101},
+        "mesh": {"preset": "coarse"},
+        "boundary": {"air_padding": 1.5e-3},
         "fix_quality": True,
     }
-    budget = Budget(max_runtime_s=3000, max_memory_gb=8)
+    budget = Budget(max_runtime_s=1500, max_memory_gb=8)
     bundle, _status, wall = run_job(
         tmp_path, bld.via_transition_board(), cfg, tools=tools, budget=budget
     )

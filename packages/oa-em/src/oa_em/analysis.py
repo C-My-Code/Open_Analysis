@@ -50,7 +50,7 @@ from oa_results.bundle import ArtifactOnly, Provenance, ResultBundle, ResultItem
 from oa_results.container import SolverProvenance, ValidityFlag
 from oa_results.io import to_touchstone
 from oa_results.network import NetworkResult, PortMapEntry
-from oa_results.quality import QualityReport
+from oa_results.quality import QualityCriteria, QualityReport
 
 __all__ = ["EmSparams"]
 
@@ -387,7 +387,8 @@ class EmSparams:
                 net_in = net_in.copy()
                 net_in.s = 0.5 * (s_raw + np.transpose(s_raw, (0, 2, 1)))
                 sym_fix = f"reciprocity_symmetrized(max |Sij-Sji| = {err:.3g})"
-        net_g, rep = gate(net_in, fix=cfg.fix_quality)
+        crit = QualityCriteria(require_dc="none") if built.fmin_raised else None
+        net_g, rep = gate(net_in, crit, fix=cfg.fix_quality)
         if sym_fix is not None:
             rep = rep.model_copy(
                 update={
@@ -402,7 +403,7 @@ class EmSparams:
         if built.want_mixed_mode:
             try:
                 mm = se2gmm(net_g)
-                mm_g, rep_mm = gate(mm, fix=False)
+                mm_g, rep_mm = gate(mm, crit, fix=False)
                 names = [f"D_{built.ports[i].setup_name}" for i, _j in pairs] + [
                     f"C_{built.ports[i].setup_name}" for i, _j in pairs
                 ]

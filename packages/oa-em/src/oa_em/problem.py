@@ -37,9 +37,9 @@ _AXIS_TOL = math.radians(1.0)
 # S21 within 0.3 dB of the analytic line (WP-205 measurements; WP-108 gap).
 _WAVE_PORT_DEFAULTS: dict[str, dict[str, Any]] = {"openems": {"openems.absorbing": "MUR"}}
 # FDTD pulses carry little energy below ~0.1 f_max (the adapter's DC-free Gaussian), so S-parameters
-# below that are noise (S11 -11 dB, RQM 93 on the via transition from 0.2 GHz). The sweep starts
-# there instead; the quality gate extrapolates the missing DC point (f_min <= 10 % of f_max).
-_FMIN_FRACTION = {"openems": 0.1}
+# below that are noise (S11 -11 dB, RQM 93 on the via transition from 0.2 GHz; sigma_max 1.09 at
+# 0.1 f_max). The sweep starts at 0.2 f_max and the gate runs with require_dc='none'.
+_FMIN_FRACTION = {"openems": 0.2}
 
 __all__ = ["Built", "PortInfo", "build_problem", "choose_boundaries"]
 
@@ -70,6 +70,7 @@ class Built:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     pairs: tuple[tuple[int, int], ...] = ()  # differential (P, N) port index pairs
     want_mixed_mode: bool = False
+    fmin_raised: bool = False
 
 
 @dataclass
@@ -506,8 +507,8 @@ def build_problem(board_geo: BoardGeometry, cfg: EmSparamsConfig) -> Built:
     mesh = cfg.mesh
     expert = dict(mesh.expert)
     if any(isinstance(p, EMWavePort) for p in em_ports):
-        for k, v in _WAVE_PORT_DEFAULTS.get(cfg.solver, {}).items():
-            expert.setdefault(k, v)
+        for key, val in _WAVE_PORT_DEFAULTS.get(cfg.solver, {}).items():
+            expert.setdefault(key, val)
     expert.update(cfg.adapter_options)
     if expert != mesh.expert:
         mesh = mesh.model_copy(update={"expert": expert})
@@ -520,7 +521,7 @@ def build_problem(board_geo: BoardGeometry, cfg: EmSparamsConfig) -> Built:
                 severity="info",
                 code="EM.FMIN_RAISED",
                 message=f"sweep starts at {freq.f_min / 1e9:.3g} GHz: the {cfg.solver} excitation "
-                "has too little energy below it; DC is extrapolated by the quality gate",
+                "has too little energy below it; the S-parameters have no DC point",
                 hint="Set raise_fmin=false to sweep from the requested f_min anyway.",
             )
         )
@@ -533,4 +534,5 @@ def build_problem(board_geo: BoardGeometry, cfg: EmSparamsConfig) -> Built:
         mesh=mesh,
         convergence=cfg.convergence,
     )
-    return Built(problem, order, cut, diags, tuple(pairs), want_mm)
+    raised = freq.f_min != cfg.frequency.f_min
+    return Built(problem, order, cut, diags, tuple(pairs), want_mm, raised)
