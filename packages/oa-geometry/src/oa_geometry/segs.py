@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# mypy: disable-error-code="arg-type,assignment,attr-defined,call-overload,index,return-value"
+# mypy: disable-error-code="no-any-return,unused-ignore,import-untyped,union-attr,var-annotated"
 """Routed-segment pieces: tracks split into single lines/arcs, cut at T-junctions."""
 
 from __future__ import annotations

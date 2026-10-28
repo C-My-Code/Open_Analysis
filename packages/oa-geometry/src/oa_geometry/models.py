@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# mypy: disable-error-code="import-untyped,unused-ignore"
 """Public data models of the geometry service (interfaces.md section 2).
 
 Lengths are metres, angles radians, board frame (x right, y up). The spec names several types

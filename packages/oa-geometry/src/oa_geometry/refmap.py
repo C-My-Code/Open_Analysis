@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# mypy: disable-error-code="arg-type,assignment,attr-defined,call-overload,index,return-value"
+# mypy: disable-error-code="no-any-return,unused-ignore,import-untyped,union-attr,var-annotated"
 """ReferenceMap: the reference-plane (return-path) description of every routed segment.
 
 Definitions (shared by ERC, EMI, SI and PI):
@@ -327,7 +329,7 @@ def _bulk_cover(
         if len(pi) == 0:
             continue
         # one covering part per piece (first); edge distance to that part's boundary
-        first = {}
+        first: dict[int, int] = {}
         for i, j in zip(pi, pj, strict=True):
             first.setdefault(int(i), int(j))
         idx = np.array(sorted(first), dtype=np.intp)

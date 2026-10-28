@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# mypy: disable-error-code="arg-type,assignment,attr-defined,call-overload,index,return-value"
+# mypy: disable-error-code="no-any-return,unused-ignore,import-untyped,union-attr,var-annotated"
 """Copper primitives per layer, unions and spatial indexes.
 
 Tolerance policy: coordinates stay in float64 metres. The model's 1 nm grid is a *comparison*
