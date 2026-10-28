@@ -102,7 +102,7 @@ def ring_polygon(verts: list[Vertex], tol: float) -> ShPolygon:
     if len(pts) > 1 and pts[0] == pts[-1]:
         pts = pts[:-1]
     p = ShPolygon(pts)
-    return p if p.is_valid else p.buffer(0)  # type: ignore[return-value]
+    return p if p.is_valid else p.buffer(0)
 
 
 def stroke(geom: BaseGeometry, width: float, end: str, tol: float) -> BaseGeometry:
@@ -118,7 +118,7 @@ def stroke(geom: BaseGeometry, width: float, end: str, tol: float) -> BaseGeomet
 def circle_geom(d: float, tol: float, cx: float = 0.0, cy: float = 0.0) -> ShPolygon:
     r = d / 2.0
     quad = max(2, arc_steps(r, math.pi / 2, tol)) if r > 0 else 2
-    return Point(cx, cy).buffer(r, quad_segs=quad)  # type: ignore[return-value]
+    return Point(cx, cy).buffer(r, quad_segs=quad)
 
 
 def to_model_polygons(geom: BaseGeometry | None) -> list[Polygon]:
@@ -235,7 +235,7 @@ def polygon_prim(kind: str, el: Any, s: float, tol: float) -> BaseGeometry | Non
                         (sx * (w / 2 - r), sy * (h / 2)),
                     ]
                 )
-                out = unary_union([out, box])
+                out = unary_union([out, box])  # type: ignore[assignment]
         return out
     if kind == "RectCorner":
         x0, y0 = fnum(el, "lowerLeftX", s), fnum(el, "lowerLeftY", s)
