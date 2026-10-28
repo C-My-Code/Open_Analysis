@@ -21,7 +21,15 @@ dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
     "scikit-fem>=9.0",
+    "shapely>=2.0",
+    "pyamg>=5.0",
 ]
+
+[project.entry-points."open_analysis.analyses"]
+"pi.dc" = "oa_pi.dc.analysis:PiDcAnalysis"
+
+[project.entry-points."open_analysis.services"]
+pdn = "oa_pi.service:make_service"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_pi"]

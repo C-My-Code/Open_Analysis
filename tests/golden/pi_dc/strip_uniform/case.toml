@@ -1,0 +1,15 @@
+source = "analytic: R = Rs L / W, Rs = 1/(sigma t) at 20 degC (oa_physics rho(T))"
+
+[tolerance]
+rtol = 0.001
+atol = 0.0
+
+[inputs]
+length = 0.05
+width = 0.005
+thickness = 3.5e-5
+sigma = 5.8e7
+temperature_k = 293.15
+
+[expected]
+resistance_ohm = 0.004926108374384237

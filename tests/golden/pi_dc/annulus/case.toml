@@ -1,0 +1,15 @@
+source = "analytic: R = Rs ln(b/a) / (2 pi), inner disc electrode r<a, outer rim electrode r>b"
+
+[tolerance]
+rtol = 0.001
+atol = 0.0
+
+[inputs]
+a = 0.001
+b = 0.01
+thickness = 3.5e-5
+via_ring_segments = 64
+h_plane = 0.15e-3
+
+[expected]
+resistance_ohm = 0.00018052600957621376

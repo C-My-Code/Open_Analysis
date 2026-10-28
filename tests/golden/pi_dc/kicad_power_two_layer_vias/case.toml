@@ -1,0 +1,12 @@
+source = "tests/boards/kicad10/power_two_layer_vias/expected.yaml dc.cases[via_array_pad_to_pad]"
+
+[tolerance]
+rtol = 0.005
+atol = 0.0
+
+[inputs]
+board = "power_two_layer_vias"
+terminals = "J1.1 -> J2.1"
+
+[expected]
+resistance_ohm = 0.0001419145434744869
