@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-model"
+version = "0.1.0"
+description = "Open_Analysis neutral board model, setup schemas, CrossSection and EM problem types"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "pydantic>=2.7",
+    "numpy>=1.26",
+    "pyyaml>=6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_model"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "RUF012", "RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src/oa_model", "tests"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
