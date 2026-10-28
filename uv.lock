@@ -1781,18 +1781,24 @@ version = "0.1.0"
 source = { editable = "packages/oa-mesh" }
 dependencies = [
     { name = "gmsh" },
+    { name = "meshio" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "oa-model" },
     { name = "oa-physics" },
+    { name = "oa-results" },
+    { name = "shapely" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "gmsh", specifier = ">=4.12" },
+    { name = "meshio", specifier = ">=5.3" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "oa-model", editable = "packages/oa-model" },
     { name = "oa-physics", editable = "packages/oa-physics" },
+    { name = "oa-results", editable = "packages/oa-results" },
+    { name = "shapely", specifier = ">=2.0" },
 ]
 
 [[package]]
