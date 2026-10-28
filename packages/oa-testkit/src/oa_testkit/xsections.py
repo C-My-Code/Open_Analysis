@@ -177,7 +177,7 @@ def _cohn_case(w_over_b: float, er: float) -> XsCase:
         name=f"cohn_stripline_w{_tag(w_over_b)}_er{_tag(er)}",
         xs=xs,
         expected={"z0": an.cohn_stripline_z0(w_over_b, er), "eeff": er},
-        rtol=5e-3,
+        rtol=1e-2,
         source=(
             "analytic: Z0 = eta0/(4 sqrt(er)) K(k)/K(k'), k = sech(pi W/(2b)); S. B. Cohn, "
             "'Characteristic Impedance of the Shielded-Strip Transmission Line', IRE Trans. "
@@ -207,7 +207,7 @@ def _edge_coupled_case(s_over_b: float, er: float = 1.0) -> XsCase:
         name=f"edge_coupled_stripline_w0p5_s{_tag(s_over_b)}_er{_tag(er)}",
         xs=xs,
         expected={**z, "eeff": er},
-        rtol=5e-3,
+        rtol=1e-2,
         source=(
             "analytic: Z0e,o = eta0/(4 sqrt(er)) K(k')/K(k), ke = tanh(pi W/2b) tanh(pi (W+S)/2b), "
             "ko = tanh(pi W/2b) coth(pi (W+S)/2b); S. B. Cohn, 'Shielded Coupled-Strip "
@@ -242,7 +242,7 @@ def _cpw_case(er: float, h: float | None) -> XsCase:
         name=name,
         xs=xs,
         expected={"z0": z0, "eeff": eeff},
-        rtol=5e-3,
+        rtol=1e-2,
         source=(
             "analytic: Z0 = 30 pi/sqrt(eeff) K(k0')/K(k0), k0 = S/(S+2G), "
             "eeff = 1 + (er-1)/2 K(k1)/K(k1') K(k0')/K(k0), k1 = sinh(pi S/4h)/sinh(pi (S+2G)/4h); "

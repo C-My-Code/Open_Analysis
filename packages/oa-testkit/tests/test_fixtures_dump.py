@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from oa_model.board import Board
+from oa_model.io import load_board
 from oa_testkit import fixtures_dump as fd
 
 
@@ -22,8 +22,7 @@ def test_write_then_check(tmp_path: Path) -> None:
 @pytest.mark.parametrize("name", sorted(fd.BOARDS))
 def test_model_fixture_round_trips(name: str, tmp_path: Path) -> None:
     fd.main(["--root", str(tmp_path)])
-    text = (tmp_path / "model" / f"{name}.oab.json").read_text(encoding="utf-8")
-    assert Board.model_validate_json(text) == fd.BOARDS[name]()
+    assert load_board(tmp_path / "model" / f"{name}.oab.json") == fd.BOARDS[name]()
 
 
 def test_committed_fixtures_are_current(update_golden: bool) -> None:

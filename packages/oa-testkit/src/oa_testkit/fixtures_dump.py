@@ -15,10 +15,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 from oa_model.board import Board
+from oa_model.io import dump_board
 
 from . import builders, emproblems, xsections
 
@@ -50,7 +52,10 @@ def default_root() -> Path:
 
 def board_text(board: Board) -> str:
     """Canonical ``.oab.json`` text for a board."""
-    return board.model_dump_json(indent=1) + "\n"
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "b.oab.json"
+        dump_board(board, p)
+        return p.read_bytes().decode("utf-8")
 
 
 def _json_text(obj: object) -> str:

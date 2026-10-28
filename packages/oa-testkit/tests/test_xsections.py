@@ -139,7 +139,10 @@ def test_key_sensitivity() -> None:
     assert isinstance(sig.shape, XsTrapezoid)
 
     def moved(du: float) -> CrossSection:
-        shape = sig.shape.model_copy(update={"u_center": sig.shape.u_center + du})  # type: ignore[union-attr]
+        # widen (a pure translation of the signal would be canonicalized away)
+        shape = sig.shape.model_copy(
+            update={"w_bottom": sig.shape.w_bottom + du, "w_top": sig.shape.w_top + du}
+        )
         c0 = sig.model_copy(update={"shape": shape})
         return xs.model_copy(update={"conductors": (c0, *xs.conductors[1:])})
 

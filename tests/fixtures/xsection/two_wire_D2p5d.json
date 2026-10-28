@@ -1,0 +1,63 @@
+{
+ "name": "two_wire_D2p5d",
+ "kind": "analytic",
+ "source": "analytic: Z0 = eta0/(pi sqrt(er)) acosh(D/d) (balanced line; textbook result, e.g. Ramo, Whinnery & Van Duzer; Pozar, Microwave Engineering)",
+ "note": "Air, wire diameter 0.5 mm, centre spacing D; Z0 is the line (differential) value.",
+ "rtol": 0.0001,
+ "expected": {
+  "zdiff": 187.8858378800739,
+  "eeff": 1.0
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "circle",
+     "u_center": -0.000625,
+     "z_center": 0.00025,
+     "radius": 0.00025
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "s2",
+    "role": "signal",
+    "shape": {
+     "kind": "circle",
+     "u_center": 0.000625,
+     "z_center": 0.00025,
+     "radius": 0.00025
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [],
+  "background_dk": 1.0,
+  "topology_hint": "general",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

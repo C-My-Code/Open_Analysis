@@ -1,0 +1,84 @@
+{
+ "name": "hj_microstrip_u1p9_er4p3",
+ "kind": "formula_lock",
+ "source": "Hammerstad & Jensen, 'Accurate models for microstrip computer-aided design', IEEE MTT-S Int. Microwave Symp. Dig., 1980, pp. 407-409 (zero-thickness Z0, eeff), formulas as in docs/research/02-impedance.md sec. 1.2; evaluated by oa_testkit.analytic.hammerstad_jensen. Self-computed, needs independent check (Wadell Handbook ch. 3 worked examples / SI9000).",
+ "note": "Closed-form implementations should match to 1e-6; field solvers to ~1 %.",
+ "rtol": 0.015,
+ "expected": {
+  "z0": 50.738800880508066,
+  "eeff": 3.261206067304579
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "trapezoid",
+     "u_center": 0.0,
+     "z_bottom": 0.0002,
+     "w_bottom": 0.00038,
+     "w_top": 0.00038,
+     "thickness": 2e-08
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g1",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [
+   {
+    "region": {
+     "kind": "slab",
+     "z_bottom": 0.0,
+     "z_top": 0.0002,
+     "u_min": null,
+     "u_max": null
+    },
+    "model": {
+     "kind": "constant",
+     "dk": 4.3,
+     "df": 0.0,
+     "f_ref": 1000000000.0
+    },
+    "dk_z_over_dk_xy": 1.0,
+    "priority": 0
+   }
+  ],
+  "background_dk": 1.0,
+  "topology_hint": "microstrip",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

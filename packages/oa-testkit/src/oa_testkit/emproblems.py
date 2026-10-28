@@ -76,7 +76,11 @@ def _slabs(board: Board) -> tuple[MaterialSlab, ...]:
 
 
 def _provenance(board: Board, nets: Sequence[str], bbox: Box3) -> RegionProvenance:
-    return RegionProvenance(board_hash=board.content_hash(), nets=tuple(nets), bbox=bbox)
+    return RegionProvenance(
+        board_hash=board.content_hash(),
+        nets=tuple(nets),
+        bbox=(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax),
+    )
 
 
 def _track_body(board: Board, track_id: str, role: str = "signal") -> ConductorBody:

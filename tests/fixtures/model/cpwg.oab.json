@@ -1,0 +1,1003 @@
+{
+ "components": [],
+ "diagnostics": [],
+ "diff_pairs": [],
+ "meta": {
+  "arc_tolerance": 1e-06,
+  "created_utc": "2026-01-01T00:00:00Z",
+  "name": "oa_testkit_cpwg",
+  "reader": "oa-testkit 0.1.0",
+  "source_file": null,
+  "source_hash": null,
+  "source_tool": "synthetic",
+  "source_version": null
+ },
+ "net_classes": [
+  {
+   "clearance": null,
+   "dp_gap": null,
+   "dp_width": null,
+   "name": "Z50",
+   "patterns": [],
+   "source": null,
+   "target_tolerance": 0.1,
+   "target_z_diff": null,
+   "target_z_se": 50.0,
+   "track_width": 0.0003,
+   "tuning_profile": null,
+   "via_diameter": null,
+   "via_drill": null
+  }
+ ],
+ "nets": [
+  {
+   "id": "SIG",
+   "kind": "signal",
+   "net_class": "Z50",
+   "source": null
+  },
+  {
+   "id": "GND",
+   "kind": "ground",
+   "net_class": null,
+   "source": null
+  }
+ ],
+ "outline": {
+  "edges": [],
+  "extra_boards": [],
+  "polygon": {
+   "exterior": [
+    0.0,
+    -0.0033,
+    0.025,
+    -0.0033,
+    0.025,
+    0.0033,
+    0.0,
+    0.0033
+   ],
+   "holes": []
+  }
+ },
+ "pads": [],
+ "padstacks": [
+  {
+   "drill": {
+    "diameter": 0.0002,
+    "kind": "plated",
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "plating_thickness": 2.5e-05,
+    "shape": "round",
+    "slot_length": null
+   },
+   "id": "via_gnd",
+   "keep_end_layers": true,
+   "layers": [
+    {
+     "antipad": null,
+     "connection": "solid",
+     "layer": "L1",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    },
+    {
+     "antipad": null,
+     "connection": "solid",
+     "layer": "L2",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    }
+   ],
+   "mask_opening_bottom": null,
+   "mask_opening_top": null,
+   "remove_unused_layers": false
+  }
+ ],
+ "schema_version": "1.0",
+ "shapes": [],
+ "stackup": {
+  "finish": null,
+  "known": true,
+  "layers": [
+   {
+    "etch": null,
+    "id": "L1",
+    "index": 1,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "signal",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L1",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.00023500000000000002,
+    "z_top": 0.00027
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D1",
+    "index": 1,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0002,
+    "z_bottom": 3.5e-05,
+    "z_top": 0.00023500000000000002
+   },
+   {
+    "etch": null,
+    "id": "L2",
+    "index": 2,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L2",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.0,
+    "z_top": 3.5e-05
+   }
+  ],
+  "materials": [
+   {
+    "dk_z_over_dk_xy": 1.0,
+    "kind": "dielectric",
+    "model": {
+     "df": 0.02,
+     "dk": 4.3,
+     "f_ref": 1000000000.0,
+     "kind": "constant"
+    },
+    "name": "FR4_generic",
+    "source": "default",
+    "thermal": null
+   },
+   {
+    "conductivity": 58000000.0,
+    "kind": "conductor",
+    "mu_r": 1.0,
+    "name": "copper",
+    "source": "default",
+    "t_ref": 293.15,
+    "temp_coeff": 0.00393,
+    "thermal": {
+     "density": null,
+     "emissivity": null,
+     "k_xy": 390.0,
+     "k_z": 390.0,
+     "specific_heat": null
+    }
+   }
+  ],
+  "total_thickness": 0.00027
+ },
+ "tracks": [
+  {
+   "end_caps": "round",
+   "id": "trk:SIG:1",
+   "layer": "L1",
+   "net": "SIG",
+   "path": [
+    {
+     "end": [
+      0.025,
+      0.0
+     ],
+     "kind": "line",
+     "start": [
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "source": {
+    "name": null,
+    "token": "segment",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "width": 0.0003
+  }
+ ],
+ "vias": [
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p0",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0015000000000000013,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n0",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0015000000000000013,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p1",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0035000000000000014,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n1",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0035000000000000014,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p2",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.005500000000000001,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n2",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.005500000000000001,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p3",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0075000000000000015,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n3",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0075000000000000015,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p4",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.009500000000000001,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n4",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.009500000000000001,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p5",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.011500000000000002,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n5",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.011500000000000002,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p6",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.013500000000000002,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n6",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.013500000000000002,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p7",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.015500000000000002,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n7",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.015500000000000002,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p8",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0175,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n8",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0175,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p9",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.019500000000000003,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n9",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.019500000000000003,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p10",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.021500000000000002,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n10",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.021500000000000002,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:p11",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0235,
+    0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:n11",
+   "kind": "through",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0235,
+    -0.0007999999999999999
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  }
+ ],
+ "zones": [
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L1",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        0.0003,
+        0.025,
+        0.0003,
+        0.025,
+        0.0033,
+        0.0,
+        0.0033
+       ],
+       "holes": []
+      },
+      {
+       "exterior": [
+        0.0,
+        -0.0033,
+        0.025,
+        -0.0033,
+        0.025,
+        -0.0003,
+        0.0,
+        -0.0003
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L1",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L1"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.0033,
+     0.025,
+     -0.0033,
+     0.025,
+     0.0033,
+     0.0,
+     0.0033
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L2",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        -0.0033,
+        0.025,
+        -0.0033,
+        0.025,
+        0.0033,
+        0.0,
+        0.0033
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L2",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L2"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.0033,
+     0.025,
+     -0.0033,
+     0.025,
+     0.0033,
+     0.0,
+     0.0033
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ]
+}
