@@ -1,0 +1,13 @@
+source = "Filled copper area of the KiCad 10.0.5 demo board ecc83/ecc83-pp.kicad_pcb as saved by the KiCad GUI (the demo ships with its fill), read through pcbnew (oa_kicad_bridge.inspect_zones), recorded once. A zone refill with pcbnew.ZONE_FILLER must reproduce it within 0.01 %."
+
+[tolerance]
+rtol = 0.0001
+atol = 0.0
+
+[inputs]
+demo = "ecc83/ecc83-pp.kicad_pcb"
+zone_net = "GND"
+unit = "m^2"
+
+[expected.zone_area]
+GND_bottom = 0.0012543888993370657

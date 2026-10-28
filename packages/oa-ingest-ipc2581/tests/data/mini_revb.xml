@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+SPDX-License-Identifier: GPL-3.0-or-later
+
+Hand-written IPC-2581 rev B fixture in the style of an Altium export (PadStack instances,
+LogicalNet, "No Net", inch units). Not produced by KiCad. Board is 1.0 x 0.5 inch.
+-->
+<IPC-2581 revision="B" xmlns="http://webstds.ipc.org/2581">
+  <Content roleRef="Owner">
+    <FunctionMode mode="USERDEF" level="1"/>
+    <StepRef name="MINI"/>
+    <DictionaryStandard units="INCH">
+      <EntryStandard id="CIRCLE_20"><Circle diameter="0.020"/></EntryStandard>
+      <EntryStandard id="RECT_30X20"><RectCenter width="0.030" height="0.020"/></EntryStandard>
+      <EntryStandard id="OVAL_40X20"><Oval width="0.040" height="0.020"/></EntryStandard>
+    </DictionaryStandard>
+    <DictionaryLineDesc units="INCH">
+      <EntryLineDesc id="W10"><LineDesc lineWidth="0.010" lineEnd="ROUND"/></EntryLineDesc>
+    </DictionaryLineDesc>
+  </Content>
+  <Ecad name="Design">
+    <CadHeader units="INCH">
+      <Spec name="CU"><General type="MATERIAL"><Property text="COPPER"/></General>
+        <Conductor type="CONDUCTIVITY"><Property unit="MHO/CM" value="5.8E5"/></Conductor></Spec>
+      <Spec name="CORE"><General type="MATERIAL"><Property text="FR4"/><Property text="Type : core"/></General>
+        <Dielectric type="DIELECTRIC_CONSTANT"><Property value="4.2"/></Dielectric>
+        <Dielectric type="LOSS_TANGENT"><Property value="0.018"/></Dielectric></Spec>
+    </CadHeader>
+    <CadData>
+      <Layer name="TOP" layerFunction="CONDUCTOR" polarity="POSITIVE" side="TOP"/>
+      <Layer name="CORE1" layerFunction="DIELCORE" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="BOT" layerFunction="CONDUCTOR" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="DRILL1" layerFunction="DRILL" polarity="POSITIVE" side="ALL">
+        <Span fromLayer="TOP" toLayer="BOT"/>
+      </Layer>
+      <Stackup name="S" overallThickness="0.0630" tolPlus="0" tolMinus="0" whereMeasured="MASK">
+        <StackupGroup name="G" thickness="0.0630" tolPlus="0" tolMinus="0">
+          <StackupLayer layerOrGroupRef="TOP" thickness="0.0014" tolPlus="0" tolMinus="0" sequence="1"><SpecRef id="CU"/></StackupLayer>
+          <StackupLayer layerOrGroupRef="CORE1" thickness="0.0602" tolPlus="0" tolMinus="0" sequence="2"><SpecRef id="CORE"/></StackupLayer>
+          <StackupLayer layerOrGroupRef="BOT" thickness="0.0014" tolPlus="0" tolMinus="0" sequence="3"><SpecRef id="CU"/></StackupLayer>
+        </StackupGroup>
+      </Stackup>
+      <Step name="MINI" type="BOARD">
+        <Datum x="0" y="0"/>
+        <Profile>
+          <Polygon>
+            <PolyBegin x="0" y="0"/>
+            <PolyStepSegment x="1.0" y="0"/>
+            <PolyStepSegment x="1.0" y="0.5"/>
+            <PolyStepSegment x="0" y="0.5"/>
+            <PolyStepSegment x="0" y="0"/>
+          </Polygon>
+          <Cutout>
+            <PolyBegin x="0.8" y="0.2"/>
+            <PolyStepCurve x="0.8" y="0.3" centerX="0.8" centerY="0.25" clockwise="false"/>
+            <PolyStepCurve x="0.8" y="0.2" centerX="0.8" centerY="0.25" clockwise="false"/>
+          </Cutout>
+        </Profile>
+        <Component refDes="U1" packageRef="PKG" layerRef="TOP" mountType="SMT">
+          <Xform rotation="90"/>
+          <Location x="0.2" y="0.25"/>
+        </Component>
+        <Component refDes="C1" packageRef="PKG" layerRef="BOT" mountType="SMT">
+          <Xform rotation="0" mirror="true"/>
+          <Location x="0.5" y="0.25"/>
+        </Component>
+        <LogicalNet name="SIG">
+          <PinRef componentRef="U1" pin="1"/>
+          <PinRef componentRef="C1" pin="1"/>
+        </LogicalNet>
+        <LogicalNet name="GND"><PinRef componentRef="U1" pin="2"/></LogicalNet>
+        <PadStack net="GND">
+          <LayerHole name="V1" diameter="0.012" platingStatus="VIA" plusTol="0" minusTol="0" x="0.6" y="0.1">
+            <Span fromLayer="TOP" toLayer="BOT"/>
+          </LayerHole>
+          <LayerPad layerRef="TOP"><Location x="0.6" y="0.1"/><StandardPrimitiveRef id="CIRCLE_20"/></LayerPad>
+          <LayerPad layerRef="BOT"><Location x="0.6" y="0.1"/><StandardPrimitiveRef id="CIRCLE_20"/></LayerPad>
+        </PadStack>
+        <PadStack net="SIG">
+          <LayerPad layerRef="TOP"><Location x="0.2" y="0.25"/><Xform rotation="90"/><StandardPrimitiveRef id="RECT_30X20"/><PinRef componentRef="U1" pin="1"/></LayerPad>
+        </PadStack>
+        <PadStack net="GND">
+          <LayerPad layerRef="TOP"><Location x="0.3" y="0.25"/><StandardPrimitiveRef id="OVAL_40X20"/><PinRef componentRef="U1" pin="2"/></LayerPad>
+        </PadStack>
+        <PadStack net="No Net">
+          <LayerHole name="M1" diameter="0.040" platingStatus="NONPLATED" plusTol="0" minusTol="0" x="0.1" y="0.4"/>
+        </PadStack>
+        <LayerFeature layerRef="TOP">
+          <Set net="SIG">
+            <Features>
+              <Line startX="0.2" startY="0.25" endX="0.4" endY="0.25"><LineDescRef id="W10"/></Line>
+              <Arc startX="0.4" startY="0.25" endX="0.5" endY="0.35" centerX="0.4" centerY="0.35" clockwise="false">
+                <LineDescRef id="W10"/>
+              </Arc>
+            </Features>
+          </Set>
+          <Set net="GND">
+            <Features>
+              <Contour>
+                <Polygon>
+                  <PolyBegin x="0.6" y="0.3"/>
+                  <PolyStepSegment x="0.9" y="0.3"/>
+                  <PolyStepSegment x="0.9" y="0.45"/>
+                  <PolyStepSegment x="0.6" y="0.45"/>
+                  <PolyStepSegment x="0.6" y="0.3"/>
+                </Polygon>
+                <Cutout>
+                  <PolyBegin x="0.7" y="0.35"/>
+                  <PolyStepSegment x="0.8" y="0.35"/>
+                  <PolyStepSegment x="0.8" y="0.4"/>
+                  <PolyStepSegment x="0.7" y="0.4"/>
+                  <PolyStepSegment x="0.7" y="0.35"/>
+                </Cutout>
+              </Contour>
+            </Features>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="DRILL1">
+          <Set net="GND"><Hole name="V1" diameter="0.012" platingStatus="VIA" plusTol="0" minusTol="0" x="0.6" y="0.1"/></Set>
+        </LayerFeature>
+      </Step>
+    </CadData>
+  </Ecad>
+</IPC-2581>
