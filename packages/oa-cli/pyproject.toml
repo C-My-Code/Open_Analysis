@@ -17,7 +17,7 @@ dependencies = [
     "oa-framework",
     "oa-jobs",
     "oa-service",
-    "typer>=0.12",
+    "click>=8.1",
 ]
 
 [project.optional-dependencies]

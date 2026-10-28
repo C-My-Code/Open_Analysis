@@ -14,6 +14,7 @@ owns a job or result id.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import sys
@@ -310,6 +311,11 @@ class LocalService(ServiceBase):
         ceiling: Budget | None = None,
     ) -> None:
         self.cache_dir = cache_dir or default_cache_dir()
+        if registry is None and registry_factory is None:
+            registry_factory = os.environ.get("OA_REGISTRY_FACTORY") or None
+        if registry is None and registry_factory is not None:
+            mod, _, attr = registry_factory.partition(":")
+            registry = getattr(importlib.import_module(mod), attr)()
         self.registry_factory = registry_factory
         self.tools = tools
         self.workers = workers

@@ -15,7 +15,7 @@ from itertools import pairwise
 from typing import Any
 
 import numpy as np
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 
 from oa_model.board import Board
 from oa_model.geometry import ArcSeg, LineSeg

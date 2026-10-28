@@ -13,6 +13,7 @@ Example inputs use placeholders that the test-suite and ``oa describe`` document
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -39,6 +40,8 @@ from oa_service.models import (
     CommandSpecView,
     DescribeIn,
     Description,
+    DoctorIn,
+    DoctorOut,
     ErcRunIn,
     ExplainIn,
     ExportIn,
@@ -55,6 +58,8 @@ from oa_service.models import (
     ProfileRunIn,
     ProjectHandle,
     ProjectIn,
+    ProjectInitIn,
+    ProjectInitOut,
     ProjectList,
     ProjectListIn,
     ResultGetIn,
@@ -85,7 +90,7 @@ if TYPE_CHECKING:
     from oa_service.commands import Registry
     from oa_service.service import OAService
 
-__all__ = ["EXIT_CODE_TEXT", "builtin_commands", "input_schema_id"]
+__all__ = ["EXIT_CODE_TEXT", "builtin_commands", "check_finished", "input_schema_id"]
 
 EXIT_CODE_TEXT = {
     "0": "ok (warnings allowed)",
@@ -163,7 +168,7 @@ def _budget_warnings(requested: Budget | None, effective: Budget) -> tuple[Error
     )
 
 
-def _finish_checks(svc: OAService, job_state: str, job: Any) -> None:
+def check_finished(svc: OAService, job_state: str, job: Any) -> None:
     """Turn a finished-but-unsuccessful job into the documented error."""
     if job_state == "failed":
         st = svc.job(job.job_id)
@@ -208,7 +213,7 @@ def _run(svc: OAService, ctx: CallContext, req: RunAnalysisIn) -> Outcome:
         )
     job = svc.submit(req.project_id, req, ctx)
     if req.wait_s > 0:
-        _finish_checks(svc, job.state, job)
+        check_finished(svc, job.state, job)
     return Outcome(
         RunResult(dry_run=False, valid=True, diagnostics=(), estimate=job.estimate, job=job),
         warnings,
@@ -381,6 +386,23 @@ def _explain(svc: OAService, a: ExplainIn, ctx: CallContext) -> ViolationExplana
     return results_view.explain_violation(svc.result(a.result_id), a, rules)
 
 
+def _doctor(svc: OAService, a: DoctorIn, ctx: CallContext) -> DoctorOut:
+    from oa_service.projectops import doctor_report
+
+    return DoctorOut(report=json.loads(json.dumps(doctor_report(), default=str)))
+
+
+def _init(svc: OAService, a: ProjectInitIn, ctx: CallContext) -> ProjectInitOut:
+    from oa_service.projectops import init_project
+
+    directory = ctx.check_path(a.dir)
+    require_write(ctx, a.confirm, what=f"project files in {directory}")
+    created = init_project(directory, board=a.board, name=a.name)
+    return ProjectInitOut(
+        project_path=str(directory / "oa-project.yaml"), created=tuple(str(p) for p in created)
+    )
+
+
 def _export(svc: OAService, a: ExportIn, ctx: CallContext) -> ExportInfo:
     return svc.export(a, ctx)
 
@@ -461,6 +483,41 @@ def builtin_commands(registry: Registry | None = None) -> list[CommandDef]:
         SchemaOut,
         schema,
         ("id",),
+    )
+    add(
+        _spec(
+            "meta.doctor",
+            "doctor",
+            ("doctor",),
+            "Environment report",
+            "Offline report of the platform, external tools (openEMS, Palace, KiCad), KiCad and "
+            "gmsh versions and whether oa-mcp / oa-assistant are installed. Runs in under 3 s. "
+            "Read-only.",
+            "read",
+            "oa.doctor_out/1",
+            examples=({},),
+        ),
+        DoctorIn,
+        DoctorOut,
+        _doctor,
+    )
+    add(
+        _spec(
+            "project.init",
+            None,
+            ("init",),
+            "Create a project",
+            "Write oa-project.yaml plus physics and intent templates for a directory that holds "
+            "one board file. A WRITE (needs confirm=true); never overwrites existing files.",
+            "write",
+            "oa.project_init_out/1",
+            idempotent=False,
+            examples=({"dir": "$BOARD_DIR"},),
+        ),
+        ProjectInitIn,
+        ProjectInitOut,
+        _init,
+        ("dir",),
     )
     add(
         _spec(

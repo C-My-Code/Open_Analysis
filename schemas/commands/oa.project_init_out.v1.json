@@ -1,0 +1,27 @@
+{
+  "$id": "oa.project_init_out/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Files created by project.init.",
+  "properties": {
+    "created": {
+      "description": "Absolute paths of the files created.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Created",
+      "type": "array"
+    },
+    "project_path": {
+      "description": "Absolute path of oa-project.yaml.",
+      "title": "Project Path",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_path",
+    "created"
+  ],
+  "title": "ProjectInitOut",
+  "type": "object"
+}

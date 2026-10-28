@@ -227,9 +227,9 @@ class ServiceBase:
         job_id = self.backend.submit(session, req, ctx)
         if req.wait_s > 0:
             self.backend.wait(job_id, req.wait_s)
-        return self._handle(job_id)
+        return self.job_handle(job_id)
 
-    def _handle(self, job_id: str) -> JobHandle:
+    def job_handle(self, job_id: str) -> JobHandle:
         rec = self.backend.status(job_id)
         b = rec.brief
         summary = None

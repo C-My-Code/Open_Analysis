@@ -107,9 +107,22 @@ class StubErc:
         )
 
 
+class StubGate(StubErc):
+    """An analysis whose bundle fails its quality gate (exit code 5 fixture)."""
+
+    kind: ClassVar[str] = "gate.stub"
+    title: ClassVar[str] = "Stub failing quality gate"
+
+    def reduce(
+        self, ctx: RunContext, cfg: OAModel, outputs: Mapping[str, TaskOutput]
+    ) -> ResultBundle:
+        b = super().reduce(ctx, cfg, outputs)
+        return b.model_copy(update={"status": "failed_quality"})
+
+
 def make_registry() -> Registry:
     """Installed readers (entry points) plus the stub analyses."""
     reg = Registry.load()
-    for cls in (DummyAnalysis, StubErc):
+    for cls in (DummyAnalysis, StubErc, StubGate):
         reg.analyses.setdefault(cls.kind, cls)  # type: ignore[arg-type]
     return reg

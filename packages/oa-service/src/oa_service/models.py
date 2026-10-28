@@ -877,6 +877,36 @@ class SetupPutOut(OAModel):
     backup: str | None = Field(default=None, description="Backup of the replaced file.")
 
 
+class DoctorIn(OAModel):
+    """Environment report (no arguments)."""
+
+
+class DoctorOut(OAModel):
+    """`oa doctor`: platform, external tools, KiCad and gmsh versions, optional packages."""
+
+    report: dict[str, JsonValue] = Field(
+        description="Environment report; keys documented in `oa doctor`."
+    )
+
+
+class ProjectInitIn(OAModel):
+    """Scaffold a project directory. A write: needs `confirm`; never overwrites files."""
+
+    dir: str = Field(description="Directory to create or use.")
+    board: str | None = Field(
+        default=None, description="Board file name inside `dir`; default the only board found."
+    )
+    name: str | None = Field(default=None, description="Project name; default the directory name.")
+    confirm: bool = Field(default=False, description="Must be true to write files.")
+
+
+class ProjectInitOut(OAModel):
+    """Files created by project.init."""
+
+    project_path: str = Field(description="Absolute path of oa-project.yaml.")
+    created: tuple[str, ...] = Field(description="Absolute paths of the files created.")
+
+
 class DescribeIn(OAModel):
     """Introspection: the catalog, one command, the analyses or the rules."""
 
