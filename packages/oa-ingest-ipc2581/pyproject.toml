@@ -23,3 +23,6 @@ packages = ["src/oa_ingest_ipc2581"]
 
 [tool.uv.sources]
 oa-model = { workspace = true }
+
+[project.entry-points."open_analysis.ingest"]
+ipc2581 = "oa_ingest_ipc2581:Ipc2581Reader"
