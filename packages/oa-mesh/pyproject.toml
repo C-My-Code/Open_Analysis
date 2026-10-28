@@ -14,8 +14,11 @@ license = "GPL-3.0-or-later"
 dependencies = [
     "oa-model",
     "oa-physics",
+    "oa-results",
     "numpy>=1.26",
+    "shapely>=2.0",
     "gmsh>=4.12",
+    "meshio>=5.3",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -24,3 +27,4 @@ packages = ["src/oa_mesh"]
 [tool.uv.sources]
 oa-model = { workspace = true }
 oa-physics = { workspace = true }
+oa-results = { workspace = true }

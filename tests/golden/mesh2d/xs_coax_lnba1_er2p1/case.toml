@@ -1,0 +1,15 @@
+source = "self-generated regression signature (gmsh 4.15.2, Windows); node/triangle counts and a coordinate hash rounded to 1e-12 x box size. Not an independent reference."
+
+[tolerance]
+rtol = 1e-09
+atol = 0.0
+
+[inputs]
+case = "coax_lnba1_er2p1"
+order = 2
+
+[expected]
+gmsh_version = "4.15.2"
+n_nodes = 147472
+n_triangles = 73160
+hash = "406303fb7a73c83ec17e1fa3ef02605c109ffd52a86e4f92be3f125c5d4f2ce7"
