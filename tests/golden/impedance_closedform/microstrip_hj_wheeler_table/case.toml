@@ -1,0 +1,44 @@
+source = "Hammerstad and Jensen, MTT-S Symp. Dig. 1980, pp. 407-409; Wheeler, IEEE T-MTT 25(8), 1977; formulas as in docs/research/02-impedance.md sec 1.2-1.3, table 4.3 (h = 0.2 mm, t = 0). Locked to our transcription at 1e-6; the report values are checked to 1e-3 in the test."
+
+[tolerance]
+rtol = 1e-06
+atol = 0.0
+
+[inputs]
+h = 0.0002
+rows = [[0.5, 1.0], [0.5, 4.3], [1.0, 4.3], [1.9, 4.3], [2.0, 4.3], [2.0, 10.2], [4.0, 4.3]]
+
+[expected.u0p5_er1]
+hj_z0 = 166.69979873395985
+hj_eeff = 1.0
+wheeler_z0 = 166.64087118396952
+
+[expected.u0p5_er4p3]
+hj_z0 = 96.40401021251853
+hj_eeff = 2.99006032824657
+wheeler_z0 = 96.39993565224619
+
+[expected.u1_er4p3]
+hj_z0 = 71.75139762052041
+hj_eeff = 3.104540988931971
+wheeler_z0 = 71.73230403726392
+
+[expected.u1p9_er4p3]
+hj_z0 = 50.738800880508066
+hj_eeff = 3.261206067304579
+wheeler_z0 = 50.62281191972586
+
+[expected.u2_er4p3]
+hj_z0 = 49.19180731809973
+hj_eeff = 3.275493578104424
+wheeler_z0 = 49.06417792787896
+
+[expected.u2_er10p2]
+hj_z0 = 32.93600586440358
+hj_eeff = 7.3066860553909585
+wheeler_z0 = 32.96089673814919
+
+[expected.u4_er4p3]
+hj_z0 = 30.911406496810155
+hj_eeff = 3.4868524570948747
+wheeler_z0 = 30.708059950837796

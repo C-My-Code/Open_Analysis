@@ -1,0 +1,12 @@
+source = "analytic: Z0 = eta0/(2 pi sqrt(er)) ln(b/a), ln(b/a) = 1 -> 59.958 ohm in air (Pozar, Microwave Engineering); round conductors, oa_testkit.xsections coax"
+
+[tolerance]
+rtol = 0.001
+atol = 0.0
+
+[inputs]
+ln_b_over_a = 1.0
+er = [1.0, 2.1]
+
+[expected]
+z0 = [59.95849163263995, 41.37529006580155]

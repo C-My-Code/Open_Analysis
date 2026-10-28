@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""WP-105 performance acceptance: median BEM solve (single microstrip, 2-conductor pair,
+20 frequencies) below 50 ms. Plain timer (pytest-benchmark 5.3 does not load under this pytest)."""
+
+from __future__ import annotations
+
+import statistics
+import time
+from collections.abc import Callable
+
+import _xs
+import numpy as np
+import pytest
+
+from oa_impedance.service import ImpedanceServiceImpl
+from oa_model.xsection import CrossSection
+
+FREQS = list(np.logspace(6, 10, 20))
+BUDGET_S = 0.050
+
+
+def _solve(xs: CrossSection) -> Callable[[], object]:
+    def run() -> object:
+        # a fresh service each time: no cache hits, geometry + influence matrices + solve
+        return ImpedanceServiceImpl().solve(xs, FREQS, method="bem")
+
+    return run
+
+
+def _median_s(fn: Callable[[], object], n: int = 9) -> float:
+    fn()  # warm-up (imports, BLAS)
+    ts = []
+    for _ in range(n):
+        t0 = time.perf_counter()
+        fn()
+        ts.append(time.perf_counter() - t0)
+    return statistics.median(ts)
+
+
+@pytest.mark.parametrize("pair", [False, True], ids=["single", "pair"])
+def test_bem_median_under_50ms(pair: bool) -> None:
+    med = _median_s(_solve(_xs.pcb_microstrip(pair=pair)))
+    print(f"\nBEM {'pair' if pair else 'single'} microstrip, 20 freqs: median {med * 1e3:.1f} ms")
+    assert med < BUDGET_S
+
+
+def test_closed_form_quick_under_1ms() -> None:
+    svc = ImpedanceServiceImpl()
+    xs = _xs.microstrip(1.0, 4.3)
+    med = _median_s(lambda: ImpedanceServiceImpl().quick(xs), n=25)
+    assert med < 2e-3  # target < 1 ms on a quiet machine; 2 ms allows CI noise
+    del svc

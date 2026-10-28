@@ -1,0 +1,19 @@
+source = "analytic: zero-thickness CPW (S = 1 mm, G = 0.5 mm) on a substrate of depth 8 mm without bottom ground: Z0 = 30 pi/sqrt(eeff) K(k0')/K(k0), eeff from Ghione and Naldi 1984 with finite h; eeff_halfspace = (er+1)/2 is the infinite-depth limit (differs by < 0.3 %). Tolerance 3e-3 on z0 (BEM truncation: see README), 5e-3 on eeff"
+
+[tolerance]
+rtol = 0.003
+atol = 0.0
+
+[tolerance.per_key.eeff_halfspace]
+rtol = 0.005
+atol = 0.0
+
+[inputs]
+s = 0.001
+g = 0.0005
+er = [1.0, 9.8]
+depth = 0.008
+
+[expected]
+eeff_halfspace = [1.0, 5.4]
+z0 = [120.56756262031709, 51.94250000016216]

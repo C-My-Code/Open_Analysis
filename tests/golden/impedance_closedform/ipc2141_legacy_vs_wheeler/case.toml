@@ -1,0 +1,15 @@
+source = "IPC-2141 microstrip Z0 = 87/sqrt(er+1.41) ln(5.98h/(0.8W+t)) and Wheeler 1977; docs/research/02-impedance.md sec 1.4: h = 0.2 mm, t = 35 um, er = 4.3, W = 0.5 mm -> 36.8 / 41.1 ohm (to 0.05 ohm)"
+
+[tolerance]
+rtol = 0.0
+atol = 0.05
+
+[inputs]
+h = 0.0002
+t = 3.5e-05
+er = 4.3
+w = 0.0005
+
+[expected]
+ipc_z0 = 36.8
+wheeler_z0 = 41.1

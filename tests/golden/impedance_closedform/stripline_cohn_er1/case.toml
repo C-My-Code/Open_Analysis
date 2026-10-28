@@ -1,0 +1,12 @@
+source = "analytic: Z0 = eta0/(4 sqrt(er)) K(k)/K(k'), k = sech(pi W/2b); Cohn, IRE T-MTT-2, 1954, pp. 52-57; values from docs/research/02-impedance.md sec 1.7 (to 0.01 ohm)"
+
+[tolerance]
+rtol = 0.0
+atol = 0.01
+
+[inputs]
+er = 1.0
+w_over_b = [0.1, 0.25, 0.5, 1.0, 2.0]
+
+[expected]
+z0 = [194.23, 139.92, 100.43, 65.35, 38.58]
