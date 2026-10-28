@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: wp-210
+on:
+  push:
+    paths: ['packages/oa-mcp/**', 'docs/agents/**', 'llms.txt', 'CLAUDE.md', 'AGENTS.md', 'tools/agents/**', '.github/workflows/wp-210.yml']
+  pull_request:
+    paths: ['packages/oa-mcp/**', 'docs/agents/**', 'llms.txt', 'CLAUDE.md', 'AGENTS.md', 'tools/agents/**', '.github/workflows/wp-210.yml']
+jobs:
+  mcp:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Bundled agent docs are in sync
+        run: uv run python tools/agents/sync_docs.py && git diff --exit-code packages/oa-mcp/src/oa_mcp/data
+      - run: uv run pytest packages/oa-mcp
