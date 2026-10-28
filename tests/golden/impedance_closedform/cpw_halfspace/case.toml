@@ -1,0 +1,13 @@
+source = "analytic: conformal mapping, Ghione and Naldi 1984, S = 1, G = 0.5, infinite substrate (eeff = (er+1)/2); docs/research/02-impedance.md sec 1.8 (to 0.01 ohm)"
+
+[tolerance]
+rtol = 0.0
+atol = 0.01
+
+[inputs]
+s = 1.0
+g = 0.5
+er = [1.0, 9.8]
+
+[expected]
+z0 = [120.57, 51.88]

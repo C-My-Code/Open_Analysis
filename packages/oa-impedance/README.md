@@ -1,5 +1,107 @@
 # oa-impedance
 
-Closed-form, BEM and FEM impedance.
+Closed-form transmission-line models, a 2D quasi-static BEM, the `impedance` service and the
+`impedance.xsection` analysis (WP-105). The FEM reference solver (`oa_impedance.fem`) and the
+profile analysis (`oa_impedance.profile`) belong to WP-202 / WP-203 and plug in through
+`oa_impedance.methods.register`.
 
-Skeleton from WP-000; implemented by its owning work package.
+## Public API
+
+```python
+from oa_impedance.service import (
+    ImpedanceServiceImpl,
+)  # entry point  open_analysis.services:impedance
+
+svc = ImpedanceServiceImpl()
+svc.solve(
+    xs, freqs=None, method="auto" | "closed_form" | "bem" | "fem"
+)  # -> oa_results ImpedanceResult
+svc.solve_many(xss, freqs, method="auto")  # dedups by CrossSection.key(), threads
+svc.quick(xs)  # closed form only, < 1 ms
+from oa_impedance import methods
+
+methods.register("fem", fn)  # fn(xs, freqs) -> ImpedanceResult
+from oa_impedance import closed_form as cf  # every function returns a CFResult
+from oa_impedance.analysis import ImpedanceXsection  # entry point  open_analysis.analyses
+```
+
+`freqs=None` means static (`[0.0]`, lossless). Results are cached by `xs.key()` + frequencies +
+method + mesh in an in-memory LRU, with an optional `job_cache` mapping hook.
+
+### Closed forms (`oa_impedance.closed_form`, each returns validity)
+
+| Family | Model |
+|---|---|
+| microstrip | Hammerstad-Jensen 1980 + HJ thickness; Wheeler 1977; Kirschning-Jansen 1982 eeff(f) and Jansen-Kirschning 1983 Z0(f) |
+| embedded microstrip | HJ + cover correction (always flagged approximate) |
+| stripline | Cohn 1954 (t = 0) + Wheeler 1978 thickness; offset stripline by parallel combination |
+| CPW / CPWG | Ghione-Naldi / Simons conformal mapping + Gupta thickness (Hilberg check) |
+| edge-coupled | Kirschning-Jansen 1984 static even/odd (+1985 errata); Cohn 1955 stripline (+ Wheeler-dW thickness) |
+| IPC-2141 | legacy, `legacy=True`, never chosen by `auto` |
+| loss | Wheeler incremental-inductance conductor loss, filling-factor dielectric loss |
+
+Validity: each result carries `RangeCheck`s against the published ranges. `extrapolated` = outside
+the range but within 3x, `invalid` = beyond that. `auto` falls back to the BEM when the closed form
+is `invalid`. Broadside-coupled stripline (Cohn 1960) has no closed form here (see gaps); it is
+solved by the BEM.
+
+### BEM (`oa_impedance.bem`)
+
+Flat constant panels, analytic log integrals (potential and normal field, self term included),
+one total-charge unknown per boundary panel, collocation at panel centres. Boundary = noded union
+of conductor outlines, dielectric region boundaries and zero-thickness ribbons. Corner grading by
+`size = clip(alpha * d)` with `d` the distance to the nearest singular point (corner, ribbon end,
+junction). Strips thinner than `2e-3` of their width (and `ribbon` planes) collapse to
+zero-thickness ribbons whose free charge is recovered from the interface operator, which is
+what makes true thin strips (t = 1e-6) accurate where thick-face pairs are ill-conditioned.
+Open boundaries are truncated at `20 * characteristic length` (note in every result). L comes from
+the vacuum capacitance (`L = mu0 C0^-1`), R(f) from the surface-impedance perturbation using the
+vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (`_physics_compat.py`
+shim until `oa_physics` lands). Complex permittivity gives C(f), G(f); dispersive materials are
+solved at up to 6 log-spaced anchors and interpolated (cubic, log f). Pure NumPy/SciPy; BLAS is
+limited to one thread for these small systems (`threadpoolctl`), which matters on loaded machines.
+Numba is not used: the NumPy kernel meets the budget.
+
+Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
+`Zdiff = Zc11+Zc22-Zc12-Zc21`, `Zcomm = (Zc11+Zc22+Zc12+Zc21)/4`; for N = 2 the modal order is
+`[even-like, odd-like]`. A section without a ground conductor uses its last signal as reference
+(N-1 mutual modes, noted in the result).
+
+## Golden suites
+
+- `tests/golden/impedance_closedform/` : HJ/Wheeler table (1e-6 lock + report values), Cohn
+  stripline, Cohn coupled stripline, CPW, IPC legacy vs Wheeler (report values, 0.01 ohm).
+- `tests/golden/impedance_bem/` : coax, wire over plane, two-wire, *true thin-strip* Cohn
+  stripline and coupled stripline (t = 1e-6 b), CPW (rtol 3e-3 for all but the coax at 1e-3).
+
+## [verify] resolutions (docs/research/02-impedance.md)
+
+1. **Embedded-microstrip exponent.** The primary source could not be reached. Both candidates (2 and
+   1.55) were scored against the BEM on a 12-case grid (`tests/test_embedded_exponent.py`): mean
+   |dZ0| 1.2 % and 1.1 %, worst 2.4 % and 2.9 %. Default 1.55; always flagged approximate.
+2. **Coupled-line equation sets.** The static Kirschning-Jansen 1984 set (v, ae, be, ao..do,
+   Q1..Q10, the 377-ohm denominators) was compared line by line with the Qucs technical
+   documentation (published equations) and validated against the BEM within 1 %
+   (`test_bem_coupled_microstrip_vs_kirschning_jansen`). The dispersive part of the paper is not
+   implemented (results are static and say so). The single-line Z0(f) R1..R17 set agrees with
+   scikit-rf `kirsching_zl` to < 0.1 % (20 cross-check cases). Note the Qucs-doc thickness formula
+   (11.22) is wrong, as scikit-rf also records; the HJ paper form is used.
+3. **Cannonball geometry.** 14 spheres of radius r in a three-layer square-based pyramid
+   (9 + 4 + 1) on a *square* 6r x 6r tile (Polar AP8195 / Simonovich 2015); the hexagonal tile is
+   the earlier DesignCon 2015 variant. Stack height `(2 + 2 sqrt 2) r = 4.83 r`, so `r = Rz / 4.83`;
+   surface ratio `14 * 4 pi r^2 / 36 r^2`. Used by `_physics_compat.roughness_factor`.
+   (Secondary-source level check: the primary white paper was not fetched.)
+
+## Known limitations
+
+- CPW in free space (no bottom ground) converges slowly with the ground truncation: Z0 error grows
+  ~0.1 % per 3 mm of substrate depth at fixed S+2G = 2 mm (0.22 % for the 8 mm golden). CPWG and
+  everything with a reference plane under the structure is unaffected.
+- No dispersive correction for coupled lines or CPW (static); BEM is quasi-static and reports
+  `extrapolated` above `0.1 c / (sqrt(er_max) h_char)`.
+- Anisotropic `dk_z_over_dk_xy` is ignored by the BEM (noted).
+- Zero-thickness ribbons carry the total sheet current in the loss integral (both faces together).
+- `oa_results` has no `Accuracy` model / `ResultItem.accuracy` yet: accuracy is carried by the
+  container `accuracy_class` ("screening" for closed forms, "validated" for BEM) plus a
+  `ValidityFlag(code="accuracy")` whose message holds the ai-integration class
+  (`closed_form` / `2d_field`) and `tolerance_basis`. See docs/change-requests/WP-105-*.md.

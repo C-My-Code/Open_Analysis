@@ -1,0 +1,14 @@
+source = "analytic: Cohn, IRE T-MTT-3, Oct. 1955, pp. 29-38 (zero thickness, centred, er = 1, W/b = 0.5); docs/research/02-impedance.md sec 1.9 (to 0.01 ohm)"
+
+[tolerance]
+rtol = 0.0
+atol = 0.01
+
+[inputs]
+er = 1.0
+w_over_b = 0.5
+s_over_b = [0.1, 0.25, 0.5]
+
+[expected]
+z0e = [122.89, 114.77, 107.15]
+z0o = [69.87, 83.52, 93.22]
