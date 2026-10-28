@@ -1,0 +1,26 @@
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "oa-testkit"
+version = "0.1.0"
+description = "Open_Analysis test kit: board builders, analytic references, golden-data helpers, inline harness."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-framework",
+    "oa-results",
+    "numpy>=1.26",
+    "pytest>=8",
+]
+
+[project.entry-points.pytest11]
+oa_testkit = "oa_testkit.plugin"
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-framework = { workspace = true }
+oa-results = { workspace = true }
