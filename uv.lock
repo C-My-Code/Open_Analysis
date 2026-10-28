@@ -1646,21 +1646,41 @@ name = "oa-erc"
 version = "0.1.0"
 source = { editable = "packages/oa-erc" }
 dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "oa-framework" },
     { name = "oa-geometry" },
     { name = "oa-model" },
+    { name = "oa-physics" },
     { name = "oa-results" },
     { name = "shapely" },
 ]
 
+[package.optional-dependencies]
+test = [
+    { name = "jsonschema" },
+    { name = "oa-impedance" },
+    { name = "oa-ingest-kicad" },
+    { name = "oa-testkit" },
+    { name = "pyyaml" },
+]
+
 [package.metadata]
 requires-dist = [
+    { name = "jsonschema", marker = "extra == 'test'" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "oa-framework", editable = "packages/oa-framework" },
     { name = "oa-geometry", editable = "packages/oa-geometry" },
+    { name = "oa-impedance", marker = "extra == 'test'", editable = "packages/oa-impedance" },
+    { name = "oa-ingest-kicad", marker = "extra == 'test'", editable = "packages/oa-ingest-kicad" },
     { name = "oa-model", editable = "packages/oa-model" },
+    { name = "oa-physics", editable = "packages/oa-physics" },
     { name = "oa-results", editable = "packages/oa-results" },
+    { name = "oa-testkit", marker = "extra == 'test'", editable = "packages/oa-testkit" },
+    { name = "pyyaml", marker = "extra == 'test'" },
     { name = "shapely", specifier = ">=2.0" },
 ]
+provides-extras = ["test"]
 
 [[package]]
 name = "oa-framework"

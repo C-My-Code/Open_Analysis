@@ -111,6 +111,7 @@ class _LocalJobs:
                     root,
                     self.svc.registry,
                     registry_factory=self.svc.registry_factory,
+                    geometry_factory="oa_geometry:BoardGeometry.build",
                     tools=self.svc.tools,
                     workers=self.svc.workers,
                     ceiling=self.svc.ceiling,

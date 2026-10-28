@@ -67,3 +67,20 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] The KiPI/padne/kicad-irdrop cross-checks were not run.
 - [ ] Multi-rail trees and series elements are not done.
 - [ ] Pads are ideal equipotentials, drawn as holes in field plots.
+
+## Service/CLI (WP-207)
+- [ ] Not implemented: `oa pi dc`, `oa em`, `oa cache gc`, `oa mcp`.
+- [ ] impedance.xs/profile are untested against the real WP-105/203; ERC is tested only via stubs (see WP-201 integration note below).
+- [ ] The structure3d endpoint returns 424 until WP-206 registers a service.
+- [ ] WP-209 must adapt JobStatus 'done'->'succeeded' and the result/violation shapes (CR WP-207-api-reconciliation).
+- [ ] The CLI uses click, not typer (CR).
+- [ ] The full suite hung twice; root cause unknown at merge time.
+
+## ERC/EMI (WP-201)
+- [ ] The test boards miss their own impedance targets per BEM: CPW_A/B are 55.3 ohm vs 50, DP Zdiff 139 ohm vs 100, USB_D 126 ohm vs 90. Either redesign the WP-102 board geometry to hit the targets or list the IM-002 hits in expected.yaml (CR WP-201-expected-impedance).
+- [ ] Microstrip boards have no net class, so IM-002 fires only with an explicit 50 ohm intent.
+- [ ] Single-violation and negative fixtures exist only for IM-002, RP-003 and RF-001. The other rules need them.
+- [ ] Gaps: no broadside XT-001; ED-003 covers the board outline only; no per-pin PD-001 coverage mode; EM-011 skips the "fed by a high-speed via" condition; stripline gaps are judged only when no side is referenced.
+- [ ] PERF: 10k tracks with IM-002 on every net take 34.9 s (target for ADR-0008 native kernels).
+- [ ] CRs: WP-201-remediation-model (oa_results Remediation shape) and WP-201-violationset-summary (the 2 KiB summary fits only 2 entries).
+- [ ] INTEGRATION: the WP-207 service/CLI tests register a stub `erc` analysis that now collides with the real WP-201 `erc`; four tests fail (see merge notes).
