@@ -11,9 +11,9 @@ from oa_model import (
     ConductorLayer,
     ConductorMaterial,
     ConstantDkDf,
+    Diagnostic,
     DielectricLayer,
     DielectricMaterial,
-    Diagnostic,
     MaskLayer,
     Stackup,
 )

@@ -13,10 +13,12 @@ from collections.abc import Iterable, Sequence
 import numpy as np
 import numpy.typing as npt
 import shapely
-from oa_model import ArcSeg, LineSeg, Points, Polygon
-from oa_model.geometry import signed_area
 from shapely.geometry import LinearRing
 from shapely.geometry import Polygon as ShPolygon
+from shapely.geometry.base import BaseGeometry
+
+from oa_model import ArcSeg, LineSeg, Points, Polygon
+from oa_model.geometry import signed_area
 
 Arr = npt.NDArray[np.float64]
 Pt = tuple[float, float]
@@ -73,9 +75,9 @@ def arc_from_three(s: Pt, m: Pt, e: Pt) -> Arc | None:
 def arc_steps(radius: float, sweep: float, tol: float) -> int:
     """Number of chords so the sagitta error stays below ``tol``."""
     if radius <= tol:
-        return max(4, int(math.ceil(abs(sweep) / (math.pi / 2))))
+        return max(4, math.ceil(abs(sweep) / (math.pi / 2)))
     step = 2.0 * math.acos(1.0 - tol / radius)
-    return max(2, int(math.ceil(abs(sweep) / step)))
+    return max(2, math.ceil(abs(sweep) / step))
 
 
 def arc_points(arc: Arc, tol: float) -> Arr:
@@ -107,7 +109,10 @@ def bezier_points(p: Sequence[Pt], tol: float) -> Arr:
         dx, dy = d[0] - a[0], d[1] - a[1]
         ln = math.hypot(dx, dy)
         if ln == 0.0:
-            return max(math.hypot(b[0] - a[0], b[1] - a[1]), math.hypot(c[0] - a[0], c[1] - a[1])) <= tol
+            return (
+                max(math.hypot(b[0] - a[0], b[1] - a[1]), math.hypot(c[0] - a[0], c[1] - a[1]))
+                <= tol
+            )
         d1 = abs((b[0] - a[0]) * dy - (b[1] - a[1]) * dx) / ln
         d2 = abs((c[0] - a[0]) * dy - (c[1] - a[1]) * dx) / ln
         return max(d1, d2) <= tol
@@ -178,7 +183,7 @@ def _collect_polygons(geom: object, out: list[ShPolygon]) -> None:
             _collect_polygons(g, out)
 
 
-def fix_fractured(ring: Arr) -> object:
+def fix_fractured(ring: Arr) -> BaseGeometry:
     """Recover the real polygon (with holes) from a KiCad "fractured" ring.
 
     KiCad writes an outline with its holes joined by zero-width bridges as ONE self-touching
@@ -200,7 +205,7 @@ def ring_signed_area(a: Arr) -> float:
 
 
 def is_valid_ring(a: Arr) -> bool:
-    return a.shape[0] >= 3 and LinearRing(a).is_valid
+    return bool(a.shape[0] >= 3 and LinearRing(a).is_valid)
 
 
 # ----------------------------------------------------------------------------------------

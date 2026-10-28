@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 import numpy.typing as npt
 
-Node: TypeAlias = list  # [head, *children]; children are str | Node | ndarray
+Node: TypeAlias = list[Any]  # [head, *children]; children are str | Node | ndarray
 
 
 class SExprError(ValueError):
@@ -35,7 +35,7 @@ class SExprError(ValueError):
 
 _NUM = r"[^\s()]+"
 _TOKEN = re.compile(
-    rf'\(pts(?:\s*\(xy\s+{_NUM}\s+{_NUM}\s*\))+\s*\)'  # fast path: all-xy point list
+    rf"\(pts(?:\s*\(xy\s+{_NUM}\s+{_NUM}\s*\))+\s*\)"  # fast path: all-xy point list
     r'|\(|\)|"(?:[^"\\]|\\.)*"|[^\s()"]+'
 )
 _XY_STRIP = re.compile(r"\(pts|\(xy|\)")
@@ -43,7 +43,7 @@ _UNESCAPE = re.compile(r"\\(.)")
 
 
 def tokenize(text: str) -> Iterator[str]:
-    """Yield raw tokens: ``(``, ``)``, atoms, quoted strings (with quotes) and fast ``pts`` lists."""
+    """Yield raw tokens: parens, atoms, quoted strings (with quotes) and fast ``pts`` lists."""
     for m in _TOKEN.finditer(text):
         yield m.group()
 

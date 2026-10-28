@@ -10,9 +10,11 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 import shapely
-from oa_model import LineSeg
 from shapely.geometry import LinearRing, LineString, Point
 from shapely.geometry import Polygon as ShPolygon
+from shapely.geometry.base import BaseGeometry
+
+from oa_model import LineSeg
 
 from . import sexpr
 from ._geom import (
@@ -158,9 +160,7 @@ def pts_xy(pts: sexpr.Node | None, xf: Xf, tol: float) -> Arr:
 # ----------------------------------------------------------------------------------------
 # analytic segments (Edge.Cuts chaining)
 # ----------------------------------------------------------------------------------------
-def graphic_segments(
-    node: sexpr.Node, xf: Xf, tol: float
-) -> tuple[bool, list[PathSegT]] | None:
+def graphic_segments(node: sexpr.Node, xf: Xf, tol: float) -> tuple[bool, list[PathSegT]] | None:
     """``(closed, segments)`` for line/arc/circle/rect/poly/curve; ``None`` if unusable."""
     h = node[0]
     kind = h.split("_", 1)[1] if isinstance(h, str) and "_" in h else ""
@@ -195,9 +195,7 @@ def graphic_segments(
         if s is None or e is None:
             return None
         corners = [xf.pt(s[0], s[1]), xf.pt(e[0], s[1]), xf.pt(e[0], e[1]), xf.pt(s[0], e[1])]
-        return True, [
-            LineSeg(start=corners[i], end=corners[(i + 1) % 4]) for i in range(4)
-        ]
+        return True, [LineSeg(start=corners[i], end=corners[(i + 1) % 4]) for i in range(4)]
     if kind == "poly":
         pts = pts_xy(sexpr.child(node, "pts"), xf, tol)
         if pts.shape[0] < 3:
@@ -210,15 +208,15 @@ def graphic_segments(
             for i in range(len(pts))
         ]
     if kind == "curve":
-        c = _curve_pts(node, xf, tol)
-        if c is None:
+        cv = _curve_pts(node, xf, tol)
+        if cv is None:
             return None
         return False, [
             LineSeg(
-                start=(float(c[i, 0]), float(c[i, 1])),
-                end=(float(c[i + 1, 0]), float(c[i + 1, 1])),
+                start=(float(cv[i, 0]), float(cv[i, 1])),
+                end=(float(cv[i + 1, 0]), float(cv[i + 1, 1])),
             )
-            for i in range(len(c) - 1)
+            for i in range(len(cv) - 1)
         ]
     return None
 
@@ -247,13 +245,13 @@ def _cap_segments(radius: float, tol: float) -> int:
     return int(min(max(arc_steps(radius, math.pi / 2, tol), 2), 64))
 
 
-def stroke(line: Arr, width_m: float, tol: float) -> shapely.Geometry | None:
+def stroke(line: Arr, width_m: float, tol: float) -> BaseGeometry | None:
     if width_m <= 0 or line.shape[0] < 2:
         return None
     return LineString(line).buffer(width_m / 2.0, quad_segs=_cap_segments(width_m / 2.0, tol))
 
 
-def graphic_geometry(node: sexpr.Node, xf: Xf, tol: float) -> shapely.Geometry | None:
+def graphic_geometry(node: sexpr.Node, xf: Xf, tol: float) -> BaseGeometry | None:
     """Copper area of one graphic item: filled shapes as polygons, strokes buffered."""
     h = node[0]
     kind = h.split("_", 1)[1] if isinstance(h, str) and "_" in h else ""
@@ -287,7 +285,9 @@ def graphic_geometry(node: sexpr.Node, xf: Xf, tol: float) -> shapely.Geometry |
         if w <= 0:
             return None
         if r - w / 2.0 > 0:
-            return outer.difference(Point(cx, cy).buffer(r - w / 2.0, quad_segs=_cap_segments(r, tol)))
+            return outer.difference(
+                Point(cx, cy).buffer(r - w / 2.0, quad_segs=_cap_segments(r, tol))
+            )
         return outer
     if kind in ("rect", "poly"):
         if kind == "rect":
@@ -299,21 +299,25 @@ def graphic_geometry(node: sexpr.Node, xf: Xf, tol: float) -> shapely.Geometry |
             ring = pts_xy(sexpr.child(node, "pts"), xf, tol)
         if ring.shape[0] < 3:
             return None
-        poly = ShPolygon(ring)
+        poly: BaseGeometry = ShPolygon(ring)
         if not poly.is_valid:
             poly = shapely.make_valid(poly)
         if filled:
-            return poly.buffer(w / 2.0, quad_segs=_cap_segments(max(w / 2.0, tol), tol)) if w > 0 else poly
+            return (
+                poly.buffer(w / 2.0, quad_segs=_cap_segments(max(w / 2.0, tol), tol))
+                if w > 0
+                else poly
+            )
         if w <= 0:
             return None
         return LinearRing(ring).buffer(w / 2.0, quad_segs=_cap_segments(w / 2.0, tol))
     if kind == "curve":
-        c = _curve_pts(node, xf, tol)
-        return None if c is None else stroke(c, w, tol)
+        cv = _curve_pts(node, xf, tol)
+        return None if cv is None else stroke(cv, w, tol)
     return None
 
 
-def circle_geometry(center: tuple[float, float], radius: float, tol: float) -> shapely.Geometry:
+def circle_geometry(center: tuple[float, float], radius: float, tol: float) -> BaseGeometry:
     return ShPolygon(circle_points(center, radius, tol))
 
 

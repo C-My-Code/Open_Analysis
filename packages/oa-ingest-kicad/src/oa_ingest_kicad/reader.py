@@ -25,12 +25,15 @@ from typing import ClassVar
 
 import numpy as np
 import shapely
+from shapely.geometry import LineString, Point
+from shapely.geometry.base import BaseGeometry
+from shapely.strtree import STRtree
+
 from oa_model import (
     ArcSeg,
     Backdrill,
     Board,
     BoardMeta,
-    BoardOutline,
     Component,
     CopperShape,
     Diagnostic,
@@ -38,7 +41,6 @@ from oa_model import (
     LineSeg,
     Pad,
     Padstack,
-    Points,
     Polygon,
     SourceRef,
     Track,
@@ -49,10 +51,8 @@ from oa_model import (
     validate_board,
 )
 from oa_model.errors import IngestError
-from oa_model.padstack import Drill, PadstackLayer, PadShape
+from oa_model.padstack import Drill, PadShape, PadstackLayer
 from oa_model.setup import ReadOptions
-from shapely.geometry import LineString, Point
-from shapely.strtree import STRtree
 
 from . import sexpr
 from ._geom import (
@@ -83,7 +83,7 @@ from .pads import (
     params_from_node,
     rotate_shape_90,
 )
-from .stackup import build_stackup, copper_sort_key, read_layer_table
+from .stackup import build_stackup, read_layer_table
 
 log = logging.getLogger("oa.ingest.kicad")
 
@@ -163,7 +163,7 @@ class _Ingest:
         self.vias: list[Via] = []
         self.tracks: list[Track] = []
         self.zones: list[Zone] = []
-        self.zone_geoms: dict[tuple[int, str], shapely.Geometry] = {}
+        self.zone_geoms: dict[tuple[int, str], BaseGeometry] = {}
         self.shapes: list[CopperShape] = []
         self.components: list[Component] = []
         self.edge_pieces: list[Piece] = []
@@ -322,10 +322,10 @@ class _Ingest:
         stackup = sres.stackup
 
         for n in sexpr.children(root, "net"):
-            if len(n) >= 3 and isinstance(n[1], str) and n[1].lstrip("-").isdigit():
-                if isinstance(n[2], str) and n[2] != "":
-                    self.net_table[int(n[1])] = n[2]
-                    self.net_names.add(n[2])
+            is_entry = len(n) >= 3 and isinstance(n[1], str) and n[1].lstrip("-").isdigit()
+            if is_entry and isinstance(n[2], str) and n[2] != "":
+                self.net_table[int(n[1])] = n[2]
+                self.net_names.add(n[2])
         # the net table is also read when a v9 file lists a net there that no item uses
 
         self.read_items(root)
@@ -345,6 +345,7 @@ class _Ingest:
         # ---- nets, classes, diff pairs
         proj = ProjectNets()
         popt = getattr(self.options, "project_file", None)
+        pro: Path | None
         if popt is not None:
             pro, exact = Path(popt), True
         else:
@@ -377,11 +378,11 @@ class _Ingest:
         # ---- zones: stale detection
         self.detect_stale_zones()
 
-        for (ctx, key), n in sorted(self.unknown.items()):
+        for (ctx, key), cnt in sorted(self.unknown.items()):
             self.diag(
                 "info",
                 "INGEST.UNKNOWN_TOKEN",
-                f"unknown token '{key}' inside '{ctx}' ({n} occurrence{'s' if n != 1 else ''}); ignored",
+                f"unknown token '{key}' inside '{ctx}' ({cnt} occurrence(s)); ignored",
                 hint="the reader tolerates unknown tokens; report it if geometry looks wrong",
             )
         if self.copper_text:
@@ -485,9 +486,8 @@ class _Ingest:
                 self.zone(n, Xf())
             elif h in GRAPHIC_HEADS:
                 self.board_graphic(n)
-            elif h in ("gr_text", "gr_text_box"):
-                if self.is_cu(sexpr.get_str(n, "layer")):
-                    self.copper_text += 1
+            elif h in ("gr_text", "gr_text_box") and self.is_cu(sexpr.get_str(n, "layer")):
+                self.copper_text += 1
 
     # ------------------------------------------------------------------ tracks
     def segment(self, n: sexpr.Node) -> None:
@@ -553,9 +553,7 @@ class _Ingest:
         )
 
     # ------------------------------------------------------------------ vias
-    def fb_flags(
-        self, node: sexpr.Node, key: str, default: tuple[bool, bool]
-    ) -> tuple[bool, bool]:
+    def fb_flags(self, node: sexpr.Node, key: str, default: tuple[bool, bool]) -> tuple[bool, bool]:
         """(front, back) flags of ``(key front back)`` or ``(key (front yes) (back no))``."""
         t = sexpr.child(node, key)
         if t is None:
@@ -707,9 +705,9 @@ class _Ingest:
         mode = (sexpr.get_str(ps_node, "mode") if ps_node is not None else None) or "normal"
         per: dict[str, sexpr.Node] = {}
         if ps_node is not None:
-            for ln in sexpr.children(ps_node, "layer"):
-                if len(ln) > 1 and isinstance(ln[1], str):
-                    per[ln[1]] = ln
+            for lnode in sexpr.children(ps_node, "layer"):
+                if len(lnode) > 1 and isinstance(lnode[1], str):
+                    per[lnode[1]] = lnode
         cache: dict[str, PadShape | None] = {}
         out: list[PadstackLayer] = []
         for name in layer_names:
@@ -796,10 +794,10 @@ class _Ingest:
         if not ref:
             ref = "REF**"
         refdes = ref
-        k = 2
+        suffix = 2
         while refdes in self.refdes:
-            refdes = f"{ref}#{k}"
-            k += 1
+            refdes = f"{ref}#{suffix}"
+            suffix += 1
         if refdes != ref:
             self.diag(
                 "warning",
@@ -813,7 +811,7 @@ class _Ingest:
 
         attr = sexpr.child(fp, "attr")
         pad_ids: list[str] = []
-        courtyard: list[object] = []
+        courtyard: list[BaseGeometry] = []
         for c in fp[2:]:
             if type(c) is not list or not c:
                 continue
@@ -865,7 +863,9 @@ class _Ingest:
         self.scan(p, "pad")
         atoms = [a for a in p[1:4] if isinstance(a, str)]
         if len(atoms) < 3:
-            self.diag("warning", "INGEST.PAD_INVALID", "pad without number, type and shape", item=refdes)
+            self.diag(
+                "warning", "INGEST.PAD_INVALID", "pad without number, type and shape", item=refdes
+            )
             return None
         number, ptype, shape = atoms[0], atoms[1], atoms[2]
         kind = _PAD_KIND.get(ptype)
@@ -908,9 +908,7 @@ class _Ingest:
             rot += math.pi / 2.0
         mt = mb = None
         if names_all:
-            margin = (
-                sexpr.get_float(p, "solder_mask_margin", 0.0) or 0.0
-            ) * MM + self.mask_margin
+            margin = (sexpr.get_float(p, "solder_mask_margin", 0.0) or 0.0) * MM + self.mask_margin
             first = layers[0].pad if layers else None
             last = layers[-1].pad if layers else None
             if "F.Mask" in names_all or "*.Mask" in names_all:
@@ -1019,7 +1017,9 @@ class _Ingest:
         names = (
             [v for v in lay[1:] if isinstance(v, str)]
             if lay
-            else [v for v in ln[1:] if isinstance(v, str)] if ln else []
+            else [v for v in ln[1:] if isinstance(v, str)]
+            if ln
+            else []
         )
         cu = self.layer_set(names)
         if not cu:
@@ -1028,6 +1028,7 @@ class _Ingest:
         keep = sexpr.child(z, "keepout")
         kr = None
         if keep is not None:
+
             def forbid(key: str) -> bool:
                 v = sexpr.get_str(keep, key)
                 return v is not None and v.lower() == "not_allowed"
@@ -1042,13 +1043,11 @@ class _Ingest:
             net = None
         outline = self.zone_outline(z, xf, zid)
         if outline is None:
-            self.diag(
-                "warning", "INGEST.ZONE_INVALID", "zone without a usable outline", item=zid
-            )
+            self.diag("warning", "INGEST.ZONE_INVALID", "zone without a usable outline", item=zid)
             return
         zi = len(self.zones)
         # ---- fills
-        by_layer: dict[str, list[object]] = {}
+        by_layer: dict[str, list[BaseGeometry]] = {}
         for fpn in sexpr.children(z, "filled_polygon"):
             fl = sexpr.get_str(fpn, "layer")
             pts = sexpr.child(fpn, "pts")
@@ -1145,9 +1144,7 @@ class _Ingest:
         via_trees: dict[str, STRtree] = {}
         via_size: dict[str, float] = {}
         for ps in self.padstacks.values():
-            sizes = [
-                getattr(lyr.pad, "diameter", None) for lyr in ps.layers if lyr.pad is not None
-            ]
+            sizes = [getattr(lyr.pad, "diameter", None) for lyr in ps.layers if lyr.pad is not None]
             via_size[ps.id] = max((s for s in sizes if s), default=0.0)
         for lid, vs in vias_by_layer.items():
             via_trees[lid] = STRtree([Point(v.position) for v in vs])

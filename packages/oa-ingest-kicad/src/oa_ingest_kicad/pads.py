@@ -7,6 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 
 import shapely
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
+
 from oa_model import Polygon
 from oa_model.padstack import (
     ChamferedRectShape,
@@ -18,7 +21,6 @@ from oa_model.padstack import (
     RoundRectShape,
     TrapezoidShape,
 )
-from shapely.ops import unary_union
 
 from . import sexpr
 from ._geom import MM, from_shapely
@@ -44,7 +46,9 @@ class ShapeParams:
     prims: sexpr.Node | None = field(default=None, compare=False, hash=False)
 
     def merged(self, over: ShapeParams) -> ShapeParams:
-        kw = {k: getattr(over, k) for k in self.__dataclass_fields__ if getattr(over, k) is not None}
+        kw = {
+            k: getattr(over, k) for k in self.__dataclass_fields__ if getattr(over, k) is not None
+        }
         return replace(self, **kw)
 
 
@@ -78,10 +82,9 @@ def params_from_node(node: sexpr.Node, shape: str | None = None) -> ShapeParams:
 
 def make_shape(p: ShapeParams, tol: float) -> PadShape | None:
     """Model shape in the pad-local frame, or ``None`` when the pad has no copper."""
-    if p.w is None or p.h is None or p.w <= 0 or p.h <= 0:
-        # custom pads may be defined by primitives only
-        if p.shape != "custom" or p.prims is None:
-            return None
+    no_size = p.w is None or p.h is None or p.w <= 0 or p.h <= 0
+    if no_size and (p.shape != "custom" or p.prims is None):  # custom: primitives only
+        return None
     w = (p.w or 0.0) * MM
     h = (p.h or 0.0) * MM
     s = p.shape
@@ -96,7 +99,11 @@ def make_shape(p: ShapeParams, tol: float) -> PadShape | None:
         r = (p.rratio or 0.0) * min(w, h)
         corners = p.corners if p.corners is not None else ()
         if c <= 0 or not corners:
-            return RoundRectShape(width=w, height=h, corner_radius=r) if r > 0 else RectShape(width=w, height=h)
+            return (
+                RoundRectShape(width=w, height=h, corner_radius=r)
+                if r > 0
+                else RectShape(width=w, height=h)
+            )
         return ChamferedRectShape(width=w, height=h, chamfer=c, corners=corners, corner_radius=r)  # type: ignore[arg-type]
     if s == "roundrect":
         r = (p.rratio or 0.0) * min(w, h)
@@ -114,7 +121,7 @@ def make_shape(p: ShapeParams, tol: float) -> PadShape | None:
 
 def _custom_shape(p: ShapeParams, tol: float) -> PadShape | None:
     """Anchor union primitives, as polygons in the pad-local frame."""
-    geoms: list[shapely.Geometry] = []
+    geoms: list[BaseGeometry] = []
     w = (p.w or 0.0) * MM
     h = (p.h or 0.0) * MM
     if w > 0 and h > 0:
@@ -153,9 +160,7 @@ def grow_shape(shape: PadShape | None, margin: float) -> PadShape | None:
             corner_radius=max(shape.corner_radius + margin, 0.0),
         )
     if isinstance(shape, ObroundShape):
-        return ObroundShape(
-            width=max(shape.width + m2, 0.0), height=max(shape.height + m2, 0.0)
-        )
+        return ObroundShape(width=max(shape.width + m2, 0.0), height=max(shape.height + m2, 0.0))
     return None
 
 
@@ -185,6 +190,7 @@ def rotate_shape_90(shape: PadShape | None) -> PadShape | None:
         )
     if isinstance(shape, PolygonShape):
         import numpy as np
+
         from oa_model import Points
         from oa_model.geometry import orient_ring
 

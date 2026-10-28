@@ -8,9 +8,10 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
+from shapely.geometry import Polygon as ShPolygon
+
 from oa_model import BoardOutline, Diagnostic, Points, Polygon
 from oa_model.geometry import orient_ring, signed_area
-from shapely.geometry import Polygon as ShPolygon
 
 from ._geom import PathSegT, from_shapely, reverse_seg, seg_points
 
@@ -38,9 +39,7 @@ def _near(a: tuple[float, float], b: tuple[float, float]) -> bool:
     return math.hypot(a[0] - b[0], a[1] - b[1]) <= CHAIN_TOL
 
 
-def chain_pieces(
-    pieces: list[Piece], diags: list[Diagnostic]
-) -> list[list[PathSegT]]:
+def chain_pieces(pieces: list[Piece], diags: list[Diagnostic]) -> list[list[PathSegT]]:
     """Closed loops from pieces (greedy, tolerance :data:`CHAIN_TOL`); open chains are reported."""
     loops: list[list[PathSegT]] = [p.segs for p in pieces if p.closed]
     open_pieces = [p.segs for p in pieces if not p.closed]
@@ -76,7 +75,9 @@ def chain_pieces(
                 break
             j, at_start = nxt
             used[j] = True
-            segs = open_pieces[j] if at_start else [reverse_seg(s) for s in reversed(open_pieces[j])]
+            segs = (
+                open_pieces[j] if at_start else [reverse_seg(s) for s in reversed(open_pieces[j])]
+            )
             chain.extend(segs)
         if _is_closed(chain):
             loops.append(chain)
@@ -116,9 +117,7 @@ def _loop_ring(segs: list[PathSegT], tol: float) -> np.ndarray:
     return np.vstack(parts)
 
 
-def build_outline(
-    pieces: list[Piece], tol: float, diags: list[Diagnostic]
-) -> BoardOutline | None:
+def build_outline(pieces: list[Piece], tol: float, diags: list[Diagnostic]) -> BoardOutline | None:
     """Outline from Edge.Cuts pieces; ``None`` if there is no usable closed loop."""
     raw = chain_pieces(pieces, diags)
     loops: list[Loop] = []
