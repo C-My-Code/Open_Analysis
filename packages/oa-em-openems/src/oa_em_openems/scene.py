@@ -800,9 +800,7 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
     prims: list[dict[str, Any]] = []
     props: dict[str, dict[str, Any]] = {}
     for mrec in materials:
-        props[mrec["name"]] = {
-            "kind": "material", **{k: v for k, v in mrec.items() if k != "name"}
-        }
+        props[mrec["name"]] = {"kind": "material", **{k: v for k, v in mrec.items() if k != "name"}}
 
     def box_prim(prop: str, prio: int, lo: list[float], hi: list[float]) -> dict[str, Any]:
         return {

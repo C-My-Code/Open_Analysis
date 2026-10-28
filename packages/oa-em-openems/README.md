@@ -9,12 +9,12 @@ process** (a generated script run by the openEMS Python interpreter) and is neve
 ```python
 from oa_em_openems import OpenEMSAdapter, discover
 
-adapter = OpenEMSAdapter(farfield=False, assessor=None)   # assessor: skrf.Network -> QualityReport
-adapter.capabilities()          # fullwave_driven; lumped + wave (tl_probe) ports; one excitation per run
-adapter.check(problem)          # unsupported features as Diagnostics (errors block prepare)
-run = adapter.prepare(problem, workdir, tool_info)   # one ExternalCommand per excitation
+adapter = OpenEMSAdapter(farfield=False, assessor=None)  # assessor: skrf.Network -> QualityReport
+adapter.capabilities()  # fullwave_driven; lumped + wave (tl_probe) ports; one excitation per run
+adapter.check(problem)  # unsupported features as Diagnostics (errors block prepare)
+run = adapter.prepare(problem, workdir, tool_info)  # one ExternalCommand per excitation
 # ... the job system runs run.commands through an ExternalRunner ...
-out = adapter.collect(problem, run, results)         # EMSolveOutput: network, Z0 table, convergence
+out = adapter.collect(problem, run, results)  # EMSolveOutput: network, Z0 table, convergence
 ```
 
 `prepare` writes `workdir/exc_<port>/{scene.json, sim.py}` and returns commands

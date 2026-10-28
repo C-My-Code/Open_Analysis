@@ -132,7 +132,7 @@ def test_prepare_matches_snapshots(name: str, tmp_path: Path) -> None:
     case_dir = GOLDEN / f"snapshot_{name}"
     if update_mode():
         (case_dir / "scene.json").write_text(
-            json.dumps(scene, indent=1, sort_keys=True) + "\n", encoding="utf-8"
+            json.dumps(scene, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
         )
         (case_dir / "sim.py").write_text(script, encoding="utf-8", newline="\n")
     ref_scene = json.loads((case_dir / "scene.json").read_text(encoding="utf-8"))
