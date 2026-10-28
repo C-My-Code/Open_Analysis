@@ -190,7 +190,8 @@ def _vacuum(geo: BemGeometry) -> tuple[F64, F64, npt.NDArray[np.intp]]:
     rhs = np.zeros((size, len(geo.sig_idx)))
     for m, ci in enumerate(geo.sig_idx):
         rhs[:nc][cond == ci, m] = 1.0
-    x = np.linalg.solve(A, rhs)
+    # NDArray[Any]: numpy < 2.5 (resolved on Python 3.11) types linalg results as floating[Any]
+    x: npt.NDArray[Any] = np.linalg.solve(A, rhs)
     sig = x[:nc]
     return Q[geo.sig_idx] @ sig, sig, cidx
 
@@ -260,7 +261,7 @@ def _solve_bem(
 
     c0hat, sig0, cidx = _vacuum(geo)
     c0hat = 0.5 * (c0hat + c0hat.T)
-    L_ext = phys.MU0 * np.linalg.inv(c0hat)
+    L_ext: npt.NDArray[Any] = phys.MU0 * np.linalg.inv(c0hat)  # NDArray[Any]: see _vacuum
 
     pos = fs[fs > 0.0]
     const = _freq_independent(prob)

@@ -86,7 +86,8 @@ def _target(
     pos = np.array([s[0] for s in seeds])
     size = np.array([s[1] for s in seeds])
     t = np.min(size[None, :] + (grading - 1.0) * np.abs(x[:, None] - pos[None, :]), axis=1)
-    return np.minimum(t, d_max)
+    out: FloatArray = np.minimum(t, d_max)
+    return out
 
 
 def smooth_axis(

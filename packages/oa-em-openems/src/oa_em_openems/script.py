@@ -17,6 +17,7 @@ SIM_SCRIPT = '''\
 Run it with the openEMS Python interpreter (CSXCAD_INSTALL_PATH must point at the folder with
 CSXCAD.dll). Environment: OA_NUM_THREADS (0 = all cores).
 """
+
 import json
 import os
 import sys
@@ -47,8 +48,11 @@ def build_properties(csx, scene):
             if p.get("debye"):
                 # CSXCAD exposes Debye media only through its generic property factory
                 prop = csx._ContinuousStructure__CreateProperty(
-                    "DebyeMaterial", name, order=1,
-                    epsilon=vec(p["epsilon"]), kappa=vec(p["kappa"]),
+                    "DebyeMaterial",
+                    name,
+                    order=1,
+                    epsilon=vec(p["epsilon"]),
+                    kappa=vec(p["kappa"]),
                 )
                 delta = vec(p["debye"]["eps_delta"])
                 relax = p["debye"]["eps_relax"]
@@ -102,15 +106,30 @@ def add_ports(fdtd, csx, props, scene):
             )
         elif sp["type"] == "msl":
             port = fdtd.AddMSLPort(
-                sp["nr"], props[sp["metal"]], sp["start"], sp["stop"], sp["prop_dir"],
-                sp["exc_dir"], excite=exc, FeedShift=sp["feed_shift"],
-                MeasPlaneShift=sp["meas_shift"], priority=20,
+                sp["nr"],
+                props[sp["metal"]],
+                sp["start"],
+                sp["stop"],
+                sp["prop_dir"],
+                sp["exc_dir"],
+                excite=exc,
+                FeedShift=sp["feed_shift"],
+                MeasPlaneShift=sp["meas_shift"],
+                priority=20,
             )
         elif sp["type"] == "stripline":
             port = fdtd.AddStripLinePort(
-                sp["nr"], props[sp["metal"]], sp["start"], sp["stop"], sp["prop_dir"],
-                sp["exc_dir"], sp["height"], excite=exc, FeedShift=sp["feed_shift"],
-                MeasPlaneShift=sp["meas_shift"], priority=20,
+                sp["nr"],
+                props[sp["metal"]],
+                sp["start"],
+                sp["stop"],
+                sp["prop_dir"],
+                sp["exc_dir"],
+                sp["height"],
+                excite=exc,
+                FeedShift=sp["feed_shift"],
+                MeasPlaneShift=sp["meas_shift"],
+                priority=20,
             )
         else:
             raise ValueError("unknown port type " + sp["type"])
@@ -146,21 +165,21 @@ def main():
 
     freqs = np.array(scene["freqs"], dtype=float)
     arrays = {"freqs": freqs, "excited": np.array([scene["excited"]])}
-    for sp, port in zip(scene["ports"], ports):
+    for sp, port in zip(scene["ports"], ports, strict=True):
         nr = sp["nr"]
         port.CalcPort(sim_path, freqs)
-        arrays["u%d" % nr] = np.asarray(port.uf_tot, dtype=complex)
-        arrays["i%d" % nr] = np.asarray(port.if_tot, dtype=complex)
-        arrays["z%d" % nr] = np.broadcast_to(
+        arrays[f"u{nr}"] = np.asarray(port.uf_tot, dtype=complex)
+        arrays[f"i{nr}"] = np.asarray(port.if_tot, dtype=complex)
+        arrays[f"z{nr}"] = np.broadcast_to(
             np.asarray(port.Z_ref, dtype=complex), freqs.shape
         ).copy()
         if hasattr(port, "beta"):
-            arrays["beta%d" % nr] = np.asarray(port.beta, dtype=complex)
+            arrays[f"beta{nr}"] = np.asarray(port.beta, dtype=complex)
             shift = (sp["ref_shift"] - port.measplane_shift) * unit
         else:
-            arrays["beta%d" % nr] = np.zeros(freqs.shape, dtype=complex)
+            arrays[f"beta{nr}"] = np.zeros(freqs.shape, dtype=complex)
             shift = 0.0
-        arrays["shift%d" % nr] = np.array([shift])
+        arrays[f"shift{nr}"] = np.array([shift])
     np.savez(os.path.join(HERE, "ports.npz"), **arrays)
 
     if nf2ff is not None:
@@ -172,10 +191,13 @@ def main():
         res = nf2ff.CalcNF2FF(sim_path, ff["freqs"], theta, phi, center=0.5 * (lo + hi))
         np.savez(
             os.path.join(HERE, "farfield.npz"),
-            freqs=np.array(ff["freqs"], dtype=float), theta=np.deg2rad(theta),
+            freqs=np.array(ff["freqs"], dtype=float),
+            theta=np.deg2rad(theta),
             phi=np.deg2rad(phi),
-            e_theta=np.array(res.E_theta), e_phi=np.array(res.E_phi),
-            p_rad=np.array(res.Prad), dmax=np.array(res.Dmax),
+            e_theta=np.array(res.E_theta),
+            e_phi=np.array(res.E_phi),
+            p_rad=np.array(res.Prad),
+            dmax=np.array(res.Dmax),
         )
 
     import openEMS as _oe

@@ -10,6 +10,7 @@ DesignCon 2012 (K(f) applied to Zs and fitted by first-order sections).
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -110,7 +111,8 @@ def _fit_causal_k(
     a = basis * w[:, None]
     b = rhs * w
     ridge = 1e-8 * np.eye(n_sec)
-    c = np.linalg.solve(a.T @ a + ridge, a.T @ b)
+    # NDArray[Any]: numpy < 2.5 (resolved on Python 3.11) types linalg results as floating[Any]
+    c: NDArray[Any] = np.linalg.solve(a.T @ a + ridge, a.T @ b)
     return fk, c
 
 
