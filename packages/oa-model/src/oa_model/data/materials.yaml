@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Shipped material library. Resolved after sidecar and board materials (board-model.md section 11).
+# Extend by appending entries; no schema change needed. Every entry carries a citation. Entries
+# marked "verify" are recalled datasheet values that must be re-checked against the current
+# vendor datasheet before being used for sign-off.
+schema: oa-materials/1
+entries:
+  - citation: >-
+      Generic FR-4 placeholder. Typical IPC-4101 /21 and /26 class laminates: Dk 4.2-4.5 and
+      Df about 0.02 at 1 GHz (E. Bogatin, Signal and Power Integrity - Simplified, 3rd ed.,
+      laminate table). Not a vendor datasheet value.
+    material:
+      kind: dielectric
+      name: FR4_generic
+      model: {kind: constant, dk: 4.3, df: 0.02, f_ref: 1.0e+9}
+      thermal: {k_xy: 0.9, k_z: 0.3, density: 1850.0, specific_heat: 1100.0}
+      source: library
+  - citation: >-
+      Isola 370HR laminate/prepreg datasheet, style 1080 (about 65 % resin content), Dk/Df at
+      1 GHz. Same values as the board-model.md section 11 example. Verify against the current
+      datasheet. Thermal conductivity 0.4 W/(m K) through-plane from the same datasheet (verify).
+    material:
+      kind: dielectric
+      name: Isola_370HR_1080
+      model: {kind: djordjevic_sarkar, dk: 3.92, df: 0.021, f_ref: 1.0e+9}
+      dk_z_over_dk_xy: 0.95
+      thermal: {k_xy: 0.8, k_z: 0.4}
+      source: library
+  - citation: >-
+      Panasonic MEGTRON 6 (R-5775 core / R-5670 prepreg) datasheet, typical Dk about 3.7 and
+      Df about 0.002 at 1 GHz (Df rises to about 0.004 at 10 GHz). Verify against the current
+      datasheet; a table model from vendor data is preferred for sign-off.
+    material:
+      kind: dielectric
+      name: Megtron6_generic
+      model: {kind: djordjevic_sarkar, dk: 3.71, df: 0.002, f_ref: 1.0e+9}
+      thermal: {k_xy: 0.6, k_z: 0.4}
+      source: library
+  - citation: >-
+      Rogers RO4350B datasheet: process Dk 3.48 +/- 0.05 and Df 0.0037 at 10 GHz (2.5 GHz Df
+      0.0031), thermal conductivity 0.69 W/(m K). Note the datasheet 'design' Dk is 3.66.
+    material:
+      kind: dielectric
+      name: Rogers_RO4350B
+      model: {kind: djordjevic_sarkar, dk: 3.48, df: 0.0037, f_ref: 1.0e+10}
+      thermal: {k_xy: 0.69, k_z: 0.69}
+      source: library
+  - citation: >-
+      Virgin PTFE: Dk 2.1 and Df 0.0002 at 10 GHz (ASTM D2520 resonant-cavity values quoted in
+      the Rogers/Taconic PTFE laminate datasheets), thermal conductivity about 0.25 W/(m K)
+      (CRC Handbook of Chemistry and Physics, polymers table).
+    material:
+      kind: dielectric
+      name: PTFE_generic
+      model: {kind: djordjevic_sarkar, dk: 2.1, df: 0.0002, f_ref: 1.0e+10}
+      thermal: {k_xy: 0.25, k_z: 0.25, density: 2200.0}
+      source: library
+  - citation: >-
+      Generic liquid photoimageable (LPI) solder mask: Dk 3.3-3.8 and Df 0.02-0.03 at 1 GHz
+      (Taiyo PSR-4000 series datasheets and Bogatin 3rd ed. mask discussion). Mid-range values
+      chosen; vendor-specific data should override. Emissivity about 0.9 is a common
+      assumption for green mask.
+    material:
+      kind: dielectric
+      name: LPI_soldermask_generic
+      model: {kind: constant, dk: 3.5, df: 0.025, f_ref: 1.0e+9}
+      thermal: {k_xy: 0.3, k_z: 0.3, emissivity: 0.9}
+      source: library
+  - citation: >-
+      Electrodeposited (ED) copper. Conductivity 5.8e7 S/m is the IACS 100 % standard
+      (IEC 60028); temperature coefficient 3.93e-3 1/K and thermal conductivity about
+      390-400 W/(m K) from the CRC Handbook. Treat roughness separately (Hammerstad/Huray).
+    material:
+      kind: conductor
+      name: copper_ed
+      conductivity: 5.8e+7
+      t_ref: 293.15
+      temp_coeff: 3.93e-3
+      thermal: {k_xy: 390.0, k_z: 390.0, density: 8960.0, specific_heat: 385.0}
+      source: library
+  - citation: >-
+      Rolled-annealed (RA) copper foil. Bulk conductivity equals ED copper (IACS 100 %,
+      IEC 60028); RA foil differs through its much smoother surface, modelled as roughness.
+      Thermal values from the CRC Handbook.
+    material:
+      kind: conductor
+      name: copper_rolled
+      conductivity: 5.8e+7
+      t_ref: 293.15
+      temp_coeff: 3.93e-3
+      thermal: {k_xy: 390.0, k_z: 390.0, density: 8960.0, specific_heat: 385.0}
+      source: library
+  - citation: >-
+      Generic copper (default conductor material name used by ingest readers); same values as
+      copper_ed (IACS 100 %, IEC 60028).
+    material:
+      kind: conductor
+      name: copper
+      conductivity: 5.8e+7
+      t_ref: 293.15
+      temp_coeff: 3.93e-3
+      thermal: {k_xy: 390.0, k_z: 390.0, density: 8960.0, specific_heat: 385.0}
+      source: library
