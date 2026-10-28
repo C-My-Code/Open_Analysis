@@ -7,8 +7,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from oa_model.board import Board
 
+from oa_model.board import Board
 from oa_testkit import fixtures_dump as fd
 
 
