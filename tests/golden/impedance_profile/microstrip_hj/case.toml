@@ -1,0 +1,14 @@
+source = "analytic: Hammerstad-Jensen 1980 microstrip with HJ thickness correction (oa_impedance.closed_form.microstrip_hj); WP-102 microstrip board, h = 0.2 mm, t = 35 um, er = 4.3 (expected.yaml z0_ohm_approx 60.39 / 50.74)"
+
+[tolerance]
+rtol = 1e-4
+atol = 0.0
+
+[inputs]
+board = "tests/boards/kicad10/microstrip"
+widths = [0.00025, 0.00035, 0.0005]
+
+[expected]
+MS_250 = 60.361888992663744
+MS_350 = 50.70908641343836
+MS_500 = 41.132233269493014

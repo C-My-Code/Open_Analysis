@@ -105,3 +105,30 @@ Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
   container `accuracy_class` ("screening" for closed forms, "validated" for BEM) plus a
   `ValidityFlag(code="accuracy")` whose message holds the ai-integration class
   (`closed_form` / `2d_field`) and `tolerance_basis`. See docs/change-requests/WP-105-*.md.
+
+## `impedance.profile` (WP-203)
+
+`oa_impedance.profile.ImpedanceProfile` (entry point `impedance.profile`) profiles nets and
+differential pairs along their length: Z0 / Zdiff, eps_eff, delay, loss, discontinuity segments with
+their cause, a deviation table against the targets of the design intent (net-class names such as
+`90ohm` are resolved by `resolve_intent`), and a field-solved per-layer delay table.
+
+- Config: `nets` (NetSelector; empty = signal nets with a target or in a pair), `ds`, `freqs`,
+  `method`, `tolerance`, `refine_tol` (position accuracy of located transitions, default 25 um),
+  `batch_size`.
+- `plan` samples every net with `sample_net`, locates width / coupling / coplanar transitions by
+  bisection, merges samples into runs and dedups by `CrossSection.key()`: one `layout` task plus one
+  `solve` task per batch of unique keys, each calling `solve_many` once on unique sections only.
+- Causes: `layer_change`, `width_change`, `neckdown`, `ref_change`, `no_reference`, `plane_edge`,
+  `coplanar_ground`, `pair_uncoupled`, `pair_coupled`, `pair_gap_change`, `geometry_change`.
+  `ProfileEvent.kind` is a frozen literal, so causes without a literal map to `other` and carry
+  `causes=...` in `message` (see `docs/change-requests/WP-203-profile-event-kinds.md`).
+- Pair profiles use the odd-mode delay; an uncoupled leg of a pair reports Zdiff = 2 Z0.
+- Result items: one `profile` per net (`ImpedanceProfileResult`, summary with min/max/mean Z,
+  target, out-of-tolerance length and worst event), tables `deviation`, `discontinuities`,
+  `sections` (unique cross-sections), `layer_delays`, scalars `stats`, and the artifact
+  `tuning_profile` (JSON of `TuningProfileSet`, schema `oa-tuning-profile/1`, a data structure only;
+  nothing is written to KiCad).
+- Accuracy: `accuracy_class` `validated` (2d_field) if any section used the BEM, else `screening`
+  (closed_form), with a `ValidityFlag` naming the methods and the tolerance basis.
+- Golden suite: `tests/golden/impedance_profile/`.
