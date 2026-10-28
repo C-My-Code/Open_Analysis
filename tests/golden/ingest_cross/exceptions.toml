@@ -1,0 +1,121 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Known differences between the native KiCad reader and the IPC-2581 reader (and between the readers
+# and expected.yaml). A finding that is out of tolerance and matches an entry below is reported as
+# "whitelisted" with the entry's cause; anything else is a "fail".
+#
+# Fields: id, check (fnmatch), boards / keys (fnmatch lists, default ["*"]), sources
+# (default ["cross"]; "expected" = reader vs expected.yaml), readers (default ["ipc2581"]),
+# cause (why the difference exists), evidence (where it is documented or measured),
+# scope ("synthetic" entries must be exercised by the WP-102 boards; "demo" ones need KiCad).
+
+[[exception]]
+id = "ipc-zone-outline-is-fill-hull"
+check = "zones.outline_area"
+cause = "IPC-2581 has no zone object. The reader rebuilds the zone from the filled contours and uses the convex hull of the fill as outline, so the outline is inset by the zone clearance and loses concavities."
+evidence = "packages/oa-ingest-ipc2581/README.md 'Fidelity of KiCad 10.0.5 exports' (Zones); warning INGEST.ZONE_OUTLINE_APPROX"
+
+[[exception]]
+id = "ipc-zone-priority-lost"
+check = "zones.priority"
+cause = "KiCad writes no zone priority into IPC-2581; the filled copper arrives already resolved, so the reader sets priority 0."
+evidence = "packages/oa-ingest-ipc2581/README.md (Zones: priority/hatch/clearance rules are lost)"
+
+[[exception]]
+id = "ipc-no-rule-areas"
+check = "zones.rule_areas"
+cause = "Copper-pour keepouts (rule areas) are not exported to IPC-2581 by KiCad; they have no copper."
+evidence = "tests/boards/kicad10/combined/expected.yaml counts.rule_areas = 3 vs 0 zones with keepout in the IPC board"
+
+[[exception]]
+id = "ipc-mask-layers-added"
+check = "stackup.layer_set"
+keys = ["MT", "MB"]
+cause = "KiCad always writes a 10 um solder-mask layer on both sides of the IPC-2581 stackup, even when the board defines no mask. The native reader has no mask layer for such a board."
+evidence = "packages/oa-ingest-ipc2581/README.md (Materials); tests/boards/kicad10/README.md ('no solder mask')"
+
+[[exception]]
+id = "ipc-bottom-mask-shifts-z"
+check = "stackup.z_offset"
+sources = ["cross", "expected"]
+cause = "The forced 10 um bottom mask layer moves z = 0 (the stack bottom) 10 um below the lowest copper. All other z values are compared after removing this offset."
+evidence = "packages/oa-ingest-ipc2581/tests/test_reader.py (z offset by MB); offset measured as 1.0e-5 m on every WP-102 board"
+
+[[exception]]
+id = "ipc-micro-via-flag-lost"
+check = "vias.micro_flag"
+cause = "IPC-2581 has no micro-via flag; a micro via comes back as blind. Via counts are compared with micro folded into blind."
+evidence = "packages/oa-ingest-ipc2581/README.md (Via types); tests/boards/kicad10/via_transition/expected.yaml (counts.vias.micro = 1)"
+
+[[exception]]
+id = "ipc-backdrill-diameter-missing"
+check = "vias.backdrill.diameter"
+cause = "KiCad's IPC-2581 backdrill Spec has no drill diameter (START_LAYER, MUST_NOT_CUT_LAYER, MAX_STUB_LENGTH only). The reader falls back to the via drill diameter and reports INGEST.BACKDRILL_SIZE_UNKNOWN; MAX_STUB_LENGTH has no field in Backdrill."
+evidence = "docs/change-requests/WP-103-readoptions-and-backdrill.md section 2; via_transition SE2: native 0.6 mm, IPC 0.3 mm"
+
+[[exception]]
+id = "ipc-bottom-component-rotation"
+check = "components.rotation"
+cause = "KiCad writes a bottom-side component as Xform rotation=180 mirror=true for orientation 0. The IPC reader keeps the raw Xform rotation, the native reader the KiCad orientation, so Component.rotation differs by pi on bottom-side parts. Pad positions agree to 1 um, so the geometry is identical."
+evidence = "tests/boards/kicad10/via_transition/board.ipc2581.xml (TP13); docs/change-requests/WP-208-ingest-cross-findings.md finding 2"
+
+[[exception]]
+id = "expected-area-ignores-backdrill"
+check = "copper_area"
+boards = ["via_transition", "combined"]
+keys = ["L7/SE2", "L8/SE2"]
+sources = ["expected"]
+readers = ["kicad", "ipc2581"]
+cause = "expected.yaml copper area comes from pcbnew's polygon conversion, which keeps the pad of a backdrilled via on the layers the drill removes (L7 and L8 of SE2). Both readers drop those pads (end layer is itself cut), which is the board-model convention that oa_geometry also uses. The difference is exactly one via pad, pi*(0.3 mm)^2 = 2.827e-7 m^2."
+evidence = "docs/change-requests/WP-208-ingest-cross-findings.md finding 1; native and IPC readers agree with each other on both layers"
+
+[[exception]]
+id = "ipc-v9-export-fill-differs"
+check = "copper_area"
+boards = ["microstrip_v9"]
+keys = ["L*/GND"]
+sources = ["cross", "expected"]
+cause = "In the IPC-2581 export of the KiCad 9 syntax file the GND fill reaches 0.375 mm from the board edge, while the fill saved in the file (read natively, and equal to expected.yaml) stops 0.5 mm from it: area +0.99 %. The exporter evidently does not use the saved fill of a pre-10 file (suspected refill on load; not confirmed). The v10 board with identical copper agrees to 1e-13."
+evidence = "measured in WP-208: fill bounds (0.0005, -0.0395)-(0.0695, -0.0005) native vs (0.000375, -0.039625)-(0.069625, -0.000375) IPC; docs/change-requests/WP-208-ingest-cross-findings.md finding 3"
+
+# ---- KiCad demo boards (need KiCad 10.0.5 to export the IPC-2581 file)
+
+[[exception]]
+id = "ipc-npth-detached-from-footprint"
+check = "pads.npth_component"
+scope = "demo"
+cause = "KiCad's IPC-2581 export lists non-plated mounting holes as board-level hole pads without a component; the native reader keeps them under their footprint. Positions agree."
+evidence = "measured on pic_programmer (P101..P106), stickhub (H1) and cm5_minima (J1, J101, J701, USB701, ...); packages/oa-ingest-ipc2581/tests/test_reader.py (npth pad with component None)"
+
+[[exception]]
+id = "ipc-unnumbered-pads-renamed"
+check = "pads.number"
+scope = "demo"
+cause = "KiCad's IPC-2581 exporter names footprint pads that have no pad number PAD0, PAD1, ...; the native reader keeps the empty number."
+evidence = "measured on pic_programmer: P3 pads '' (native) vs PAD0 and PAD1 (IPC) at identical positions"
+
+[[exception]]
+id = "ipc-no-aperture-pads"
+check = "pads.apertures"
+scope = "demo"
+cause = "Pads without copper and without a hole (paste- or mask-only apertures, e.g. the four crystal shield pads of Y1) exist natively as SMD pads with an empty padstack and are not exported to IPC-2581."
+evidence = "packages/oa-ingest-ipc2581/README.md (Pads); measured on stickhub (Y1) and cm5_minima"
+
+[[exception]]
+id = "ipc-plated-hole-not-exported"
+check = ["pads.kind", "pads.count_by_kind"]
+keys = ["mismatches", "smd", "through_hole"]
+boards = ["cm5_minima"]
+scope = "demo"
+cause = "12 plated 0.5 mm shield holes of J101 (pad 1, GND, copper on L1..L6) are through-hole pads natively, but the exported padstack (PADSTACK_27) has no PadstackHoleDef at all, so the IPC reader returns SMD pads without a drill. The hole is lost in the export file, not in the reader."
+evidence = "measured: grep of cm5_minima.xml shows PADSTACK_27 with pad defs only; PADSTACK_33 (same hole, other pads) keeps its PadstackHoleDef"
+
+[[exception]]
+id = "ipc-stacked-pads-merge"
+check = ["pads.count", "pads.unmatched", "pads.layers", "components.pad_count"]
+keys = ["with_copper", "native_only", "H101", "mismatches"]
+boards = ["cm5_minima"]
+scope = "demo"
+cause = "H101 pad 1 is three stacked native pads at one position (a plated through-hole, an edge-connector pad on L1 and one on L6). The export has two pins: the two disjoint-layer pads merge into one SMD pad with copper on L1 and L6."
+evidence = "packages/oa-ingest-ipc2581/README.md (Pads: 'Pads with the same number stacked at one place on disjoint layers merge'); measured on cm5_minima H101"

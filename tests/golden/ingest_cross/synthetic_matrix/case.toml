@@ -1,0 +1,172 @@
+source = "WP-208 harness run on the WP-102 boards: number of passed / whitelisted / failed findings. Regenerate with --update-golden after changing the harness or a reader."
+
+[tolerance]
+rtol = 0.0
+atol = 0.0
+
+[inputs]
+
+[expected.combined.native_vs_expected]
+pass = 212
+whitelisted = 2
+fail = 0
+
+[expected.combined.ipc2581_vs_expected]
+pass = 210
+whitelisted = 3
+fail = 0
+
+[expected.combined.native_vs_ipc2581]
+pass = 757
+whitelisted = 15
+fail = 0
+
+[expected.cpwg.native_vs_expected]
+pass = 46
+whitelisted = 0
+fail = 0
+
+[expected.cpwg.ipc2581_vs_expected]
+pass = 44
+whitelisted = 1
+fail = 0
+
+[expected.cpwg.native_vs_ipc2581]
+pass = 228
+whitelisted = 6
+fail = 0
+
+[expected.diff_pair.native_vs_expected]
+pass = 68
+whitelisted = 0
+fail = 0
+
+[expected.diff_pair.ipc2581_vs_expected]
+pass = 66
+whitelisted = 1
+fail = 0
+
+[expected.diff_pair.native_vs_ipc2581]
+pass = 154
+whitelisted = 6
+fail = 0
+
+[expected.microstrip.native_vs_expected]
+pass = 47
+whitelisted = 0
+fail = 0
+
+[expected.microstrip.ipc2581_vs_expected]
+pass = 45
+whitelisted = 1
+fail = 0
+
+[expected.microstrip.native_vs_ipc2581]
+pass = 117
+whitelisted = 6
+fail = 0
+
+[expected.microstrip_v9.native_vs_expected]
+pass = 47
+whitelisted = 0
+fail = 0
+
+[expected.microstrip_v9.ipc2581_vs_expected]
+pass = 42
+whitelisted = 4
+fail = 0
+
+[expected.microstrip_v9.native_vs_ipc2581]
+pass = 114
+whitelisted = 9
+fail = 0
+
+[expected.power_plane.native_vs_expected]
+pass = 48
+whitelisted = 0
+fail = 0
+
+[expected.power_plane.ipc2581_vs_expected]
+pass = 46
+whitelisted = 1
+fail = 0
+
+[expected.power_plane.native_vs_ipc2581]
+pass = 194
+whitelisted = 6
+fail = 0
+
+[expected.power_strip.native_vs_expected]
+pass = 41
+whitelisted = 0
+fail = 0
+
+[expected.power_strip.ipc2581_vs_expected]
+pass = 39
+whitelisted = 1
+fail = 0
+
+[expected.power_strip.native_vs_ipc2581]
+pass = 69
+whitelisted = 4
+fail = 0
+
+[expected.power_two_layer_vias.native_vs_expected]
+pass = 44
+whitelisted = 0
+fail = 0
+
+[expected.power_two_layer_vias.ipc2581_vs_expected]
+pass = 42
+whitelisted = 1
+fail = 0
+
+[expected.power_two_layer_vias.native_vs_ipc2581]
+pass = 90
+whitelisted = 6
+fail = 0
+
+[expected.split_plane.native_vs_expected]
+pass = 104
+whitelisted = 0
+fail = 0
+
+[expected.split_plane.ipc2581_vs_expected]
+pass = 102
+whitelisted = 1
+fail = 0
+
+[expected.split_plane.native_vs_ipc2581]
+pass = 259
+whitelisted = 9
+fail = 0
+
+[expected.stripline.native_vs_expected]
+pass = 69
+whitelisted = 0
+fail = 0
+
+[expected.stripline.ipc2581_vs_expected]
+pass = 67
+whitelisted = 1
+fail = 0
+
+[expected.stripline.native_vs_ipc2581]
+pass = 139
+whitelisted = 6
+fail = 0
+
+[expected.via_transition.native_vs_expected]
+pass = 135
+whitelisted = 2
+fail = 0
+
+[expected.via_transition.ipc2581_vs_expected]
+pass = 133
+whitelisted = 3
+fail = 0
+
+[expected.via_transition.native_vs_ipc2581]
+pass = 255
+whitelisted = 12
+fail = 0
