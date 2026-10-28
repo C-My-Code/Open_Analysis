@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-mcp"
+version = "0.1.0"
+description = "MCP server exposing the suite to AI agents"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-results",
+    "oa-framework",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_mcp"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-results = { workspace = true }
+oa-framework = { workspace = true }

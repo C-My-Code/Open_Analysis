@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-assistant"
+version = "0.1.0"
+description = "Optional in-app AI assistant (top layer; no core package may import it)"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-results",
+    "oa-framework",
+    "oa-mcp",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_assistant"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-results = { workspace = true }
+oa-framework = { workspace = true }
+oa-mcp = { workspace = true }
