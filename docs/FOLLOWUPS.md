@@ -90,3 +90,11 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] PERF: the performance test takes 42 s (solid) and 61 s (both variants) under load; the via region takes about 15 s standalone.
 - [ ] Palace details marked [verify] need checking against Palace 0.18. Interior-sheet BCs are untested in Palace (WP-301).
 - [ ] CR WP-206-port-surfaces-and-signatures: wave ports are coplanar face sets, extra section-9 parameters, ViaBody.pads are ignored, and backdrill is a void only when clearance is set.
+
+## FEM reference (WP-202)
+- [ ] ACCURACY: on narrow high-er microstrips the BEM eps_eff is 0.57-0.59% low against the FEM, which sits nearer HJ. The agent loosened the FEM-vs-BEM eps_eff tolerance to 0.7%; the spec says 0.5%. Investigate the BEM dielectric-interface panelling (WP-105).
+- [ ] The 50-structure FEM-vs-BEM sweep never completed. The slow tests weren't re-run after the crash.
+- [ ] CR WP-202-fem-lazy-registration: `method="fem"` registers only on import, so `methods.get` needs a lazy import. (The WP-105 test test_fem_unavailable_until_registered now clears the registry itself, because FEM tests import oa_impedance.fem in the same process.)
+- [ ] No element-wise adaptivity (it re-meshes globally). Zero-thickness conductors have no DC R. Quasi-static only.
+- [ ] PERF: 1-20 s per static solve; 5-25 s per eddy frequency (a target for ADR-0008).
+- [ ] Timing assertions in the default suite are flaky under load (test_bem_median_under_50ms and similar). Move them to the `slow`/benchmark marker or make them relative.

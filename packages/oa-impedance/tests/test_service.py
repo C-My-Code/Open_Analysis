@@ -67,7 +67,9 @@ def test_quick_and_unsupported_closed_form() -> None:
     assert ei.value.info().code == "IMPEDANCE_UNSUPPORTED" and ei.value.info().hint
 
 
-def test_fem_unavailable_until_registered() -> None:
+def test_fem_unavailable_until_registered(monkeypatch: pytest.MonkeyPatch) -> None:
+    # oa_impedance.fem registers itself on import (WP-202); start from a registry without it.
+    monkeypatch.delitem(methods._REGISTRY, "fem", raising=False)
     svc = ImpedanceServiceImpl()
     xs = _xs.microstrip(1.0, 4.3)
     with pytest.raises(MethodNotAvailable) as ei:
