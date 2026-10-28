@@ -28,13 +28,14 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import shapely  # type: ignore[import-untyped]
-from shapely.geometry import LineString, Point  # type: ignore[import-untyped]
+import shapely
+from shapely.geometry import LineString, Point
 from shapely.geometry import Polygon as ShPolygon
 from shapely.geometry import box as sh_box
-from shapely.geometry.polygon import orient  # type: ignore[import-untyped]
-from shapely.ops import polygonize_full, unary_union  # type: ignore[import-untyped]
-from shapely.strtree import STRtree  # type: ignore[import-untyped]
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
+from shapely.ops import polygonize_full, unary_union
+from shapely.strtree import STRtree
 
 from oa_mesh._clean import polygonal_parts, ring_array, to_shapely
 from oa_mesh._quality import quality_report, triangle_areas
@@ -124,6 +125,7 @@ class _Geometry:
         return shapely.set_precision(g, self.grid)
 
     def _conductor_geom(self, shape: Any) -> Any:
+        g: BaseGeometry
         s = self.scale
         if isinstance(shape, XsTrapezoid):
             z0, z1 = shape.z_bottom, shape.z_bottom + shape.thickness
@@ -131,9 +133,10 @@ class _Geometry:
             u = shape.u_center
             g = ShPolygon(np.array([(u - hb, z0), (u + hb, z0), (u + ht, z1), (u - ht, z1)]) * s)
         elif isinstance(shape, XsPolygon):
-            g = to_shapely(shape.polygon)
+            src = to_shapely(shape.polygon)
             g = ShPolygon(
-                np.asarray(g.exterior.coords) * s, [np.asarray(h.coords) * s for h in g.interiors]
+                np.asarray(src.exterior.coords) * s,
+                [np.asarray(h.coords) * s for h in src.interiors],
             )
             if not g.is_valid:
                 g = shapely.make_valid(g)
@@ -386,8 +389,8 @@ def mesh_cross_section(
                 if a != b and kind[a][0] != "cond" and kind[b][0] != "cond":
                     nbrs[a].add(b)
     while queue:
-        f = queue.popleft()
-        for g_ in sorted(nbrs[f]):
+        qf = queue.popleft()
+        for g_ in sorted(nbrs[qf]):
             if g_ not in keep:
                 keep.add(g_)
                 queue.append(g_)

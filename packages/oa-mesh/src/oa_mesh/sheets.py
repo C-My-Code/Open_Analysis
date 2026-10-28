@@ -19,11 +19,12 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import shapely  # type: ignore[import-untyped]
-from shapely.geometry import Point as ShPoint  # type: ignore[import-untyped]
+import shapely
+from shapely.geometry import Point as ShPoint
 from shapely.geometry import Polygon as ShPolygon
-from shapely.ops import unary_union  # type: ignore[import-untyped]
-from shapely.strtree import STRtree  # type: ignore[import-untyped]
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
+from shapely.strtree import STRtree
 
 from oa_mesh._clean import clean_polygons, polygonal_parts, ring_array
 from oa_mesh._quality import quality_report, triangle_areas
@@ -115,7 +116,7 @@ class _PreparedPiece:
             cpath = f"{path}.contacts[{k}]"
             if c.radius > 0:
                 ring = _contact_ring(c, _auto_segments(c, piece, fields, h_default))
-                shape = ShPolygon(ring)
+                shape: BaseGeometry = ShPolygon(ring)
                 self.rings.append(ring)
             else:
                 shape = ShPoint(c.x, c.y)
