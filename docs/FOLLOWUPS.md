@@ -84,3 +84,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] PERF: 10k tracks with IM-002 on every net take 34.9 s (target for ADR-0008 native kernels).
 - [ ] CRs: WP-201-remediation-model (oa_results Remediation shape) and WP-201-violationset-summary (the 2 KiB summary fits only 2 entries).
 - [ ] INTEGRATION: the WP-207 service/CLI tests register a stub `erc` analysis that now collides with the real WP-201 `erc`; four tests fail (see merge notes).
+
+## 3D mesher (WP-206)
+- [ ] QUALITY: the agent relaxed the solid-copper min-SICN bound to 0.01 (worst 0.017 for solid 35 um copper with pads; sheets and fixtures are above 0.18). Poor tets will hurt Palace accuracy. WP-211 should improve this or default to sheet copper.
+- [ ] PERF: the performance test takes 42 s (solid) and 61 s (both variants) under load; the via region takes about 15 s standalone.
+- [ ] Palace details marked [verify] need checking against Palace 0.18. Interior-sheet BCs are untested in Palace (WP-301).
+- [ ] CR WP-206-port-surfaces-and-signatures: wave ports are coplanar face sets, extra section-9 parameters, ViaBody.pads are ignored, and backdrill is a void only when clearance is set.

@@ -85,7 +85,7 @@ def _min_width(polys: Sequence[Any]) -> float:
         shell = ShPolygon(p.exterior)
         if shell.length <= 0:
             continue
-        r = shell.minimum_rotated_rectangle.exterior.coords
+        r = shell.minimum_rotated_rectangle.exterior.coords  # type: ignore[attr-defined]
         s1 = math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1])
         s2 = math.hypot(r[2][0] - r[1][0], r[2][1] - r[1][1])
         ws.append(min(2.0 * shell.area / shell.length, s1, s2))
