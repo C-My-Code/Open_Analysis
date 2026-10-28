@@ -22,10 +22,11 @@ from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
-import shapely  # type: ignore[import-untyped]
-from shapely.geometry import Polygon as ShPolygon  # type: ignore[import-untyped]
-from shapely.geometry.polygon import orient  # type: ignore[import-untyped]
-from shapely.ops import unary_union  # type: ignore[import-untyped]
+import shapely
+from shapely.geometry import Polygon as ShPolygon
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
+from shapely.ops import unary_union
 
 from oa_mesh.errors import MeshError
 from oa_mesh.types import CleanOptions, CleanReport
@@ -69,7 +70,7 @@ def _robust_polygon(poly: Polygon) -> tuple[Any, bool]:
     sp = to_shapely(poly)
     if sp.is_valid:
         return sp, False
-    shell = ShPolygon(poly.exterior.array.copy())
+    shell: BaseGeometry = ShPolygon(poly.exterior.array.copy())
     if not shell.is_valid:
         shell = shapely.make_valid(shell)
     holes = []
