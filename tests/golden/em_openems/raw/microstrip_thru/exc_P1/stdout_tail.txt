@@ -1,0 +1,120 @@
+openEMS - verbose level 2
+ ---------------------------------------------------------------------- 
+ | openEMS 64bit -- version v0.37.0
+ | (C) 2010-2026 Thorsten Liebig <thorsten.liebig@gmx.de>  GPL license
+ ---------------------------------------------------------------------- 
+	Used external libraries:
+		CSXCAD -- Version: v0.7.0
+		hdf5   -- Version: 2.2.0
+		          compiled against: HDF5 library version: 2.2.0
+		tinyxml -- compiled against: 2.6.2
+		fparser
+		boost  -- compiled against: 1_91
+		vtk -- Version: 9.3.20231030
+		       compiled against: 9.3.20231030
+
+Create FDTD operator (compressed SSE + multi-threading)
+Multithreaded operator using 8 threads.
+Operator::CalcTimestep_Var3: Smallest timestep (1.00806e-13s) found at position: 1 : 62;25;0
+Compressing the FDTD operator... this may take a while...
+------- Stat: FDTD Operator -------
+Dimensions		: 78x57x24 = 106704 Cells (0.106704 MCells)
+Size of Operator	: 5121792 Byte (4.88452 MiB) 
+Size of Field-Data	: 2560896 Byte (2.44226 MiB) 
+-----------------------------------
+Background materials (epsR/mueR/kappa/sigma): 1/1/0/0
+-----------------------------------
+Number of PEC edges	: 4093
+in x direction		: 2049
+in y direction		: 2044
+in z direction		: 0
+-----------------------------------
+Timestep (s)		: 1.00806e-13
+Timestep method name	: Rennings_2
+Nyquist criteria (TS)	: 496
+Nyquist criteria (s)	: 4.99997e-11
+-----------------------------------
+SSE compression enabled	: yes
+Unique SSE operators	: 18121
+-----------------------------------
+-----------------------------------
+--- Excitation Extension ---
+Voltage excitations	: 20	 (0, 0, 20)
+Current excitations	: 0	 (0, 0, 0)
+Excitation Length (TS)	: 7765
+Excitation Length (s)	: 7.82757e-10
+--- Uniaxial PML Extension ---
+ PML range		: [0,0,0] to [8,56,23]
+ Grading function	: " -log(1e-6)*log(2.5)/(2*dl*Z*(pow(2.5,W/dl)-1)) * pow(2.5, D/dl) "
+--- Uniaxial PML Extension ---
+ PML range		: [69,0,0] to [77,56,23]
+ Grading function	: " -log(1e-6)*log(2.5)/(2*dl*Z*(pow(2.5,W/dl)-1)) * pow(2.5, D/dl) "
+--- Uniaxial PML Extension ---
+ PML range		: [9,0,0] to [68,8,23]
+ Grading function	: " -log(1e-6)*log(2.5)/(2*dl*Z*(pow(2.5,W/dl)-1)) * pow(2.5, D/dl) "
+--- Uniaxial PML Extension ---
+ PML range		: [9,48,0] to [68,56,23]
+ Grading function	: " -log(1e-6)*log(2.5)/(2*dl*Z*(pow(2.5,W/dl)-1)) * pow(2.5, D/dl) "
+--- Uniaxial PML Extension ---
+ PML range		: [9,9,15] to [68,47,23]
+ Grading function	: " -log(1e-6)*log(2.5)/(2*dl*Z*(pow(2.5,W/dl)-1)) * pow(2.5, D/dl) "
+--- Debye Dispersive Material Extension ---
+ Debye poles N       	: 1
+ Active cells        	: 21244
+--- Conducting Sheet Extension ---
+ Max. Dispersion Order N = 2
+ N=0:	 Active cells		: 2569
+ N=0:	 Voltage ADE is 	: On
+ N=0:	 Voltage Lor-ADE is 	: Off
+ N=0:	 Current ADE is 	: Off
+ N=0:	 Current Lor-ADE is 	: Off
+ N=1:	 Active cells		: 2569
+ N=1:	 Voltage ADE is 	: On
+ N=1:	 Voltage Lor-ADE is 	: Off
+ N=1:	 Current ADE is 	: Off
+ N=1:	 Current Lor-ADE is 	: Off
+--- Series/Parallel Lumped RLC load ---
+Active cells		: 0
+-----------------------------------
+Creation time for operator: 0.368806 s
+FDTD simulation size: 78x57x24 --> 106704 FDTD cells 
+FDTD timestep is: 1.00806e-13 s; Nyquist rate: 496 timesteps @1.00001e+10 Hz
+Excitation signal length is: 7765 timesteps (7.82757e-10s)
+Max. number of timesteps: 1000000 ( --> 128.783 * Excitation signal length)
+Create FDTD engine (compressed SSE + multi-threading)
+---  Engine::SortExtensionByPriority() ---
+ #0: Uniaxial PML Extension (1000000)
+ #1: Uniaxial PML Extension (1000000)
+ #2: Uniaxial PML Extension (1000000)
+ #3: Uniaxial PML Extension (1000000)
+ #4: Uniaxial PML Extension (1000000)
+ #5: Series/Parallel Lumped RLC load (0)
+ #6: Conducting Sheet Extension (0)
+ #7: Debye Dispersive Material Extension (0)
+ #8: Excitation Extension (-1000)
+Multithreaded engine using 1 threads. Utilization: (78)
+Setting up processing...
+openEMS::SetupProcessing: probe 'port_ut_1': time-domain sampling every 124 timestep(s) (Nyquist/4)
+openEMS::SetupProcessing: probe 'port_it_1': time-domain sampling every 124 timestep(s) (Nyquist/4)
+openEMS::SetupProcessing: probe 'port_ut_2': time-domain sampling every 124 timestep(s) (Nyquist/4)
+openEMS::SetupProcessing: probe 'port_it_2': time-domain sampling every 124 timestep(s) (Nyquist/4)
+Running FDTD engine... this may take a while... grab a cup of coffee?!?
+[@        4s] Timestep:         1364 || Speed:   35.5 MC/s (3.009e-03 s/TS) || Energy: ~3.99e-20 (- 0.00dB)
+Multithreaded engine using 2 threads. Utilization: (39;39)
+[@        8s] Timestep:         3348 || Speed:   51.7 MC/s (2.066e-03 s/TS) || Energy: ~1.29e-16 (- 0.00dB)
+Multithreaded engine using 3 threads. Utilization: (26;26;26)
+[@       12s] Timestep:         5580 || Speed:   59.5 MC/s (1.792e-03 s/TS) || Energy: ~1.48e-16 (- 3.28dB)
+Multithreaded engine using 4 threads. Utilization: (20;20;19;19)
+[@       16s] Timestep:         7936 || Speed:   59.8 MC/s (1.784e-03 s/TS) || Energy: ~2.74e-20 (-40.61dB)
+Multithreaded engine using 5 threads. Utilization: (16;16;16;15;15)
+[@       20s] Timestep:        10416 || Speed:   63.6 MC/s (1.678e-03 s/TS) || Energy: ~2.17e-24 (-81.64dB)
+Multithreaded engine using 6 threads. Utilization: (13;13;13;13;13;13)
+RunFDTD: end-criteria of -50.00dB reached after 10416 timesteps (-81.64dB)
+Time for 10416 iterations with 106704.00 cells : 20.57 sec
+Speed: 54.04 MCells/s 
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\et
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\ht
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\port_ut_1
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\port_ut_2
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\port_it_1
+cleanup: removing D:\Documents\Projects\Open_Analysis\.claude\worktrees\agent-a42ff817b09dd0eb5\.oa\w108\ms1\sim\port_it_2

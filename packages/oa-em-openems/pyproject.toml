@@ -16,6 +16,10 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-em",
+    "oa-network",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-rf>=1.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,3 +30,4 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-em = { workspace = true }
+oa-network = { workspace = true }

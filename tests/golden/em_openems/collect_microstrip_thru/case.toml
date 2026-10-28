@@ -1,0 +1,13 @@
+source = "regression: real openEMS 0.37.0 run of oa_testkit.microstrip_thru_problem (raw/microstrip_thru, see README)"
+
+[tolerance]
+rtol = 1e-09
+atol = 1e-12
+
+[inputs]
+f_hz = 10000000000.0
+
+[expected]
+s21_re = -0.9046693822445
+s21_im = 0.03059424110468
+s11_abs = 0.003560824625599818

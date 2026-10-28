@@ -1,0 +1,18 @@
+source = "regression snapshot of oa_testkit.emproblems fixture; see README (mesh rules)"
+
+[tolerance]
+rtol = 1e-09
+atol = 0.0
+
+[inputs]
+fixture = "stripline_thru"
+
+[expected]
+nx = 78
+ny = 32
+nz = 11
+cells = 23870
+mesh_hash = "d083e7f05209eb2f"
+min_cell_x = 49.937
+min_cell_y = 45.858000000000004
+min_cell_z = 35.0
