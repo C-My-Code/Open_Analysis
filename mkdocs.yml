@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+site_name: Open_Analysis
+site_description: PCB signal, power and RF integrity analysis suite
+docs_dir: docs
+theme:
+  name: readthedocs
+nav:
+  - Home: ARCHITECTURE.md
+  - Roadmap: ROADMAP.md
+  - Work breakdown: TASKS.md
+  - Specs:
+      - Board model: specs/board-model.md
+      - Interfaces: specs/interfaces.md
+  - Decisions:
+      - "0001 License": adr/0001-license-gpl3.md
+      - "0002 Stack and UI": adr/0002-stack-and-ui.md
+      - "0003 Board model format": adr/0003-board-model-format.md
+      - "0004 Solver integration": adr/0004-solver-integration.md
+      - "0005 Meshing (gmsh)": adr/0005-meshing-gmsh.md
+      - "0006 Ingest strategy": adr/0006-ingest-strategy.md
+  - Research:
+      - Ingest: research/01-ingest.md
+      - Impedance: research/02-impedance.md
+      - Signal integrity: research/03-signal-integrity.md
+      - Power integrity: research/04-power-integrity.md
+      - Full-wave EM: research/05-fullwave-em.md
+      - Landscape: research/06-landscape-architecture.md
+      - Quasi-static, thermal, EMI: research/07-quasistatic-thermal-emi.md

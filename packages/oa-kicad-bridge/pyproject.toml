@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-kicad-bridge"
+version = "0.1.0"
+description = "kicad-cli / pcbnew bridge (Altium import, zone refill)"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-ingest-kicad",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_kicad_bridge"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-ingest-kicad = { workspace = true }

@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint, types, import contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --python 3.13
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy
+      - run: uv run lint-imports
+
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --python ${{ matrix.python }}
+      # Markers needing external tools (external, kicad) are opt-in.
+      - run: uv run pytest -m "not external and not kicad"
+
+  reuse:
+    name: reuse lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fsfe/reuse-action@v5
+
+  license-audit:
+    name: pip-licenses allow-list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --python 3.13
+      # Fails on non-OSI or GPL-2.0-only Python dependencies (ADR-0001). Workspace members
+      # are GPL-3.0-or-later and are ignored by name.
+      - run: >
+          uv run pip-licenses --format=csv --with-system
+          --ignore-packages open-analysis oa-model oa-physics oa-results oa-testkit
+          oa-ingest-kicad oa-ingest-ipc2581 oa-kicad-bridge oa-geometry oa-mesh oa-network
+          oa-framework oa-jobs oa-impedance oa-erc oa-pi oa-em oa-em-openems oa-em-palace
+          oa-thermal oa-qs oa-emi oa-si oa-cli oa-server oa-mcp oa-assistant
+          --partial-match
+          --allow-only="MIT;MIT License;BSD License;BSD-3-Clause;BSD-2-Clause;Apache Software License;Apache-2.0;Apache 2.0;ISC License (ISCL);ISC;Python Software Foundation License;PSF-2.0;Mozilla Public License 2.0 (MPL 2.0);MPL-2.0;The Unlicense (Unlicense);Public Domain;GNU General Public License v3 (GPLv3);GNU General Public License v3 or later (GPLv3+);GPL-3.0-or-later;GNU Lesser General Public License v3 (LGPLv3);GNU Lesser General Public License v3 or later (LGPLv3+);LGPL-3.0-or-later;GPL-2.0-or-later;GNU General Public License v2 or later (GPLv2+);HPND;Zlib;BSD;CC0-1.0;UNKNOWN"
+
+  schema-compat:
+    name: schema compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --python 3.13
+      # oa_model's schema tests (WP-000B) regenerate schemas/*.json and diff against the
+      # committed files, and check that older fixtures still load. Exit code 5 = no tests
+      # collected yet, which is accepted until oa-model lands.
+      - run: uv run pytest packages/oa-model -k schema || [ $? -eq 5 ]
+        shell: bash

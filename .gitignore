@@ -9,4 +9,8 @@ dist/
 build/
 *.egg-info/
 .oa-cache/
+.hypothesis/
+.coverage
+site/
+.oa/
 .claude/worktrees/
