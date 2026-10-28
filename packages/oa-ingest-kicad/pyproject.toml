@@ -17,8 +17,21 @@ dependencies = [
     "shapely>=2.0",
 ]
 
+[project.entry-points."open_analysis.ingest"]
+kicad = "oa_ingest_kicad:KiCadReader"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_ingest_kicad"]
 
 [tool.uv.sources]
 oa-model = { workspace = true }
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501", "B011"]
+"tools/**" = ["E501", "SIM115"]
+
+[dependency-groups]
+dev = ["types-shapely"]
