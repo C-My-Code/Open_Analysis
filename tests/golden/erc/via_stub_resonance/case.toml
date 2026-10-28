@@ -1,0 +1,11 @@
+source = "analytic: f0 = c / (4 L sqrt(Dk_eff)); expected.yaml stub_resonance_hz of tests/boards/kicad10/via_transition (SE1, L = 0.62 mm, Dk 4.3)"
+
+[tolerance]
+rtol = 0.01
+
+[inputs]
+length = 0.00062
+dk = 4.3
+
+[expected]
+f_hz = 58295468150.0
