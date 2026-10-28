@@ -1,0 +1,781 @@
+# AI Integration Contract v1
+
+Status: **binding** from 2026-10-27 ([ADR-0007](../adr/0007-ai-integration.md)).
+- Sections 2-10 and 13 bind M1 work: WP-000 (000A/000B), WP-107, WP-201..WP-207 and WP-210.
+- Section 11 binds WP-411 (M2). Section 12 binds WP-412 (M3).
+- Section 13 is the **addendum to interfaces.md**. Implementers follow it as if it were in interfaces.md. It will be folded in at the next spec revision.
+
+Companions: [interfaces.md](interfaces.md), [board-model.md](board-model.md), [ARCHITECTURE.md](../ARCHITECTURE.md).
+
+Normative words: MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
+
+---
+
+## 1. Goals and principles
+
+Part (A), AI agents as first-class users, is the priority, and it shapes the core contracts. An LLM agent with no project-specific prompt must be able to:
+- discover what Open_Analysis can do;
+- open a board;
+- run analyses and rule checks;
+- read results without overflowing its context;
+- tell how far to trust each number;
+- propose fixes;
+- do all of this without side effects it did not ask for.
+
+The principles:
+1. **One catalog, many adapters.** Every operation is defined once in `oa_service` (§2). The CLI, REST, MCP, the web command layer and the assistant are adapters, and adapters contain no logic.
+2. **Structured first, prose second.** Every output is a typed model. Text digests are derived from the structured data, never the other way round.
+3. **Bounded by default.** Every list is paginated, every array is downsampled or referenced, and every summary has a size cap.
+4. **Honest numbers.** Every result states its method, accuracy class, tolerance and validity range.
+5. **Safe by default.** Read-only. Budgets on compute. Two-step confirmed writes. No network from the core.
+6. **Deterministic.** The same inputs give byte-identical structured output, apart from an enumerated set of volatile fields (§3.5).
+
+---
+
+## 2. Service layer and command catalog (`oa-service`, owned by WP-207)
+
+### 2.1 Layering
+
+| Layer | Packages | May import |
+|---|---|---|
+| L4b app services | `oa_service` | L0-L3, plus analyses **only via the registry** (an import-linter `forbidden` contract blocks direct L4 imports) |
+| L5 apps | `oa_cli`, `oa_server`, `oa_mcp` | L0-L4b, `mcp` (only `oa_mcp`), `fastapi` (only `oa_server`) |
+| L5 optional | `oa_assistant` | L0-L4b, `anthropic`, `keyring`, `httpx`. **No package imports `oa_assistant`.** `oa_server` discovers its router through the entry point `open_analysis.server_routers` |
+
+Forbidden-import contracts (the integrator adds them to the root `pyproject.toml`):
+- `anthropic`, `openai` and any other LLM SDK are imported only by `oa_assistant`.
+- `oa_assistant` is imported by nothing.
+- `oa_service` and `oa_mcp` do not **directly** import `requests`, `httpx`, `urllib3` or `aiohttp` (import-linter `allow_indirect_imports = true`, because the `mcp` SDK depends on `httpx`). Outbound traffic is ruled out at runtime by the socket guard (§10.5).
+
+### 2.2 Command model
+
+```python
+# oa_service/commands.py
+SideEffect = Literal["read", "compute", "write"]
+#  read:    no state change apart from in-memory session caches
+#  compute: may write only under the project's .oa/ (cache, jobs, results, exports) or the ephemeral
+#           workspace; may start jobs (subject to Budget)
+#  write:   modifies user files (KiCad project files, setups, intent, sidecar). Always two-step (§10.3)
+
+class CommandSpec(OAModel):
+    name: str                       # dotted, stable: "board.open", "erc.run", "results.violations"
+    mcp_tool: str | None            # snake_case MCP tool name ("open_board"); None = not exposed over MCP
+    cli: tuple[str, ...]            # CLI path, e.g. ("results", "violations")
+    title: str
+    description: str                # <= 1024 chars: what, when to use, cost, side effects, units
+    side_effect: SideEffect
+    idempotent: bool
+    long_running: bool              # may return a JobHandle instead of data
+    input_model: str                # schema id, e.g. "oa.cmd.board_open.in/1"
+    output_model: str               # schema id, e.g. "oa.board_summary/1"
+    examples: tuple[dict[str, JsonValue], ...] = ()   # valid inputs; tested
+
+class CallContext(OAModel):
+    caller: Literal["cli", "rest", "mcp", "assistant", "ui", "test"]
+    roots: tuple[Path, ...]         # allow-listed directories; paths outside -> PERMISSION_DENIED
+    allow_writes: bool = False      # server/process-level switch for write commands
+    budget_ceiling: "Budget"        # hard limits; per-call budgets are clamped to this (§10.4)
+    default_budget: "Budget"
+    max_response_bytes: int = 24_576   # structured payload cap for mcp/assistant callers
+
+class Registry:                     # oa_service.commands.registry
+    def specs(self) -> tuple[CommandSpec, ...]: ...      # sorted by name
+    def input_type(self, name: str) -> type[OAModel]: ...
+    def output_type(self, name: str) -> type[OAModel]: ...
+    def dispatch(self, name: str, args: Mapping[str, JsonValue], ctx: CallContext) -> "Envelope": ...
+```
+
+Third parties add commands through the entry-point group `open_analysis.commands`. `oa_cli` builds a generic typer sub-command for every spec it does not hand-write. Commands added by WP-210, such as `propose`, therefore appear in the CLI without anyone editing `oa_cli`.
+
+### 2.3 `OAService` facade (protocol published first by WP-207; WP-210 builds against it and a fake)
+
+```python
+# oa_service/service.py
+class OAService(Protocol):
+    # projects
+    def open(self, path: Path, *, read_options: ReadOptions | None = None) -> "ProjectHandle": ...
+    def project(self, project_id: str) -> "ProjectSession": ...
+    # jobs (wraps oa_framework.jobs.JobService)
+    def submit(self, project_id: str, req: "RunRequest", ctx: CallContext) -> "JobHandle": ...
+    def estimate(self, project_id: str, req: "RunRequest") -> "PlanEstimate": ...
+    def job(self, job_id: str) -> JobStatus: ...
+    def cancel(self, job_id: str) -> JobStatus: ...
+    def result(self, result_id: str) -> ResultBundle: ...
+
+class ProjectSession(Protocol):
+    id: str                          # "p_" + sha1(abs project path)[:12]: stable across restarts
+    board: Board                     # physics applied
+    def summary(self) -> "BoardSummary": ...
+    def nets(self, q: "NetQuery") -> "Page[NetInfo]": ...
+    def net(self, name_or_id: str) -> "NetDetail": ...
+    def stackup(self, f: float | None = None) -> "StackupView": ...
+    def geometry(self) -> BoardGeometry: ...
+```
+
+`oa_service.testing.FakeService` (shipped by WP-207 with the protocol) serves `oa_testkit` builder boards and canned result bundles. It lets WP-210 and WP-110 develop before the real implementation lands.
+
+### 2.4 Catalog v1
+
+The tool name is the stable public name. Commands marked † are added by WP-210. All other commands are WP-207's.
+
+| Command | MCP tool | CLI | REST (existing interfaces.md §7 where present) | Effect |
+|---|---|---|---|---|
+| `meta.describe` | `describe` | `oa describe [CMD]` | `GET /commands` (new) | read |
+| `meta.schema` | (resources) | `oa schema [ID] [--list]` | `GET /schemas/{id}` (new) | read |
+| `board.open` | `open_board` | `oa ingest BOARD` / `oa open PATH` | `POST /projects/open` | compute |
+| `board.summary` | `board_summary` | `oa board summary` | `GET /projects/{pid}/board` | read |
+| `board.nets` | `list_nets` | `oa board nets` | `GET /projects/{pid}/board/nets` | read |
+| `board.net` | `get_net` | `oa board net NAME` | `GET /projects/{pid}/board/nets/{net}` (new) | read |
+| `board.stackup` | `stackup` | `oa board stackup` | `GET /projects/{pid}/board/stackup` | read |
+| `impedance.xs` | `compute_xsection_impedance` | `oa impedance xs` | `POST /projects/{pid}/impedance/xs` (new) | compute |
+| `impedance.profile` | `impedance_profile` | `oa impedance profile` | via `POST /projects/{pid}/jobs` | compute |
+| `erc.run` | `run_erc` | `oa erc` | via jobs | compute |
+| `results.violations` | `list_violations` | `oa results violations RID` | `GET /results/{rid}/violations` (new) | read |
+| `results.explain` | `explain_violation` | `oa results explain RID FP` | `GET /results/{rid}/violations/{fp}` (new) | read |
+| `analysis.run` | `run_analysis` | `oa run` | `POST /projects/{pid}/jobs` | compute |
+| `jobs.status` | `job_status` | `oa jobs status JOB` | `GET /jobs/{jid}` | read |
+| `jobs.cancel` | `cancel_job` | `oa jobs cancel JOB` | `POST /jobs/{jid}/cancel` | compute |
+| `results.get` | `get_result` | `oa results show RID` | `GET /results/{rid}` + items | read |
+| `results.summary` | `result_summary` | `oa results summary RID` | `GET /results/{rid}/summary` (new) | read |
+| `results.export` | `export_report` | `oa results export RID` | `GET /results/{rid}/export/{format}` | compute |
+| `propose.rules` † | `propose_rule_changes` | `oa propose rules` | `POST /projects/{pid}/proposals` | read (dry-run) |
+| `propose.apply` † | `apply_proposal` | `oa propose apply ID` | `POST /proposals/{id}/apply` | **write** |
+
+REST keeps its raw typed response bodies, as the generated TS client expects. Only the CLI (`--json`) and MCP use the envelope (§3.1).
+
+---
+
+## 3. Common types and conventions (`oa_service.types`, except where another package is named)
+
+### 3.1 Envelope
+
+```python
+class Envelope(OAModel, Generic[T]):
+    schema: str                     # schema id of `data`, e.g. "oa.board_summary/1" (resolvable via oa schema)
+    version: str                    # producing Open_Analysis version (PEP 440), e.g. "0.1.0"
+    ok: bool                        # False iff errors is non-empty
+    data: T | None                  # None when ok is False
+    warnings: tuple[ErrorInfo, ...] = ()   # non-fatal: truncation, extrapolation, defaulted stackup
+    errors: tuple[ErrorInfo, ...] = ()
+```
+
+The envelope itself is described by `schemas/oa-envelope.v1.json`. Keys are serialized in model order, and `warnings` and `errors` are sorted by `(code, path)`. Envelope fields never change within `oa-envelope/1`.
+
+### 3.2 ErrorInfo (`oa_model.errors`, L0, so every layer can raise it; see §6)
+
+```python
+class ErrorInfo(OAModel):
+    code: str                       # stable, UPPER_SNAKE (registry in §6)
+    message: str                    # one sentence, no stack trace
+    path: str | None = None         # RFC 6901 JSON Pointer into the command input or the named document,
+                                    # e.g. "/config/rail/net"; "#/..." form not used
+    hint: str | None = None         # one actionable sentence: what to change or call next
+    source: "SourceRef | None" = None   # file + line/column for YAML/JSON/KiCad file errors
+    details: dict[str, JsonValue] = {}  # code-specific, documented per code
+```
+
+### 3.3 Pagination and filtering
+
+```python
+class PageRequest(OAModel):
+    offset: int = Field(0, ge=0, description="Index of the first item to return.")
+    limit: int = Field(50, ge=1, le=500, description="Maximum items to return.")
+
+class Page(OAModel, Generic[T]):
+    items: tuple[T, ...]
+    offset: int; limit: int
+    total: int                      # total matching items after filtering
+    next_offset: int | None         # None when exhausted
+    sort: str                       # the effective sort key, documented per command
+```
+
+- Default sorts are total orders, so the result is deterministic. They are documented in each command's description:
+  - nets by `name`;
+  - violations by `(severity desc, rule_id, nets, location.x, location.y, fingerprint)`;
+  - jobs by `created_utc desc, id`.
+- Filters are typed fields, not a query language. Glob matching uses `fnmatch` and is case-sensitive.
+
+### 3.4 Inputs
+
+- **Quantities.** Every numeric physical input accepts either an SI float or a string parsed by `oa_model.units.parse_quantity` (`"5mil"`, `"0.2mm"`, `"10GHz"`, `"25degC"`). Outputs are **always** SI floats with an explicit `unit` field or a unit in the schema description.
+- **Nets and items** are addressed by board `NetId`/`ItemId` or by name. When a name is ambiguous, the command raises `AMBIGUOUS_REF` with the candidates in `details`.
+- **Coordinates** are in the board frame: metres, Y up, z from the bottom (board-model.md §2). Because KiCad's UI is Y down in mm, location outputs also carry `kicad_mm: [x, y] | null`, derived from the reader's recorded transform. It is `null` when the transform is unknown.
+
+### 3.5 Determinism
+
+The same inputs give byte-identical `data`, apart from these **volatile fields**: `*_utc`, `elapsed_s`, `id` values that are ULIDs (`job_id`, `result_id`, `proposal_id`), `host`, and `version`. Tests compare outputs with the volatile fields masked. JSON floats use `repr`. No set or dict iteration order reaches the output unsorted.
+
+---
+
+## 4. Result requirements
+
+### 4.1 Accuracy (new, `oa_results.accuracy`)
+
+```python
+AccuracyClass = Literal[
+    "rule",             # geometric rule check: exact geometry, heuristic threshold
+    "closed_form",      # empirical/analytic formula (HJ, Cohn, Wheeler, IPC-2141 ...)
+    "2d_field",         # 2D quasi-TEM field solve (BEM, FEM) of a cross-section
+    "2d_sheet",         # 2D conduction on copper sheets + via resistors (DC IR)
+    "lumped",           # lumped/ladder circuit models (PDN M2, via pi model)
+    "3d_quasi_static",  # FasterCap/FastHenry/Palace ES-MS (M2)
+    "3d_full_wave",     # openEMS, Palace driven
+    "surrogate",        # ML model trained on our own solver outputs (M3)
+    "estimate",         # order-of-magnitude screening (EMI DM/CM estimates)
+    "unknown",
+]
+
+class Accuracy(OAModel):
+    accuracy_class: AccuracyClass
+    method: str                       # "bem", "hammerstad_jensen_1980", "openems-fdtd", "oa-dc-fem-p1"
+    tolerance_rel: float | None       # validated relative tolerance of the headline quantity, e.g. 0.005
+    tolerance_basis: str | None       # where the tolerance comes from: "golden:impedance_bem (T0)",
+                                      # "ROADMAP M1 gate BEM vs FEM", "surrogate holdout p99"
+    validity: Literal["in_range", "extrapolated", "invalid", "unknown"]
+    f_min: float | None = None        # Hz, valid band (None = not frequency-dependent / full band)
+    f_max: float | None = None        # Hz; quasi-static/model results MUST set it (validity_fmax)
+    converged: bool | None = None     # mesh/energy/AMR convergence met; None = not applicable
+    quality: Literal["pass", "warn", "fail"] | None = None   # S-param gate verdict where applicable
+    assumptions: tuple[str, ...] = () # short phrases, e.g. "plane truncated at 20*b", "zones refilled by tool"
+```
+
+Rules:
+- `ResultItem.accuracy` MUST be set by every M1 analysis. In the type it defaults to `None` for compatibility; acceptance tests enforce it.
+- A result marked `invalid` must not drive a rule to `error`. It produces a `warning` with code `RESULT.INVALID_INPUT_RANGE` instead.
+
+Default classes:
+
+| Analysis / producer | `accuracy_class` | Typical `tolerance_basis` |
+|---|---|---|
+| `impedance.xsection` closed form | `closed_form` | formula validity range; ROADMAP "Closed form" gates |
+| `impedance.xsection` bem/fem | `2d_field` | T0/T1 golden suites |
+| `impedance.profile` | `2d_field` (or `closed_form` when `method=closed_form`) | per section |
+| `erc` | `rule`. Violations from IM-002 inherit the impedance accuracy in `Violation.remediation.evidence` | rule references |
+| `pi.dc` | `2d_sheet` | DC IR analytic + raster cross-check gates |
+| `em.sparams` | `3d_full_wave` | EM sanity / cross-solver gates; `quality` from the gate |
+| `qs.extract` (M2) | `3d_quasi_static` | `f_max = validity_fmax` |
+| `impedance` surrogate (M3) | `surrogate` | holdout p99 relative error |
+
+### 4.2 Summaries (`oa_results.summary`)
+
+```python
+class SummaryMetric(OAModel):
+    name: str                         # "z0_min", "worst_drop", "max_|S21|_loss"
+    value: float | int | str | bool
+    unit: str | None = None           # SI unit string; None for dimensionless/str
+    status: Literal["pass", "warn", "fail", "info"] = "info"
+    limit: float | None = None
+    where: str | None = None          # net/layer/item/frequency the value refers to
+
+class ResultSummary(OAModel):
+    item_id: str
+    kind: str                         # ResultItem.kind
+    title: str
+    status: Literal["pass", "warn", "fail", "info"]
+    text: str                         # <= 600 chars, plain text, no markdown tables
+    metrics: tuple[SummaryMetric, ...]   # <= 24, most important first (order is deterministic)
+    facts: dict[str, JsonValue] = {}  # <= 32 keys; scalar values or lists <= 20 elements
+    accuracy: Accuracy                # copied from ResultItem.accuracy ("unknown" if absent)
+    truncated: bool = False
+    more: str | None = None           # how to get more, e.g. "list_violations(result_id=..., offset=20)"
+
+class BundleSummary(OAModel):
+    result_id: str
+    analysis: str
+    status: Literal["ok", "warning", "failed_quality", "error"]
+    text: str                         # <= 1500 chars; equals ResultBundle.summary
+    items: tuple[ResultSummary, ...]  # <= 20; larger bundles summarize the first 20 by item order + "more"
+    diagnostics: dict[str, int]       # counts by severity
+    top_diagnostics: tuple[Diagnostic, ...]   # <= 10, errors first
+    provenance: "ProvenanceBrief"     # analysis, versions, board/physics/setup/inputs hashes, solver
+```
+
+Rules (000A implements the types and the generic `summary()` for every payload; analyses may enrich them):
+- Every payload type (`NetworkResult`, `FieldResult`, `TableResult`, `ViolationSet`, `ProfileResult`, `ScalarSet`, `RLGCResultSet`, `ExtractionResult`, `FarFieldResult`, `ArtifactOnly`) implements `summary(self, *, item_id: str, title: str, accuracy: Accuracy | None) -> ResultSummary`. It is a pure, deterministic method and is not a serialized field.
+- `ResultBundle.digest() -> BundleSummary` is a method. The existing **field** `ResultBundle.summary: str` stays, and `reduce` (or `oa_jobs` on its behalf) MUST set it to `digest().text`. The naming split is deliberate (see the tension note in §13).
+- **Size caps:** one `ResultSummary` is ≤ 2 KiB and one `BundleSummary` is ≤ 8 KiB in compact JSON. Property tests check this on every fixture bundle. Over-cap content is cut by dropping trailing metrics and facts, then setting `truncated` and `more`.
+- Minimum content per kind:
+  - `violations`: counts by severity; counts by rule (top 10); the worst 5 violations as `rule_id net layer measured/limit`.
+  - `profile`: min, max and mean Z; target and tolerance; out-of-tolerance length; worst event.
+  - `field`: min and max per field with location; for DC IR, the worst load drop and the worst via current.
+  - `network`: port count; band; quality verdict, PQM and RQM; |S21| and |S11| at f_max and at 3 log-spaced points.
+  - `rlgc`: Z0/Zdiff and eps_eff at the lowest and highest frequency.
+  - `scalars`: all values (capped at 24).
+  - `table`: rows, columns, and the first 5 rows.
+
+### 4.3 Provenance additions
+
+`Provenance` gains these fields (additive):
+- `inputs_hash: str | None`: sha256 over the sorted task keys plus the board, physics and setup hashes.
+- `oa_version: str | None`.
+- `tool_versions: dict[str, str] = {}`: external tools and gmsh.
+- `caller: str | None`: the `CallContext.caller` that started the job.
+
+### 4.4 Large data
+
+- Tool and CLI JSON outputs never inline arrays with more than 1000 elements. They return an `ArrayRef{name, shape, dtype, unit, uri}` instead, where `uri` is `oa://results/{rid}/items/{item}/arrays/{name}` (an MCP resource, §8.4) or the REST path.
+- `get_result` takes:
+  - `max_points` (default 201) to decimate frequency and distance axes (log-spaced for frequency, uniform for distance, always keeping endpoints and events);
+  - `select` to choose fields or ports;
+  - `offset`/`limit` for tables.
+- Field results are summarized with statistics and the worst-k locations. They are never returned as raw meshes over MCP. An agent that needs the mesh uses the export (VTU).
+
+---
+
+## 5. Violation requirements
+
+The frozen `Violation` (interfaces.md §3.7) already carries the stable `rule_id`, `severity`, `location`, item refs (`items`, `nets`, `layers`), `measured`, `limit`, `unit`, `fix_hint` and `fingerprint`. Additions:
+
+```python
+# oa_results.violations (000A)
+class RemediationAction(OAModel):
+    kind: Literal["reroute", "move", "widen", "narrow", "change_spacing", "change_layer",
+                  "add_return_via", "add_stitching_vias", "add_decap", "move_decap", "backdrill",
+                  "change_stackup", "change_netclass", "change_rule", "add_waiver", "other"]
+    description: str                          # one imperative sentence
+    targets: tuple[str, ...] = ()             # ItemIds / NetIds / layer ids / refdes the action applies to
+    parameter: str | None = None              # "width", "clearance", "via_pitch", "stub_length", "dk" ...
+    current_value: float | None = None        # SI
+    suggested_value: float | None = None      # SI; None if the rule cannot compute one
+    unit: str | None = None
+    applies_via: Literal["board_edit", "dru_rule", "netclass", "stackup", "setup", "waiver"]
+                                              # board_edit = a human/EDA edit Open_Analysis cannot apply
+    confidence: Literal["low", "medium", "high"] = "medium"
+
+class Remediation(OAModel):
+    summary: str                              # one sentence; Violation.fix_hint MUST equal this
+    actions: tuple[RemediationAction, ...]    # >= 1, ordered by preference
+    evidence: dict[str, JsonValue] = {}       # e.g. {"z0": 41.2, "z0_accuracy": "2d_field"} (<= 16 keys)
+
+# Violation gains:  remediation: Remediation | None = None   (MUST be set by every M1 rule; tests enforce)
+```
+
+Further rules:
+- `measured`, `limit` and `unit` MUST be set for every threshold rule. `margin = measured - limit` is derived by consumers and not stored.
+- Rules expose an optional class attribute `explanation: str`: a paragraph on the physics and why the rule exists, with the citation keys from `references`. It is read with `getattr(rule, "explanation", "")` and is **not** a new `Protocol` member, so the frozen `runtime_checkable` protocol is unaffected. `RuleInfo` (REST `/rules`, MCP `oa://rules`) includes it.
+- `explain_violation` is **deterministic**. It assembles the violation, the rule metadata and the configured thresholds, the measured value against the limit, the local context (net info, reference layer and coverage at the location from the `ReferenceMap`, up to 20 nearby items), related violations (the same net or items), the remediation, and a ready-to-paste waiver YAML snippet. No LLM is involved.
+
+---
+
+## 6. Errors
+
+- `OAError` (interfaces.md §12) gains `path: str | None`, `hint: str | None`, `details: dict` and `def info(self) -> ErrorInfo`.
+- `SetupError` and `BoardValidationError` carry `issues: tuple[ErrorInfo, ...]`. Pydantic `ValidationError`s are mapped one issue per error: `loc` becomes a JSON Pointer `path`, the pydantic `type` goes into `details["type"]`, and a hint comes from a small table (for example `extra_forbidden` → "remove the field or check its spelling; see oa schema <id>").
+- `Diagnostic` gains optional `path: str | None = None` and `hint: str | None = None` (board-model minor-compatible, additive).
+- `JobStatus.error: ErrorInfo | None` uses this type. It was referenced in interfaces.md §4.4 but never defined.
+
+Code registry (stable; new codes are additive). Each code maps to one CLI exit code (§9.2) and one HTTP status:
+
+| Code | Exit | HTTP | Meaning |
+|---|---|---|---|
+| `USAGE` | 2 | 400 | bad arguments |
+| `SETUP_INVALID`, `MODEL_INVALID`, `SCHEMA_VERSION` | 2 | 422 | input validation |
+| `NOT_FOUND`, `AMBIGUOUS_REF` | 2 | 404 / 409 | unknown or ambiguous project, net, item, result or fingerprint |
+| `PERMISSION_DENIED` | 2 | 403 | path outside the roots, or a write without `allow_writes` |
+| `INGEST_*` | 2 | 422 | reader failure |
+| `TOOL_MISSING` | 3 | 424 | external tool not configured |
+| `TOOL_FAILED`, `INTERNAL` | 4 | 500 | crash or solver failure |
+| `QUALITY_GATE_FAILED`, `QUALITY_GATE_MISSING` | 5 | 200 (status in body) | S-parameter gate |
+| `BUDGET_EXCEEDED`, `CANCELLED`, `TIMEOUT` | 6 | 409 | estimate over budget, budget hit at runtime, cancelled, or wait timeout |
+| `CONFIRMATION_REQUIRED`, `STALE_BASE` | 7 | 409 | write needs confirmation; the target file changed since the proposal |
+| `RESULT_TRUNCATED` (warning) | 0 | 200 | output capped; see `details.next_offset` |
+| `RESULT.INVALID_INPUT_RANGE`, `RESULT.EXTRAPOLATED` (warning) | 0 | 200 | accuracy caveats |
+
+REST error bodies become `{"error": ErrorInfo}`. This is a superset of the existing `{"code", "message", "details"}` body in interfaces.md §7, so existing clients keep working.
+
+---
+
+## 7. Schemas and self-documentation
+
+### 7.1 Field descriptions (000B for `oa_model`, 000A for `oa_results`/`oa_framework`, every WP for its `Config` models)
+
+- Every field of every public model has `Field(description=...)`. The text is one sentence and states the unit in square brackets with SI symbols, for example `"Drawn trace width [m]."`, `"Relative permittivity at f_ref [1]."` or `"Upper frequency of the sweep [Hz]."`. Dimensionless quantities use `[1]`.
+- Enumerations and discriminated unions describe every literal, either in the field description or in the class docstring, which pydantic emits as the schema `description`.
+- Every model class has a docstring.
+- The lint `tests/agents/test_schema_descriptions.py` (WP-210) walks `schemas/*.json` and every command input and output schema. It fails on any property without a `description`, and on any numeric property with no `[unit]` unless the field is annotated `x-oa-unitless`.
+
+### 7.2 Publishing
+
+| Schema id | File | Source |
+|---|---|---|
+| `board-model/1`, `oa-physics/1`, `oa-intent/1`, `oa-setup/1`, `oa-xsection/1`, `oa-emproblem/1`, `oa-result/1` | `schemas/*.v1.json` (existing) | WP-000 |
+| `oa-envelope/1`, `oa-error/1` | `schemas/oa-envelope.v1.json`, `oa-error.v1.json` | WP-207 |
+| `oa.cmd.<command>.in/1`, `oa.<output>/1` | `schemas/commands/*.json` | generated from the catalog by WP-207, CI-diffed |
+| `oa.analysis.<kind>.config/<version>` | `schemas/analyses/*.json` | generated from `Analysis.Config` |
+| `oa.rule.<id>.config/1` | `schemas/rules/*.json` | generated from `Rule.Config` |
+
+`oa schema --list --json` returns `[{id, title, file}]`, and `oa schema ID` prints one schema. The same set is served as MCP resources `oa://schemas/{id}`.
+
+### 7.3 Agent documentation (WP-210 deliverables)
+
+- **`llms.txt`** at the repo root, in llmstxt.org format: an H1, a one-paragraph summary, and link sections (Agent guide, MCP tools, CLI JSON, Schemas, Accuracy classes, Rule catalog, Validation page).
+  - It is also generated as `llms-full.txt` (concatenated docs) by `tools/agents/build_llms.py`.
+  - CI checks that every link resolves and that every MCP tool name in the docs exists in the catalog.
+- **`docs/agents/AGENTS.md`** is the guide for agents *using* Open_Analysis:
+  - setup (`claude mcp add open-analysis -- oa-mcp --root <dir>`, and the generic `mcpServers` JSON);
+  - the M1 workflow recipe;
+  - how to read accuracy, so agents don't overclaim;
+  - the budget and safety model;
+  - the propose → apply flow;
+  - coordinate and unit pitfalls (Y-up metres vs KiCad Y-down mm);
+  - common error codes and their fixes.
+
+  It is served as `oa://docs/agent-guide`.
+- **`CLAUDE.md`** at the repo root is for *contributors'* coding agents:
+  - read TASKS.md rules of engagement first;
+  - owned paths;
+  - the contracts are frozen, and the change-request process;
+  - commands (`uv sync`, `uv run pytest -m "not external"`, `uv run lint-imports`, `ruff`, `mypy`);
+  - SPDX header, DCO sign-off;
+  - golden data rules;
+  - "never add network/LLM calls outside `oa-assistant`".
+
+  It stays under 200 lines and links rather than copies.
+
+---
+
+## 8. MCP server `oa-mcp` (WP-210)
+
+### 8.1 Packaging and transports
+
+- The package `packages/oa-mcp`, import `oa_mcp`, has the console script `oa-mcp`. `oa mcp ...` delegates to it when it is installed.
+- It depends on the official Python MCP SDK (`mcp`, current 1.x at implementation; protocol revision 2025-06-18 or later for `structuredContent`/`outputSchema`, tool annotations and elicitation). It uses the SDK's `FastMCP` server.
+- Transports:
+  - `oa-mcp` (default **stdio**). Logs go to stderr only.
+  - `oa-mcp --http [--port 0]` uses **streamable HTTP**. It binds to 127.0.0.1 only, requires a random bearer token printed to stderr (or `--token-file`), validates the `Origin` header (rejecting non-loopback origins against DNS rebinding), and serves one MCP endpoint at `/mcp`.
+- Flags:
+  - `--root DIR` (repeatable; default: the current working directory) sets the path allow-list.
+  - `--allow-writes` enables `apply_proposal`; it is off by default.
+  - `--max-runtime 15m`, `--max-memory 16GB`, `--max-cpus N` and `--no-external` set the hard budget ceiling (§10.4).
+  - `--executor process|inline` and `--max-response-kb 24`.
+  - The same settings are also read from `[mcp]` in the user config `open_analysis/config.toml`. Flags win.
+- The server embeds an `OAService` with an embedded `JobService`, exactly like the CLI (ARCHITECTURE §4). Jobs started over MCP are visible to `oa jobs list` and the web UI, because they share the SQLite store.
+
+### 8.2 Tool conventions
+
+- Tools are generated from the catalog. The tool name is `CommandSpec.mcp_tool`, the description is `CommandSpec.description`, `inputSchema` is the input model schema, and `outputSchema` is the envelope schema specialized to the output model. `tools/list` is sorted by name and is stable, which keeps clients' prompt caches warm.
+- Annotations:
+  - `read` commands: `readOnlyHint=true`, `idempotentHint=true`, `openWorldHint=false`;
+  - `compute` commands: `readOnlyHint=false`, `destructiveHint=false`, `openWorldHint=false`;
+  - `apply_proposal`: `destructiveHint=true`.
+- Every call returns `structuredContent` = the `Envelope`, plus one `text` content block = the digest (`data.text`/`summary.text`, or the error messages) for clients that ignore structured output.
+- Failures return a normal tool result with `isError=true` and `ok=false` in the envelope, so the model can see and fix them. JSON-RPC errors are used only for protocol faults (unknown tool, schema-invalid arguments before dispatch).
+- Responses larger than `max_response_bytes` are cut by the command's own pagination. The command adds a `RESULT_TRUNCATED` warning with `details.next_offset`, and it never truncates mid-object.
+- Long-running tools (`long_running=true`) take `wait_s` (default 20, max 120). If the job finishes within `wait_s`, they return the result summary. Otherwise they return a `JobHandle` and the agent polls `job_status`. When the client supplies a progress token, progress goes out as MCP progress notifications.
+
+### 8.3 Tools (input → output; all fields carry descriptions and units in the real schemas)
+
+Shared output types: `JobHandle{job_id, state, progress, estimate: PlanEstimate, result_id: str|None, summary: BundleSummary|None}`, `PlanEstimate{tasks, est_seconds, est_peak_memory_gb, cpus, needs: [tool], external: bool, within_budget: bool, budget: Budget}` and `Budget` (§10.4).
+
+| Tool | Input | Output (`data`) |
+|---|---|---|
+| `describe` | `command?: str` | `{commands: [CommandSpec]}` or a single `CommandSpec`; also `analyses: [AnalysisInfo]`, `rules: [RuleInfo]` when `command` is omitted |
+| `open_board` | `path: str` (project dir with `oa-project.yaml`, or a board file `.kicad_pcb`/`.xml`/`.PcbDoc`/`.oab(.json)`); `refill_zones?: "never"\|"if_unfilled"` (default `never`); `physics?: str`, `intent?: str` (paths) | `ProjectHandle{project_id, name, project_path, board_path, ephemeral: bool, board_hash, physics_hash, source_tool, diagnostics: {counts, top: [Diagnostic ≤ 20]}, summary: BoardSummary}`. A bare board file opens an **ephemeral project**: nothing is written next to the board, and the workspace lives in the user cache dir under the board hash. |
+| `board_summary` | `project_id` | `BoardSummary{meta, size_m: [w,h], layer_count, copper_layers: [id,name,z_m,thickness_m], total_thickness_m, nets: {total, by_kind}, net_classes: [{name, n_nets, target_z_se, target_z_diff}], diff_pairs: int, components: int, vias: {by_kind}, zones: {count, unfilled}, intent: {high_speed_nets: int, rails: [net], ground_nets: [net]}, diagnostics: {counts}}` |
+| `list_nets` | `project_id`, `query?: glob`, `kind?`, `net_class?`, `layer?`, `high_speed_only?: bool`, `PageRequest` | `Page[NetInfo{id, name, kind, net_class, diff_partner, n_items, length_m, layers, via_count, target_z, intent_tags}]`, sorted by `name` |
+| `get_net` | `project_id`, `net: str` | `NetDetail{info: NetInfo, per_layer: [{layer, length_m, widths_m: [distinct ≤ 10], segments}], vias: [{id, kind, span, drill_m, stub_m} ≤ 50], pads: [{refdes, pin, layer} ≤ 100], references: [{layer, ref_layer, ref_net, coverage}], topology: {endpoints, stubs: [{length_m, at}], branches}, intent: {rise_time_s, target_z, tolerance}, truncated}` |
+| `stackup` | `project_id`, `frequency?: Quantity` (default 1 GHz) | `StackupView{layers: [{id, kind, name, z_bottom_m, z_top_m, thickness_m, material, dk, df, conductivity_s_per_m, roughness}], total_thickness_m, frequency_hz, physics_source: "sidecar"\|"board"\|"default", warnings}` |
+| `compute_xsection_impedance` | exactly one of: `sample: {project_id, net, at_m?: [x,y], s_m?: float, layer?}` (geometry sample on the board), `xsection: CrossSection` (inline, schema `oa-xsection/1`), `quick: {topology: "microstrip"\|"embedded_microstrip"\|"stripline"\|"offset_stripline"\|"cpw"\|"cpwg"\|"edge_coupled_microstrip"\|"edge_coupled_stripline", w, h, t, er, df?, s?, g?, h2?, mask_t?}`; plus `freqs?: [Quantity] (≤ 50)`, `method?: auto\|closed_form\|bem\|fem` | `XsImpedance{xs_key, method, model_name, freqs_hz, z0_ohm?, zdiff_ohm?, zcomm_ohm?, zodd_ohm?, zeven_ohm?, eps_eff, delay_s_per_m, loss_db_per_m, accuracy: Accuracy, notes}`. It runs synchronously within budget, and `fem` may return a `JobHandle`. |
+| `impedance_profile` | `project_id`, `nets: NetSelector` (names/globs/classes/intent tag), `method?`, `ds?: Quantity`, `tolerance?: float`, `budget?`, `wait_s?` | `JobHandle`, or `{result_id, summary: BundleSummary, nets: [{net, z_min, z_max, z_mean, target, out_of_tol_length_m, worst_event}]}` |
+| `run_erc` | `project_id`, `setup?: str` (setup name) or `rules?: {RULE_ID: {enabled, severity?, ...cfg}}`, `nets?: NetSelector`, `budget?`, `wait_s?` | `JobHandle`, or `{result_id, counts: {error, warning, info, waived}, by_rule: [{rule_id, count}], top: [ViolationBrief ≤ 20], rules_run, summary: BundleSummary}` |
+| `list_violations` | `result_id`, `severity_min?`, `rule_id?: glob`, `net?: glob`, `layer?`, `include_waived?: bool=false`, `PageRequest`, `fields?: "brief"\|"full"` | `Page[ViolationBrief\|ViolationView]`, sorted per §3.3. `ViolationBrief{fingerprint, rule_id, severity, message, nets, layers, location_m, kicad_mm, measured, limit, unit, fix_hint}`; `ViolationView` adds `items, geometry_bbox, remediation, waived` |
+| `explain_violation` | `result_id`, `fingerprint` | `ViolationExplanation{violation: ViolationView, rule: {id, title, category, aliases, default_severity, references, explanation, config_used}, margin, margin_rel, context: {net: NetInfo, reference: {layer, net, coverage}, nearby_items ≤ 20}, related: [fingerprint ≤ 20], remediation, waiver_yaml}` |
+| `run_analysis` | `project_id`, `analysis: str` (kind), `setup?: str` or `config: dict` + `ports?`, `dry_run?: bool=false`, `budget?: Budget`, `wait_s?` | With `dry_run`: `{valid, diagnostics: [Diagnostic], estimate: PlanEstimate}` and **no execution**. Otherwise a `JobHandle`. Refused with `BUDGET_EXCEEDED` (with the estimate in `details`) when the estimate exceeds the effective budget |
+| `job_status` | `job_id`, `wait_s?: ≤ 60`, `events_after_seq?: int` | `{status: JobStatus, events: [JobEvent ≤ 50], budget_used: {elapsed_s, peak_memory_gb}, summary: BundleSummary\|None}` |
+| `cancel_job` | `job_id` | `JobStatus` |
+| `get_result` | `result_id`, `item_id?`, `select?: [str]`, `max_points?: int=201`, `PageRequest` (tables) | `{manifest: {id, status, analysis, items: [{id, kind, title, accuracy}]}}`, or one item rendered compactly: decimated series, `ArrayRef`s for anything over the cap, and table pages |
+| `result_summary` | `result_id` | `BundleSummary` |
+| `export_report` | `result_id`, `format: html\|sarif\|touchstone\|csv\|vtu\|json\|md`, `item_id?`, `out_path?` | `{path, media_type, size, sha256}`. The default location is `<project>/.oa/exports/<rid>/`. An `out_path` must be inside the roots, and an existing file is not overwritten without `overwrite: true` |
+| `propose_rule_changes` | `project_id`; `from_violations?: {result_id, fingerprints: [..]}` and/or `changes?: [RuleChange]`; `target?: "kicad_dru"\|"kicad_pro_netclasses"\|"auto"` | `ChangeProposal` (§10.3). It is a dry run and never writes |
+| `apply_proposal` | `proposal_id`, `confirm_token` | `{applied: [{file, sha256_before, sha256_after, backup}], reload: ProjectHandle}` |
+
+`RuleChange` (union on `kind`):
+- `netclass_param{netclass, param: "clearance"|"track_width"|"diff_pair_width"|"diff_pair_gap"|"via_diameter"|"via_drill", value}`;
+- `assign_netclass{nets: [glob], netclass}`;
+- `custom_rule{name, condition, constraint: "clearance"|"track_width"|"length"|"skew"|"via_count"|"diff_pair_gap"|"diff_pair_uncoupled"|"edge_clearance"|..., min?, opt?, max?, layer?, severity?}`;
+- `remove_custom_rule{name}`.
+
+The writer emits KiCad `.kicad_dru` S-expressions, `(version 1)` then `(rule "name" (layer ..) (condition "A.NetClass == 'HS'") (constraint clearance (min 0.2mm)))`, and edits `.kicad_pro` `net_settings` JSON while preserving unrelated content and key order. Proposals that derive from violations map each `RemediationAction` with `applies_via in {dru_rule, netclass}` to a `RuleChange`. Actions with `applies_via="board_edit"` are listed under `not_applicable` with their descriptions.
+
+### 8.4 Resources
+
+| URI | MIME | Content |
+|---|---|---|
+| `oa://schemas/{id}` | `application/schema+json` | every schema in §7.2 (listed) |
+| `oa://docs/agent-guide` | `text/markdown` | `docs/agents/AGENTS.md` |
+| `oa://docs/llms.txt` | `text/plain` | `llms.txt` |
+| `oa://docs/accuracy` | `text/markdown` | the accuracy classes and tolerance tiers (generated from §4.1 + ROADMAP tiers) |
+| `oa://docs/rules/{rule_id}` | `text/markdown` | rule title, explanation, config schema, defaults, references |
+| `oa://analyses`, `oa://rules` | `application/json` | `[AnalysisInfo]`, `[RuleInfo]` |
+| `oa://projects/{pid}/board` | `application/json` | the full board model JSON (`.oab.json` form). The listing states the size, and the agent guide recommends the tools instead for anything over 1 MB |
+| `oa://projects/{pid}/board/{part}` | `application/json` | `meta`, `stackup`, `nets`, `net_classes`, `diff_pairs`, `components`, `outline`, `diagnostics` |
+| `oa://projects/{pid}/intent`, `.../setups/{name}`, `.../physics` | `application/yaml` | project files (read-only) |
+| `oa://results/{rid}` | `application/json` | the bundle manifest (arrays as `$array` refs) |
+| `oa://results/{rid}/items/{item}/arrays/{name}` | `application/x-npy` (blob) | a raw array, at most 16 MiB per read; larger arrays are refused with a hint to use `export_report` |
+| `oa://results/{rid}/export/{format}` | per format | the same bytes as `export_report`, without writing a file |
+
+Resource templates are advertised for the parameterized URIs.
+
+### 8.5 Prompts
+
+Prompts are templates that orchestrate tools. They contain no hidden logic, and each states its tool plan and the required caveats ("report accuracy class and tolerance for every number").
+
+| Prompt | Arguments | Plan |
+|---|---|---|
+| `review_high_speed_nets` | `project_id`, `nets?` | `board_summary` → `list_nets(high_speed_only)` → `impedance_profile` → `run_erc(rules: RP-*, IM-*, DP-*, VI-*, XT-001)` → `list_violations` → table of findings with accuracy → `propose_rule_changes` for netclass-level fixes |
+| `triage_violations` | `result_id` | group by rule and net, rank by severity and margin, `explain_violation` on the top 10, separate "board edit needed" from "rule/netclass change" from "likely waiver" |
+| `check_power_rail` | `project_id`, `rail`, `return?`, `current` | `get_net` → draft a `pi.dc` setup → `run_analysis(dry_run)` → run → summarize the worst drop, via currents and the PD-001 decap findings |
+| `stackup_review` | `project_id` | `stackup` → impedance of net-class targets via `compute_xsection_impedance(quick)` → flag classes off target and propose width and gap values |
+| `setup_em_region` | `project_id`, `nets`, `f_max` | inspect the nets, draft an `em.sparams` setup with `trace_end` ports, `run_analysis(dry_run)` for the estimate, and ask the user before running if over the default budget |
+| `explain_result` | `result_id` | `result_summary` → plain-language explanation with accuracy caveats |
+| `m1_signoff` | `project_id` | the full ROADMAP M1 workflow checklist |
+
+---
+
+## 9. Agent-friendly CLI conventions (WP-207)
+
+### 9.1 Output
+- Every command accepts `--json`, and `OA_OUTPUT=json` sets it as the default. In JSON mode:
+  - stdout carries **exactly one** envelope (§3.1), terminated by a newline;
+  - logs, progress and warnings for humans go to stderr;
+  - nothing is coloured or animated.
+- `--progress json` (with `--json`) emits NDJSON `JobEvent`s on **stderr** while waiting.
+- Text mode is for humans. It may change between releases and agents must not parse it. `NO_COLOR` is honoured.
+- `oa ingest --format json|summary` stays as an alias: `--format json` is `--json`.
+- Long-running commands take `--wait/--no-wait` (default: wait) and `--timeout`. With `--no-wait` they return a `JobHandle`.
+
+### 9.2 Exit codes (interfaces.md §8 codes 0-5 unchanged; 6 and 7 added)
+
+| Code | Meaning |
+|---|---|
+| 0 | ok (warnings allowed) |
+| 1 | analysis completed, but violations or failures reached the `--fail-on` level |
+| 2 | usage, setup, validation, not found, permission |
+| 3 | missing tool |
+| 4 | internal or solver failure |
+| 5 | quality gate failed |
+| 6 | budget exceeded, cancelled, or `--timeout` reached |
+| 7 | confirmation required (write without `--yes`/`--interactive`), or stale base file |
+
+In JSON mode the envelope is printed for every exit code, and `ok=false` iff the exit code is ≥ 2. A code 1 run has `ok=true` with `data` present.
+
+### 9.3 Interaction and determinism
+- Nothing prompts unless `--interactive` is given **and** stdin is a TTY.
+- Write commands without `--yes` exit 7 with `CONFIRMATION_REQUIRED`, and the `details` carry the diff and the confirm token.
+- Lists are sorted per §3.3. JSON key order follows the model.
+- Running the same command twice gives identical stdout with the volatile fields masked. A test enforces this for every command against the fixtures.
+
+### 9.4 Introspection
+- `oa describe [--json]` prints the catalog: for each command, `CommandSpec` plus its exit codes. `oa describe erc.run` prints one spec, and `oa describe --analyses` / `--rules` print `AnalysisInfo`/`RuleInfo`.
+- `oa schema --list` and `oa schema ID` (§7.2).
+- `oa doctor --json` lists the tools, the versions, and whether `oa-mcp` and `oa-assistant` are installed and enabled.
+
+---
+
+## 10. Safety and side effects
+
+### 10.1 Defaults
+- **Read-only by default.** Only `write` commands modify user files, and they are disabled unless the process has `allow_writes` (`--allow-writes` for `oa-mcp`; the CLI and UI allow writes but require confirmation).
+- `compute` commands write only under `<project>/.oa/` (or the ephemeral workspace). Writes there are the cache, `jobs.sqlite`, results, exports, `proposals/` and `backups/`.
+- **Roots.** Every path argument is resolved (symlinks included) and must lie inside a root. Results and exports are never written outside them.
+- Setup-provided strings are never executed (ARCHITECTURE §4). Agents cannot change `tools.toml` through any command.
+
+### 10.2 What counts as a user file
+- The board (`.kicad_pcb`, `.xml`, `.PcbDoc`, `.oab*`), `.kicad_pro`, `.kicad_dru`, `.kicad_sch`, `oa-project.yaml`, the physics sidecar, `oa/intent.yaml` and `oa/setups/*.yaml`.
+- Open_Analysis never writes `.kicad_pcb` or `.kicad_sch` in v1. Board edits are `board_edit` remediation actions for a human.
+- Setup and intent writes (M2, `setups.put`) follow the same propose → apply flow.
+
+### 10.3 Propose → apply
+
+```python
+class ChangeProposal(OAModel):
+    proposal_id: str                  # ULID; stored at .oa/proposals/<id>.json; expires after 24 h
+    project_id: str
+    files: tuple["FileChange", ...]   # {path, sha256_base, unified_diff, new_size}
+    changes: tuple[RuleChange, ...]   # structured form of what the diff does
+    rationale: tuple["ChangeRationale", ...]   # {change_index, fingerprints, rule_id, explanation}
+    not_applicable: tuple[RemediationAction, ...]   # board edits that need a human
+    confirm_token: str                # hmac(proposal content, per-process secret); single use
+    expires_utc: str
+```
+
+- Propose is pure. It reads the current files, computes the new content in memory and returns the diff.
+- Apply checks all of the following:
+  - `allow_writes`;
+  - the token;
+  - expiry;
+  - that every `sha256_base` still matches (otherwise `STALE_BASE`).
+
+  It then writes atomically (temp file plus rename), stores backups at `.oa/backups/<ts>/`, re-opens the project and returns the new hashes.
+- MCP clients normally ask the user before a destructive tool runs. Where the client supports MCP elicitation, `apply_proposal` also asks the user to confirm with the diff, and it refuses if they decline.
+- The assistant (§11) never calls `apply_proposal`. The UI shows the diff, and only a human click applies it.
+
+### 10.4 Compute budgets
+
+```python
+class Budget(OAModel):
+    max_runtime_s: float | None = Field(None, gt=0, description="Wall-clock limit for the whole job [s].")
+    max_memory_gb: float | None = Field(None, gt=0, description="Peak resident memory across workers and external processes [GB].")
+    max_cpus: int | None = Field(None, ge=1, description="Maximum concurrent worker processes/threads [1].")
+    allow_external: bool = Field(True, description="Whether external solver binaries (openEMS, Palace, ...) may run.")
+    allowed_tools: tuple[str, ...] | None = Field(None, description="Allow-list of logical tool names; None = all configured tools.")
+```
+
+- **Effective budget** = the per-call budget clamped field by field to `CallContext.budget_ceiling`. The MCP defaults are `max_runtime_s=600`, `max_memory_gb=8`, `max_cpus=min(cpu-1, 8)` and `allow_external=true`. The ceiling defaults are 4 h, 32 GB and all CPUs, and the operator sets them by flag or config. Agents can raise the budget up to the ceiling but never beyond it.
+- **Pre-flight.** `oa_service` calls `JobService.estimate(req)`: `plan()` plus each task's `Resources.est_seconds`/`memory_gb`, and adapter `mesh_stats` for EM. If the estimate exceeds the effective budget, the job is refused with `BUDGET_EXCEEDED` and the estimate in `details`. Tasks without estimates count as 1 s and 1 GB, with a warning.
+- **Runtime enforcement** (`oa_jobs`, WP-107):
+  - A watchdog polls elapsed time and the RSS of workers and external process trees (psutil) once a second.
+  - External processes are also started with hard limits where the platform allows: a Windows job object memory limit, Linux `RLIMIT_AS`/cgroup, or Docker `--memory`/`--cpus`.
+  - On a breach the job is cancelled through the normal cancellation path, and `JobStatus.cancel_reason="budget:max_runtime"|"budget:max_memory"`.
+- Cancellation is always available (`cancel_job`, `oa jobs cancel`). The external-process grace period is 10 s (interfaces.md §4.4).
+
+### 10.5 No network, no LLM in the core
+- None of the packages other than `oa_assistant` open outbound connections or import LLM SDKs (§2.1).
+- The only listeners are the loopback servers (`oa serve`, `oa-mcp --http`).
+- `tests/agents/` runs under a socket guard (pytest-socket, loopback only). An import test asserts that `anthropic` is absent from `sys.modules` after importing every package except `oa_assistant`.
+
+---
+
+## 11. In-app assistant `oa-assistant` (WP-411, M2)
+
+### 11.1 Packaging and enablement
+- The package `packages/oa-assistant`, import `oa_assistant`, is optional and not part of the default meta-package install. It is installed with `open-analysis[assistant]`.
+- **Off by default.**
+  - `config.toml [assistant] enabled=false` is the default.
+  - Enabling it needs an explicit user action in Settings, or `oa assistant enable`. The action shows the data disclosure (§11.4) and stores consent with a timestamp.
+  - The web panel, which WP-110 reserves, shows "not installed" or "disabled" states and never calls a provider while disabled.
+- `oa_server` mounts the router `/api/v1/assistant/*` (chat with SSE streaming, conversations, settings, data preview) only through the entry point `open_analysis.server_routers`.
+
+### 11.2 Provider interface
+
+```python
+class ToolSpec(OAModel):              # generated from the oa_service catalog (same as MCP tools)
+    name: str; description: str; input_schema: dict[str, JsonValue]; side_effect: SideEffect
+
+class AssistantEvent(OAModel):        # streamed to the UI
+    type: Literal["text", "tool_call", "tool_result", "proposal", "usage", "error", "done"]
+    data: dict[str, JsonValue]
+
+@runtime_checkable
+class AssistantProvider(Protocol):
+    name: ClassVar[str]               # "anthropic"
+    def configure(self, settings: "ProviderSettings", secret: str) -> None: ...
+    def run_turn(self, conversation: "Conversation", tools: Sequence[ToolSpec],
+                 execute: Callable[[str, dict[str, JsonValue]], "Envelope"],
+                 on_event: Callable[[AssistantEvent], None], cancel: "CancelToken") -> "Conversation": ...
+```
+
+- Providers register under the entry point `open_analysis.assistant_providers`.
+- The `execute` callback dispatches through `oa_service` with `CallContext(caller="assistant", allow_writes=False)` and the assistant budget. `apply_proposal` is never passed in `tools`, and `write` commands are filtered out.
+- Compute calls whose estimate exceeds `assistant.auto_budget` (default 120 s and 4 GB) pause and ask the user in the panel before running.
+
+### 11.3 Anthropic reference provider
+- It uses the official `anthropic` Python SDK and the Messages API with **client-side tool use**. The hosted MCP connector is not usable because `oa-mcp` runs locally.
+- The tools are the catalog `ToolSpec`s with `strict: true`, in a fixed sorted order.
+- Defaults (configurable in Settings):
+  - `model="claude-opus-5-5"`;
+  - `thinking={"type": "adaptive"}`;
+  - `output_config.effort="medium"` (set explicitly; `low` to `max` selectable);
+  - streaming (`client.messages.stream`, `max_tokens` 32000);
+  - `tool_choice` auto. The model rejects forced tool choice, so the system prompt steers tool use.
+- Prompt caching: a cache breakpoint after the static system prompt and the tool list. The tool list is sorted and stable, and no timestamps appear in the system prompt.
+- Stop reasons handled: `end_turn`, `tool_use` (parallel tool calls are executed and all results are returned in one user message, failures with `is_error`), `max_tokens`, `pause_turn` and `refusal`. A refusal is shown to the user as such and never retried silently.
+- Server-side model fallback on refusal (`fallbacks: "default"` with the current fallback beta) is **on** by default, can be switched off, and is disclosed: the request may then be answered by another Anthropic model.
+- Thinking blocks and the full assistant content are kept and replayed unchanged. The history is append-only.
+- The system prompt (versioned file `oa_assistant/prompts/system.md`) requires the model to:
+  - cite the result id and the accuracy class for every number;
+  - never claim compliance or sign-off;
+  - prefer `propose_rule_changes` over prose for rule fixes;
+  - state when a fix needs a board edit.
+- **Key handling.** The user supplies their own API key. It is stored with `keyring` (service `open_analysis`, user `anthropic`). `ANTHROPIC_API_KEY` in the environment overrides it.
+  - The key is never written to config files, logs, transcripts, results or crash reports.
+  - The settings API is write-only for the key, and it reports only "set" or "not set".
+
+### 11.4 Data disclosure (documented in `docs/user/assistant.md`, shown at enable time)
+
+Sent to the provider for each request:
+- the system prompt (static text);
+- the tool definitions (names, descriptions, schemas);
+- the user's messages;
+- the **tool results the assistant requests**. These are the envelopes of §3, which may contain net names, component reference designators, layer names, stackup materials and dimensions, coordinates of violations, numeric results, file names and paths inside the roots, and rule configuration.
+
+Never sent:
+- board files or raw geometry, unless a tool result includes coordinates;
+- array resources;
+- files outside the roots;
+- API keys;
+- `tools.toml`;
+- other projects.
+
+Controls:
+- A **data preview** shows the exact JSON of the next request.
+- `redact_names=true` replaces net, refdes and file names with stable tokens before sending, and maps them back for display.
+- Local transcripts live in `.oa/assistant/` (git-ignored; deletable; transcripts can be switched off).
+- Provider usage and cost per turn are displayed.
+
+### 11.5 UI alignment (WP-110/WP-209)
+- The web typed command layer uses the catalog command names (`board.summary`, `erc.run`, ...) and fetches `GET /api/v1/commands`. Assistant tool calls are therefore rendered with the same components as user actions, and a result card links to the same result viewer.
+- The assistant panel lives at `web/src/features/assistant/**`, owned by WP-411.
+
+---
+
+## 12. ML surrogates and dataset export (WP-412, M3)
+
+### 12.1 Dataset format `oa-xsdataset/1`
+
+Directory layout:
+- `manifest.json`;
+- `sections.parquet`;
+- `rlgc.parquet`;
+- `LICENSE` (the user chooses; default CC-BY-4.0 for generated data, per ADR-0001's proposed refinement).
+
+| File | Rows | Columns |
+|---|---|---|
+| `manifest.json` | — | `schema`, `oa_version`, `created_utc`, `generator` (`"cache"` or `"sweep"`), `sweep` (the parameter ranges, sampler `lhs`/`sobol`, `seed`), `solver_versions`, `label_methods` (`bem`/`fem`), `label_accuracy: Accuracy`, `feature_schema` (name, unit, description per feature), `counts`, `splits` rule, `sha256` of each parquet |
+| `sections.parquet` | one per unique `xs_key` | `xs_key`; `topology_hint`; `n_signal`; `xsection_json` (canonical `oa-xsection/1`, lossless); fixed feature columns in SI (`w_m`, `w_top_m`, `t_m`, `s_m`, `g_m`, `h_below_m`, `h_above_m`, `er_eff_below`, `er_eff_above`, `df_below`, `df_above`, `mask_t_m`, `mask_er`, `rough_rq_m`, `rough_model`, `sigma_s_per_m`, ...; NaN when not applicable); `split` (`train`/`val`/`test` from `int(sha256(xs_key)[:8],16) % 10` → 0-7/8/9) |
+| `rlgc.parquet` | one per (`xs_key`, `method`, `freq_hz`) | `xs_key`, `method`, `solver_version`, `freq_hz`, `R_ij`, `L_ij`, `G_ij`, `C_ij` (flattened `i,j < 4`; columns `R_00`...), `z0_ohm`, `zdiff_ohm`, `eps_eff_m{k}`, `loss_db_per_m_m{k}`, `validity`, `converged` |
+
+- Only labels with `validity=in_range` and convergence met are exported. The rest are counted in the manifest.
+- Commands: `oa dataset export xsection --from-cache` (from the content-addressed task cache) and `oa dataset sweep xsection SPEC.yaml` (runs as a budgeted job). Both are catalog commands (`dataset.export`, `dataset.sweep`, side effect `compute`).
+
+### 12.2 Surrogate as an optional fast path
+- The package is `oa-impedance-surrogate`. It is an L4 plugin of `oa_impedance` and, like the `oa_em_*` adapters, the only allowed import of it. It registers `method="surrogate"` through `oa_impedance.methods.register`.
+- The model format is numpy-only (`.npz` weights plus `model.json`), with no heavy ML runtime at inference. `model.json` holds the dataset sha, the feature schema, the per-feature domain bounds, a convex-hull/Mahalanobis domain test, and holdout error statistics (p50/p95/p99 relative error per output).
+- Selection:
+  - `method="auto"` uses the surrogate only when `impedance.surrogate.enabled=true` **and** the section passes the domain test. Otherwise it falls back to BEM and records the reason in `notes`.
+  - `method="surrogate"` raises `UnsupportedFeature` outside the domain.
+- Every surrogate `ImpedanceResult` carries `method="surrogate"`, `model_name="<model id>"`, and `Accuracy(accuracy_class="surrogate", tolerance_rel=<holdout p99>, tolerance_basis="surrogate holdout p99 on <dataset sha>")`.
+- Consumers:
+  - IM-002 and other rules must re-solve with BEM before reporting `error` when `|margin| < 3 × tolerance_rel × limit`.
+  - Profiles report the fraction of sections solved by surrogate in their summary facts.
+
+---
+
+## 13. Addendum to interfaces.md (binding; folded in at the next spec revision)
+
+All items are **additive**: no frozen field is renamed, removed or retyped. "Owner" is who implements the item now.
+
+| # | Change | Where | Owner | Compatibility note |
+|---|---|---|---|---|
+| A1 | `ErrorInfo` model (§3.2). `OAError` gains `path`, `hint`, `details`, `info()`. `SetupError`/`BoardValidationError` gain `issues` | `oa_model.errors` | 000B | Also defines the `ErrorInfo` that `JobStatus.error` (interfaces.md §4.4) referenced but never defined |
+| A2 | `Diagnostic.path: str \| None = None`, `Diagnostic.hint: str \| None = None` | `oa_model.common` | 000B | board-model additive; include in v1.0 if not yet frozen, otherwise ship as 1.1 |
+| A3 | Field description convention (§7.1) on every public model, setup and Config | all | 000B (`oa_model`), 000A (`oa_results`, `oa_framework`), each WP for its Configs | Schema-compat check: description-only diffs are additive |
+| A4 | `Accuracy`, `AccuracyClass` (§4.1). `ResultItem.accuracy: Accuracy \| None = None` | `oa_results.accuracy`, `oa_results.bundle` | 000A | M1 analyses MUST set it (acceptance tests) |
+| A5 | `SummaryMetric`, `ResultSummary`, `BundleSummary`, `ProvenanceBrief` (§4.2). `summary()` on every payload type. `ResultBundle.digest()`. `ResultBundle.summary` (str) MUST equal `digest().text` | `oa_results.summary` | 000A | `summary()` is a method on payloads; on the bundle it is `digest()`, because the `summary` field name is frozen as `str` |
+| A6 | `Provenance.inputs_hash`, `oa_version`, `tool_versions`, `caller` (all optional) | `oa_results.bundle` | 000A (type), WP-107 (populate) | — |
+| A7 | `RemediationAction`, `Remediation`. `Violation.remediation: Remediation \| None = None`. `fix_hint == remediation.summary` when both are set | `oa_results.violations` | 000A (type), WP-201 (populate) | `fix_hint` is kept for SARIF and humans |
+| A8 | Rule class attribute `explanation: str` (optional, read via `getattr`, **not** a Protocol member). `RuleInfo.explanation` | `oa_framework.rules`, REST `/rules` | 000A, WP-201, WP-207 | Keeps the `runtime_checkable` Rule protocol unchanged |
+| A9 | `Budget` (§10.4). `AnalysisRequest.budget: Budget \| None = None`. `JobStatus.cancel_reason: str \| None = None`. `PlanEstimate`. `JobService.estimate(req) -> PlanEstimate` | `oa_framework.jobs` (types/protocol), `oa_jobs` (impl) | 000A (types), WP-107 (impl) | Protocol gains one method; `oa_jobs` is the only implementer |
+| A10 | `ImpedanceResult.method` adds the literal `"surrogate"` (reserved now, used in M3). `ImpedanceService.solve(method=...)` accepts `"surrogate"` | `oa_results.rlgc`, `oa_framework` | 000A | Reserving it now avoids a schema change in M3 |
+| A11 | REST error body `{"error": ErrorInfo}` (superset of `{code, message, details}`). New endpoints from the §2.4 table | `oa_server` | WP-207 | The existing endpoints and bodies are unchanged |
+| A12 | CLI: `--json` envelope on every command; exit codes 6 and 7; `oa describe`, `oa schema`, `oa board ...`, `oa results summary\|violations\|explain`; `--interactive`/`--yes` | `oa_cli` | WP-207 | Codes 0-5 unchanged; `oa ingest --format json` kept as an alias |
+| A13 | Entry-point groups `open_analysis.commands`, `open_analysis.server_routers`, `open_analysis.assistant_providers` (extends interfaces.md §3.1) | `oa_framework.registry` (groups list) | 000A (names), WP-207 / WP-411 (use) | — |
+| A14 | Layering (§2.1): L4b `oa_service`; L5 `oa_mcp`, `oa_assistant`; forbidden contracts for LLM SDKs and HTTP clients; `oa_assistant` imported by nothing | root `pyproject.toml` import-linter | integrator (after WP-000 merges) | 000A should not block on it; the integrator adds it when WP-207 lands |
+| A15 | Analyses write `Accuracy` per item and enrich `summary()` facts per §4.2 minimums | each analysis | WP-105, 201-205 | — |
+| A16 | **Erratum:** interfaces.md §9 says "WP-210 3D" / "WP-210: BooleanFragments". Read these as **WP-206** (the 3D OCC mesher, per TASKS.md). WP-210 is now "MCP server and agent docs" | interfaces.md §9 | architecture owner | Text-only; fix it at the next revision |
+| A17 | `GET /api/v1/commands` (catalog) and the web command layer keyed by command name (§11.5) | `oa_server`, `web/` | WP-207, WP-110/209 | WP-110 already dispatches through a typed command layer; only the names are fixed here |
+
+Tension notes for implementers:
+- **`summary` naming.** 000A was asked for a result `summary()`. On payload containers it is exactly that. On `ResultBundle` the frozen field `summary: str` stays, and the structured form is `digest()`.
+- **`remediation` vs `fix_hint`.** Both exist. Rules set `remediation`, and `Violation` construction (a model validator in 000A) fills `fix_hint` from `remediation.summary` when `fix_hint` is not given.
+- **Structured validation errors.** 000B's work maps onto `ErrorInfo.issues` (A1) and `Diagnostic.path`/`hint` (A2). No other change to `validate_board` codes is required.

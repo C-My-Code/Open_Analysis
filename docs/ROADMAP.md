@@ -72,7 +72,13 @@ Scope:
    - The job system (SQLite, process pool, cache, local/WSL/Docker runners).
    - The FastAPI server.
    - The web UI: board view, stackup view, setup forms, job panel, result viewers for every M1 result type, and a 3D region preview.
-   - The `oa` CLI for every analysis.
+   - The `oa` CLI for every analysis, with the agent conventions: `--json` envelope, documented exit codes, no prompts, `oa describe`/`oa schema`.
+   - **AI agents as first-class users** (ADR-0007, [specs/ai-integration.md](specs/ai-integration.md)):
+     - the `oa-mcp` MCP server (stdio + streamable HTTP) over the shared `oa-service` command catalog;
+     - result summaries, accuracy classes and violation remediation;
+     - read-only by default, with propose → apply for `.kicad_dru` and net-class changes;
+     - compute budgets;
+     - `llms.txt`, `docs/agents/AGENTS.md` and `CLAUDE.md`.
 
 Exit criteria (end to end, on the WP-102 synthetic boards and two real open boards: the KiCad 10 demo `cm5_minima` and one 6- to 10-layer open-hardware board):
 - `oa ingest` reads every board in under 10 s (88 MB Jetson demo: under 30 s) with no errors.
@@ -82,6 +88,19 @@ Exit criteria (end to end, on the WP-102 synthetic boards and two real open boar
 - `oa em --solver openems` and `--solver palace` produce a quality-gated `.s2p`/`.s4p` for the via-transition board. The two solvers agree within the T2 gate.
 - The web UI shows all of the above. Playwright smoke tests pass.
 - The published validation page `docs/validation/` is generated from the golden results.
+- **AI agents.** An AI agent, via MCP, runs the M1 workflow end to end in an automated test (`tests/agents/test_m1_workflow.py`, WP-210/WP-303). The test runs on Windows and Linux with no network beyond loopback, and covers:
+  1. load a board;
+  2. impedance profile;
+  3. ERC;
+  4. DC IR;
+  5. read results.
+
+  It passes when:
+  - every step returns a valid envelope;
+  - every result summary is within its size cap and states its accuracy class;
+  - every violation carries a remediation;
+  - the data equals the corresponding `oa ... --json` output;
+  - no file outside `.oa/` is modified.
 
 Validation gates:
 
@@ -135,6 +154,7 @@ Scope:
   - KiCad IPC plugin (thin): snapshot the board, open the UI, cross-probe and highlight.
   - Static HTML reports.
   - The `ssh-slurm` runner design (implementation M3).
+  - Optional in-app AI assistant (`oa-assistant`, WP-411): off by default, BYO key, Claude reference provider over the same MCP/catalog tools, documented data disclosure.
 
 Exit criteria:
 - On a PCIe-like diff channel board, `oa si channel` gives SDD21/SDD11/TDR, and an IL report matches openEMS on the full channel cut within the gates.
@@ -186,6 +206,7 @@ Scope:
 - **Solvers:** EMerge adapter (optional Windows-native FEM), Palace eigenmode, AMR-driven convergence studies, automatic convergence reports.
 - **Scale:** `ssh-slurm` and cloud-batch runners; farming openEMS excitations and sweeps across nodes; Rust (PyO3) acceleration for the parser and BEM kernels *if profiling demands it* (ADR-0002).
 - Remaining P3 rules: IM-007, VI-003, VI-004, PD-004.
+- **ML surrogate (WP-412):** `oa-xsdataset/1` export of cross-section → RLGC pairs, and an optional domain-gated impedance surrogate behind the impedance service that always reports `accuracy_class="surrogate"`.
 
 Exit criteria:
 - PDN Z(f) on the Samtec/IEEE EPS TC-EDMS benchmark board (imported through IPC-2581) is compared with the published measurements.

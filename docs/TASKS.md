@@ -1,6 +1,6 @@
 # Work Breakdown for Parallel Implementation
 
-Status: v1, 2026-10-27. This file covers M0 and M1 in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
+Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 and M1 in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md), [specs/ai-integration.md](specs/ai-integration.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
 
 ## Rules of engagement (every agent reads this first)
 
@@ -21,7 +21,16 @@ Status: v1, 2026-10-27. This file covers M0 and M1 in full detail and sketches M
    - A package README states the public API, the contracts implemented and the golden suites.
    - Every new source file has an SPDX header.
    - There are no `TODO`s in public APIs.
-7. **Sizes** (one agent, focused):
+7. **AI and agent contracts** (ADR-0007, [specs/ai-integration.md](specs/ai-integration.md); §13 there is a binding addendum to interfaces.md):
+   - Every public model field has a `description` with its unit in `[...]` (ai-integration §7.1).
+   - Errors are `ErrorInfo{code, message, path, hint}` (§6). Never raise bare exceptions across a package boundary.
+   - Every `ResultItem` you produce sets `accuracy` (§4.1). Every payload's `summary()` stays within the size caps (§4.2).
+   - Every violation sets `remediation` and `measured`/`limit`/`unit` for threshold rules (§5).
+   - User-level operations are `oa_service` commands. CLI, REST and MCP code contains no logic of its own.
+   - Read-only by default. Only `write` commands touch user files, through propose → apply (§10.3).
+   - No network and no LLM calls outside `oa-assistant`. Import-linter and a socket guard enforce this.
+   - Output ordering is deterministic (§3.3, §3.5).
+8. **Sizes** (one agent, focused):
    - S ≤ 2 days.
    - M 3-5 days.
    - L 6-10 days.
@@ -56,6 +65,7 @@ flowchart LR
     WP207[207 Server + CLI]
     WP208[208 Ingest cross-validation]
     WP209[209 Web setup/jobs/results views]
+    WP210[210 MCP server + agent docs]
   end
   subgraph W3[Wave 3]
     WP301[301 Palace adapter]
@@ -68,7 +78,8 @@ flowchart LR
   WP105 --> WP201 & WP202 & WP203
   WP106 --> WP201 & WP202 & WP204 & WP205
   WP109 --> WP202 & WP204 & WP206
-  WP107 --> WP205 & WP207
+  WP107 --> WP205 & WP207 & WP210
+  WP207 -. oa_service protocol + FakeService .-> WP210
   WP108 --> WP205
   WP101 & WP102 & WP103 --> WP208
   WP110 --> WP209
@@ -76,7 +87,7 @@ flowchart LR
   WP205 & WP206 --> WP301
   WP201 & WP202 & WP203 & WP204 & WP205 & WP208 --> WP302
   WP301 --> WP302
-  WP207 & WP209 & WP302 --> WP303
+  WP207 & WP209 & WP210 & WP302 --> WP303
   WP101 & WP104 & WP201 & WP204 --> WP304
 ```
 
@@ -132,6 +143,26 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - `apply_physics` on the microstrip builder with the example sidecar in board-model.md §11 gives the documented layers. `ConstantDkDf` is upgraded to DS.
 - `harness.run_inline` runs a dummy analysis (in the testkit's tests) with 3 tasks and a reduce.
 - Freeze declaration: `docs/specs/board-model.md` header changed to "FROZEN v1.0 (commit <sha>)".
+
+**AI addendum (ADR-0007; ai-integration.md §13 items A1-A10, A13):**
+- 000B:
+  - `ErrorInfo`, plus `OAError.path/hint/details/info()`.
+  - `SetupError`/`BoardValidationError.issues`, mapped from pydantic errors with JSON-Pointer paths.
+  - `Diagnostic.path/hint`.
+  - A field `description` with units on every `oa_model` field.
+- 000A:
+  - `Accuracy`, plus `ResultItem.accuracy`.
+  - `ResultSummary`/`BundleSummary`, plus `summary()` on every payload type and `ResultBundle.digest()`.
+  - The `Provenance` additions.
+  - `Remediation`, plus `Violation.remediation`, with a validator filling `fix_hint`.
+  - `Budget`, `PlanEstimate`, `AnalysisRequest.budget`, `JobStatus.cancel_reason`, `JobService.estimate`.
+  - The `"surrogate"` method literal.
+  - The new entry-point group names.
+- Acceptance:
+  - Every committed fixture bundle (one per payload kind) yields a `ResultSummary` ≤ 2 KiB and a `BundleSummary` ≤ 8 KiB.
+  - `ResultBundle.summary == digest().text`.
+  - A pydantic `extra_forbidden` error on a setup becomes an `ErrorInfo` with `path="/config/<field>"` and a hint.
+  - The JSON Schemas in `schemas/` have a `description` on every property, checked by a temporary local test until WP-210's lint lands.
 
 ---
 
@@ -317,6 +348,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - Panel convergence: the error halves at least every doubling, documented.
 - Performance: the median BEM solve of a single microstrip plus a 2-conductor diff pair at 20 frequencies is < 50 ms (pytest-benchmark).
 - `solve_many` dedups by key (a test with 100 identical sections calls the kernel once).
+- Every `impedance.xsection` result item sets `accuracy`: `closed_form` with the formula validity, or `2d_field` with a `tolerance_basis` naming the golden suite. Out-of-range closed forms give `validity="extrapolated"`/`"invalid"` and the matching warning code.
 
 ### WP-106 Physics, analytic via model, and S-parameter quality gate. Size: L
 **Owned:** `packages/oa-physics/**`, `packages/oa-network/**`, `tests/golden/physics/**`, `tests/golden/network_quality/**`
@@ -381,6 +413,12 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - Determinism: the same task payload in a different key order gives the same cache key.
 - A Touchstone round trip of a 4-port with complex z0 is bit-exact for v2.0 and ≤ 1e-12 for v1.1. SARIF from a sample `ViolationSet` validates against the SARIF schema.
 - 10k events stream with `after_seq` paging without loss.
+- **Budgets** (ai-integration §10.4):
+  - `JobService.estimate` sums the task `Resources`.
+  - A dummy job whose estimate exceeds `AnalysisRequest.budget` is refused with `BUDGET_EXCEEDED` before any task starts.
+  - A sleeping job with `max_runtime_s=5` is cancelled within 5-8 s with `cancel_reason="budget:max_runtime"`.
+  - An external process allocating past `max_memory_gb` is killed on Windows (job-object limit) and Linux, with `cancel_reason="budget:max_memory"`.
+- `Provenance.inputs_hash`, `oa_version`, `tool_versions` and `caller` are populated, and `inputs_hash` is identical for a fully cached re-run.
 
 ### WP-108 openEMS adapter. Size: L
 **Owned:** `packages/oa-em-openems/**`, `tests/golden/em_openems/**`
@@ -455,7 +493,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 
 ---
 
-## Wave 2 (9 WPs; start each as soon as its listed dependencies merge)
+## Wave 2 (10 WPs; start each as soon as its listed dependencies merge)
 
 ### WP-201 ERC/EMI rule engine and M1 rules. Size: XL
 **Owned:** `packages/oa-erc/**`, `tests/golden/erc/**`
@@ -468,7 +506,8 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - Waivers (fingerprint and rule/net glob, expiry).
 - Severity overrides.
 - The M1 rules in interfaces.md §3.6, with EMI aliases, using the thresholds in research 06 §3.2 and 07 §3.1.
-- `fix_hint` text for every rule.
+- `fix_hint` text for every rule, plus a structured `remediation` (ai-integration §5) with at least one typed action. `applies_via` correctly distinguishes `board_edit` from `dru_rule`/`netclass`.
+- An `explanation` class attribute for every rule.
 - A rule authoring guide in the README, covering how a third-party package registers `open_analysis.rules`.
 
 **Acceptance:**
@@ -479,6 +518,12 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - VI-001 reports a stub resonance within 1 % of c/(4·L·√Dk_eff).
 - EM-011 cavity resonance on a 40 × 30 mm plane pair, Dk 4.3: f₁₀ = c/(2·0.04·√4.3) = 1.807 GHz (±0.5 %).
 - SARIF output of the combined board validates.
+- AI contract:
+  - Every violation on `combined` has `remediation` with ≥ 1 action, and `fix_hint == remediation.summary`.
+  - Every threshold rule sets `measured`, `limit` and `unit`.
+  - IM-002 remediation carries the impedance `accuracy_class` in `evidence`.
+  - The `ViolationSet` summary for `combined` lists the counts by rule and the worst 5, within 2 KiB.
+  - Violation order is identical across two runs.
 - Performance: all M1 rules on a 10k-track synthetic board in < 60 s.
 
 ### WP-202 Impedance FEM reference and R(f)/L_int(f) eddy-current solver. Size: L
@@ -499,6 +544,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
   - Richardson-extrapolated convergence error < 0.1 % on the finest level;
   - **BEM vs FEM** on 50 generated PCB structures (the WP-105 structure generator): Z0 ≤ 0.5 %, Zdiff ≤ 1 %, eeff ≤ 0.5 %.
 - FEM R(f) for stripline at 1, 5 and 10 GHz is within 5 % of the BEM perturbation R(f) where δ < t/4.
+- FEM results set `accuracy` (`2d_field`, with `converged` from the refinement loop and `tolerance_basis` naming the golden suite).
 
 ### WP-203 Impedance profile analysis (`impedance.profile`). Size: M
 **Owned:** `packages/oa-impedance/src/oa_impedance/profile/**`, `packages/oa-impedance/tests/profile/**`, `tests/golden/impedance_profile/**`
@@ -515,6 +561,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - On `split_plane_board`, a `ref_change` / `no_reference` event sits at the slot (± 50 µm).
 - Delay per metre for stripline equals √(εr)/c within 0.5 %.
 - On a 500-segment net with 3 unique sections, the service is called 3 times.
+- Each `ProfileResult` item sets `accuracy`. Its `summary()` reports min/max/mean Z, target, out-of-tolerance length and the worst event (ai-integration §4.2), and stays within 2 KiB for a 100-net run.
 
 ### WP-204 DC IR drop (`pi.dc`). Size: XL
 **Owned:** `packages/oa-pi/**`, `tests/golden/pi_dc/**`
@@ -545,6 +592,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - On WP-102 `power_strip` and `power_two_layer_vias`, `expected.yaml: dc` is matched within 0.5 %.
 - External oracle (nightly, `external`): the kicad-irdrop 4-layer test board (Apache-2.0, downloaded into the test cache) gives the effective R within 3 % of the published 3.04 mΩ.
 - A power-plane board with 3×10⁵ unknowns solves in < 20 s.
+- Items set `accuracy` (`2d_sheet`). The bundle summary states the worst load drop (value, unit, load, pass/fail against the limit) and the worst via current, without inlining field arrays.
 
 ### WP-205 EM flow: region → EMProblem → S-parameters (`em.sparams`). Size: L
 **Owned:** `packages/oa-em/**`, `tests/golden/em_flow/**`
@@ -570,6 +618,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
   - The bundle has quality `pass`.
   - On the via transition (0-40 GHz), the `.s4p` is produced with PQM ≥ 99 and RQM ≥ 99.
 - A non-passive mock adapter output gives bundle status `failed_quality`.
+- Network items set `accuracy` (`3d_full_wave`, with `quality` from the gate, `converged`, `f_min`/`f_max`). The summary reports the quality verdict, PQM/RQM and |S21|/|S11| at the 3 points of ai-integration §4.2.
 
 ### WP-206 3D OCC mesher (gmsh) for Structure3D. Size: L
 **Owned:** `packages/oa-mesh/src/oa_mesh/occ3d/**`, `packages/oa-mesh/tests/occ3d/**`
@@ -590,15 +639,33 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - Runtime < 60 s for the via region at the medium preset.
 
 ### WP-207 Server and CLI. Size: L
-**Owned:** `packages/oa-server/**`, `packages/oa-cli/**`, `web/src/api/openapi.json` (generated artifact only, coordinate the path with WP-209)
+**Owned:** `packages/oa-server/**`, `packages/oa-cli/**`, `packages/oa-service/**` (except `src/oa_service/proposals/` and `tests/proposals/`, which are reserved for WP-210), `schemas/commands/**`, `schemas/oa-envelope.v1.json`, `schemas/oa-error.v1.json`, `web/src/api/openapi.json` (generated artifact only, coordinate the path with WP-209)
 
 **Deps:** WP-107, WP-000. Analyses are discovered by entry points, so the CLI and server work with whatever analyses are installed.
+
+**First deliverable (within the first 2 days, merged early):** the `oa_service` protocol, the `CommandSpec`/`CallContext`/`Envelope`/`Page` types, the catalog names from ai-integration §2.4, and `oa_service.testing.FakeService`. WP-210 and WP-110/WP-209 build against these in parallel.
 
 **Deliverables:**
 - FastAPI app per interfaces.md §7 (token auth, 127.0.0.1 bind, static web serving from the packaged `web/dist`, Arrow endpoints, GLB endpoint using WP-206 when installed, WS events).
 - An OpenAPI export script.
 - The `oa` CLI per interfaces.md §8, including `oa init`, `oa doctor` (tool resolution table, KiCad version, openEMS/Palace availability, gmsh version), and exit codes.
 - Project manager (open, reload, file watching of board/sidecar/setups with debounce).
+- **`oa-service`** (ai-integration §2-§4, §6, §9, §10):
+  - the command catalog and dispatcher;
+  - project sessions (stable `project_id`, ephemeral projects for bare board files);
+  - roots and permission checks;
+  - pagination, filtering and deterministic sorting;
+  - result rendering for transports (decimation, `ArrayRef`s, size caps);
+  - mapping errors to `ErrorInfo`;
+  - budget clamping and pre-flight estimates.
+- The CLI and REST become adapters over `oa_service`. Commands not hand-written in typer are generated from the catalog.
+- The CLI AI conventions (ai-integration §9):
+  - `--json` envelope on every command;
+  - exit codes 0-7;
+  - `--interactive`/`--yes`;
+  - `--progress json`;
+  - `oa describe`, `oa schema`, `oa board summary|nets|net|stackup`, `oa results summary|violations|explain`.
+- REST additions from ai-integration §2.4 and A11/A17, including `GET /commands`, `GET /schemas/{id}` and the `{"error": ErrorInfo}` body.
 
 **Acceptance:**
 - An httpx test suite covers every endpoint with fixture projects built from `tests/fixtures/model` (`.oab.json` as board source).
@@ -607,6 +674,15 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - `oa erc --fail-on error` returns exit code 1 on `combined` and 0 on a clean board.
 - `oa doctor` runs offline in < 3 s.
 - The committed `openapi.json` is regenerated in CI with no diff.
+- AI conventions:
+  - For **every** catalog command, `--json` stdout parses as exactly one envelope that validates against `oa-envelope/1` and the command's output schema, and stderr carries all logs.
+  - Two consecutive runs give byte-identical stdout once the volatile fields (ai-integration §3.5) are masked.
+  - Exit codes match the §6 table for one test per code (2: bad setup, 3: missing tool, 5: failing gate fixture, 6: a budget breach, 7: a write without `--yes`). The `ok` flag is consistent with the exit code.
+  - With stdin not a TTY, no command blocks on input (run under a closed stdin with a 10 s timeout).
+  - `oa describe --json` lists every registered command, and every `examples` entry runs.
+  - `oa schema --list` matches `schemas/commands/` and CI diffs the regeneration.
+  - `list_nets`/`results.violations` pagination: concatenating pages equals the unpaged list, and `total` is correct.
+  - REST 4xx bodies carry `ErrorInfo` with `path` for setup validation errors.
 
 ### WP-208 Ingest cross-validation (validation WP). Size: M
 **Owned:** `tests/integration/ingest/**`, `tests/golden/ingest_cross/**`
@@ -656,6 +732,58 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
   - Load a committed `.s4p` result and see the Smith chart and the quality badge `pass`.
 - The UI shows `failed_quality` prominently, with the report.
 
+### WP-210 MCP server and agent docs. Size: L
+**Owned:** `packages/oa-mcp/**`, `packages/oa-service/src/oa_service/proposals/**`, `packages/oa-service/tests/proposals/**`, `tests/agents/**`, `docs/agents/**`, `llms.txt`, `CLAUDE.md`, `tools/agents/**`, `.github/workflows/wp-210.yml`
+
+**Deps:**
+- WP-107 (jobs, budgets).
+- WP-207's `oa_service` protocol and `FakeService`, which is its first deliverable. **Runs in parallel with WP-207:** build against `FakeService`, and switch the integration tests to the real service when WP-207 merges.
+- The analyses are runtime-discovered. Tests skip analyses that are not yet merged, and WP-303 makes them mandatory.
+
+**Inputs:** [specs/ai-integration.md](specs/ai-integration.md) (all of §1-§10 and §13), ADR-0007, interfaces.md §3.7, §4 and §7.
+
+**Deliverables:**
+- **`oa-mcp`** (ai-integration §8):
+  - a FastMCP server with stdio and streamable-HTTP transports (loopback, bearer token, Origin check);
+  - root allow-list, `--allow-writes`, budget ceiling flags and config;
+  - tools generated from the catalog, with annotations, `outputSchema`, `structuredContent` plus a text digest, `isError` envelopes, size caps, `wait_s` and progress notifications;
+  - every tool in §8.3, every resource and resource template in §8.4, and every prompt in §8.5.
+- **Proposals** (`oa_service.proposals`, ai-integration §10.3):
+  - the catalog commands `propose.rules` and `propose.apply`;
+  - a `.kicad_dru` reader/writer (round-trips untouched rules byte-for-byte);
+  - a `.kicad_pro` `net_settings` editor that preserves key order;
+  - remediation → `RuleChange` mapping, unified diffs, confirm tokens, base-hash check, atomic writes and backups.
+- **Agent docs:** `llms.txt` (plus a generated `llms-full.txt`), `docs/agents/AGENTS.md` (the agent user guide) and the root `CLAUDE.md` (contributor coding agents), per ai-integration §7.3. The link and tool-name checker lives in `tools/agents/`.
+- **The schema-description lint** `tests/agents/test_schema_descriptions.py` (§7.1).
+- **The M1 agent workflow test** `tests/agents/test_m1_workflow.py`, used by the ROADMAP M1 exit criterion. It skips steps whose analysis is not installed and is made mandatory by WP-303.
+
+**Acceptance:**
+- **MCP smoke (stdio, official `mcp` client `ClientSession`):**
+  1. `open_board` on the `microstrip` fixture (`tests/fixtures/model/microstrip.oab.json`, or WP-102's `microstrip` board when present).
+  2. `board_summary` reports 4 layers.
+  3. `run_erc` with `wait_s=60` completes.
+  4. `result_summary` returns a `BundleSummary` ≤ 8 KiB with counts by severity.
+  5. `list_violations` pages are consistent with the summary counts.
+
+  The same flow passes over streamable HTTP with the token, and a request without the token or with a foreign `Origin` is rejected.
+- **Parity.** For every tool, the `structuredContent.data` equals the `data` of the corresponding `oa ... --json` command on the same fixture, with the volatile fields masked. This proves MCP is a thin wrapper.
+- **Schemas.** Every tool's input and output schema, and every file in `schemas/`, passes the description lint. `tools/list` order is stable across restarts.
+- **Read-only.** After running every non-write tool against a copy of the `combined` project, a hash of every file outside `.oa/` is unchanged. An `open_board` of a bare `.kicad_pcb` writes nothing in its directory.
+- **Proposals:**
+  - `propose_rule_changes` from IM-001/DP-003 violations on `combined` returns a diff that KiCad accepts: `kicad-cli pcb drc` loads the patched `.kicad_dru` without rule-syntax errors (marker `kicad`).
+  - `apply_proposal` fails with `PERMISSION_DENIED` without `--allow-writes`.
+  - With `--allow-writes` it applies once. Reusing the token fails, and editing the file between propose and apply gives `STALE_BASE`.
+  - A backup exists after apply.
+- **Budgets.**
+  - `run_analysis(dry_run=true)` returns an estimate and starts no job.
+  - A job over the default budget is refused with `BUDGET_EXCEEDED` and the estimate.
+  - A budget above the server ceiling is clamped, with a warning.
+  - `cancel_job` cancels a running dummy job within 12 s.
+- **Errors.** A setup with a misspelled field returns `isError=true`, an envelope with `SETUP_INVALID`, a JSON-Pointer `path` and a `hint`. An unknown net returns `NOT_FOUND` with close-match candidates.
+- **Size.** No tool response for any fixture exceeds `max_response_bytes`. Truncation always comes with `RESULT_TRUNCATED` and a working `next_offset`.
+- **No network.** The whole `tests/agents/` suite runs under pytest-socket (loopback only). Importing `oa_mcp` and `oa_service` does not load `anthropic`, `openai` or `requests`. The `httpx` that the `mcp` SDK depends on may load, but the socket guard proves it never connects off-host.
+- **Docs.** The `llms.txt` links resolve, every tool name in `docs/agents/AGENTS.md` and `llms.txt` exists in the catalog, and `CLAUDE.md` is ≤ 200 lines.
+
 ---
 
 ## Wave 3
@@ -701,7 +829,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 ### WP-303 M1 end-to-end and release. Size: M
 **Owned:** `tests/e2e/**`, `.github/workflows/release.yml`, `docs/user/**`, `packaging/**`
 
-**Deps:** WP-207, WP-209, WP-302.
+**Deps:** WP-207, WP-209, WP-210, WP-302.
 
 **Deliverables:**
 - E2E scripts. Starting from `.kicad_pcb` for every WP-102 board plus `cm5_minima`, they run `oa init`, then ingest, ERC (SARIF), impedance profile, DC IR (power boards), EM (via board, openEMS), and an HTML report.
@@ -714,6 +842,16 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - The E2E suite passes on Windows (openEMS local) and Linux (openEMS + Palace in Docker).
 - A fresh-machine install following `docs/user/quickstart.md` works, verified by the CI job using a clean runner.
 - Release dry-run artifacts are produced.
+- **AI exit criterion (ROADMAP M1).** `tests/agents/test_m1_workflow.py` runs with **no skipped steps** on Windows and Linux. Over MCP stdio, an agent-style client performs:
+  1. `open_board` (`combined`);
+  2. `impedance_profile` (diff pairs);
+  3. `run_erc`;
+  4. `open_board` (`power_plane`);
+  5. `run_analysis(pi.dc)`;
+  6. `result_summary` and `list_violations`/`get_result` for each.
+
+  Every summary states its accuracy class, and the results match the CLI E2E results.
+- The meta-package exposes the `oa-mcp` console script.
 
 ### WP-304 Performance benchmarks. Size: S
 **Owned:** `tests/benchmarks/**`, `.github/workflows/bench.yml`
@@ -737,7 +875,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 
 ---
 
-## M2 sketch (to be detailed after M1; IDs reserved)
+## M2 sketch (to be detailed after M1; IDs reserved; WP-412 is M3)
 
 | ID | Title | Owned (planned) | Depends |
 |---|---|---|---|
@@ -751,6 +889,8 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 | WP-408 | KiCad IPC plugin (thin) + cross-probe endpoints | `packages/oa-kicad-plugin/` | 207 |
 | WP-409 | HTML report export | `web/src/report/`, `packages/oa-results/src/oa_results/io/html.py` | 209 |
 | WP-410 | M2 validation (IPC-2152, JEDEC trends, Palace rings, dipole, SI cascade oracles) | `tests/golden/m2/**` | all above |
+| WP-411 | In-app AI assistant (`oa-assistant`): provider protocol, Anthropic reference provider (`claude-opus-5-5` default, keyring BYO key, off by default), server router, web assistant panel, data preview and redaction, user doc on data sent (ai-integration §11) | `packages/oa-assistant/`, `web/src/features/assistant/`, `docs/user/assistant.md` | 207, 209, 210 |
+| WP-412 | **(M3)** Surrogate dataset export (`oa-xsdataset/1`, `oa dataset export`/`sweep`) and impedance surrogate plugin (`oa-impedance-surrogate`, domain-gated, `accuracy_class="surrogate"`) (ai-integration §12) | `packages/oa-impedance-surrogate/`, `packages/oa-service/src/oa_service/dataset/` | 105, 202, 207 |
 
 ---
 
