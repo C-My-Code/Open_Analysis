@@ -1,0 +1,88 @@
+{
+ "name": "cpw_s1_g0p5_air",
+ "kind": "analytic",
+ "source": "analytic: Z0 = 30 pi/sqrt(eeff) K(k0')/K(k0), k0 = S/(S+2G), eeff = 1 + (er-1)/2 K(k1)/K(k1') K(k0')/K(k0), k1 = sinh(pi S/4h)/sinh(pi (S+2G)/4h); conformal mapping, Ghione & Naldi, IEEE Trans. MTT-35(3), 1987, pp. 260-267 (zero thickness, infinite side grounds, no bottom ground; strip t = 1e-4 S)",
+ "note": "S = 1 mm, G = 0.5 mm. Side grounds are half-planes (u_min/u_max = None).",
+ "rtol": 0.01,
+ "expected": {
+  "z0": 120.56756262031709,
+  "eeff": 1.0
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "trapezoid",
+     "u_center": 0.0,
+     "z_bottom": 0.0,
+     "w_bottom": 0.001,
+     "w_top": 0.001,
+     "thickness": 1.0000000000000001e-07
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g1",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 1.0000000000000001e-07,
+     "u_min": null,
+     "u_max": -0.001
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g2",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 1.0000000000000001e-07,
+     "u_min": 0.001,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [],
+  "background_dk": 1.0,
+  "topology_hint": "cpw",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

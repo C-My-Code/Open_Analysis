@@ -87,7 +87,11 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["packages/*/tests"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # contracts name a field `schema`, which shadows BaseModel.schema() (see WP-000B notes)
+    "ignore:Field name .schema. in .*:UserWarning",
+]
 markers = [
     "golden: compares against committed golden data",
     "external: needs an external tool (openEMS, Palace, ...)",

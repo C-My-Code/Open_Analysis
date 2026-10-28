@@ -1,0 +1,106 @@
+{
+ "name": "cohn_stripline_w0p1_er1",
+ "kind": "analytic",
+ "source": "analytic: Z0 = eta0/(4 sqrt(er)) K(k)/K(k'), k = sech(pi W/(2b)); S. B. Cohn, 'Characteristic Impedance of the Shielded-Strip Transmission Line', IRE Trans. MTT-2, July 1954, pp. 52-57 (zero thickness; strip modelled with t = 1e-4 b)",
+ "note": "",
+ "rtol": 0.01,
+ "expected": {
+  "z0": 194.22625474244595,
+  "eeff": 1.0
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "g1",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "trapezoid",
+     "u_center": 0.0,
+     "z_bottom": 0.000249975,
+     "w_bottom": 5e-05,
+     "w_top": 5e-05,
+     "thickness": 5.0000000000000004e-08
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g2",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0005,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [
+   {
+    "region": {
+     "kind": "slab",
+     "z_bottom": 0.0,
+     "z_top": 0.0005,
+     "u_min": null,
+     "u_max": null
+    },
+    "model": {
+     "kind": "constant",
+     "dk": 1.0,
+     "df": 0.0,
+     "f_ref": 1000000000.0
+    },
+    "dk_z_over_dk_xy": 1.0,
+    "priority": 0
+   }
+  ],
+  "background_dk": 1.0,
+  "topology_hint": "stripline",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

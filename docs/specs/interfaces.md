@@ -40,72 +40,98 @@ class XsTrapezoid(OAModel):
     u_center: float
     z_bottom: float
     w_bottom: Length = Field(gt=0)
-    w_top: Length = Field(gt=0)             # == w_bottom for a rectangle
+    w_top: Length = Field(gt=0)  # == w_bottom for a rectangle
     thickness: Length = Field(gt=0)
+
 
 class XsPolygon(OAModel):
     kind: Literal["polygon"] = "polygon"
-    polygon: Polygon                        # (u, z) coordinates in the Polygon's x,y slots
+    polygon: Polygon  # (u, z) coordinates in the Polygon's x,y slots
 
-class XsCircle(OAModel):                    # analytic validation (coax, wire over plane)
+
+class XsCircle(OAModel):  # analytic validation (coax, wire over plane)
     kind: Literal["circle"] = "circle"
-    u_center: float; z_center: float; radius: Length = Field(gt=0)
+    u_center: float
+    z_center: float
+    radius: Length = Field(gt=0)
+
 
 class XsPlane(OAModel):
     """Horizontal ground/reference conductor. u_min/u_max = None means infinite (BEM truncates it
     at `truncation` and reports that it did)."""
+
     kind: Literal["plane"] = "plane"
     z_bottom: float
-    thickness: Length                      # 0 allowed (zero-thickness plane)
+    thickness: Length  # 0 allowed (zero-thickness plane)
     u_min: float | None = None
     u_max: float | None = None
 
+
 XsShape = Annotated[XsTrapezoid | XsPolygon | XsCircle | XsPlane, Field(discriminator="kind")]
 
+
 class XsConductor(OAModel):
-    id: str                                 # "s1", "s2", "g1", ...: unique in the section
+    id: str  # "s1", "s2", "g1", ...: unique in the section
     role: Literal["signal", "ground", "floating"]
     shape: XsShape
-    net: NetId | None = None                # provenance only; NOT part of the key
+    net: NetId | None = None  # provenance only; NOT part of the key
     conductivity: float = 5.8e7
     roughness_top: Roughness = NoRoughness()
     roughness_bottom: Roughness = NoRoughness()
     roughness_side: Roughness = NoRoughness()
 
+
 class XsSlab(OAModel):
     kind: Literal["slab"] = "slab"
-    z_bottom: float; z_top: float
-    u_min: float | None = None; u_max: float | None = None   # None = infinite
+    z_bottom: float
+    z_top: float
+    u_min: float | None = None
+    u_max: float | None = None  # None = infinite
+
 
 class XsRegion(OAModel):
     kind: Literal["region"] = "region"
-    polygon: Polygon                        # e.g. conformal solder mask (built by geometry with a polygon offset)
+    polygon: Polygon  # e.g. conformal solder mask (built by geometry with a polygon offset)
+
 
 class XsDielectric(OAModel):
     region: Annotated[XsSlab | XsRegion, Field(discriminator="kind")]
-    model: DielectricModel                  # frequency-dependent (board-model.md §6.1)
+    model: DielectricModel  # frequency-dependent (board-model.md §6.1)
     dk_z_over_dk_xy: float = 1.0
-    priority: int = 0                       # higher wins where regions overlap; slabs default 0, regions 10
+    priority: int = 0  # higher wins where regions overlap; slabs default 0, regions 10
+
 
 class CrossSection(OAModel):
     schema: Literal["oa-xsection/1"] = "oa-xsection/1"
-    conductors: tuple[XsConductor, ...]     # ORDER of signal conductors defines matrix index order
+    conductors: tuple[XsConductor, ...]  # ORDER of signal conductors defines matrix index order
     dielectrics: tuple[XsDielectric, ...]
-    background_dk: float = 1.0              # outside every dielectric (air)
-    topology_hint: Literal["microstrip", "embedded_microstrip", "stripline", "offset_stripline",
-                           "cpw", "cpwg", "edge_coupled_microstrip", "edge_coupled_stripline",
-                           "broadside_coupled", "coax", "wire_over_plane", "general"] = "general"
-    symmetric_about_u0: bool = False        # solver may exploit it; validator checks it
+    background_dk: float = 1.0  # outside every dielectric (air)
+    topology_hint: Literal[
+        "microstrip",
+        "embedded_microstrip",
+        "stripline",
+        "offset_stripline",
+        "cpw",
+        "cpwg",
+        "edge_coupled_microstrip",
+        "edge_coupled_stripline",
+        "broadside_coupled",
+        "coax",
+        "wire_over_plane",
+        "general",
+    ] = "general"
+    symmetric_about_u0: bool = False  # solver may exploit it; validator checks it
     provenance: XsProvenance | None = None  # NOT part of the key
 
-    def key(self) -> str: ...               # see below
+    def key(self) -> str: ...  # see below
     def signal_ids(self) -> tuple[str, ...]: ...
+
 
 class XsProvenance(OAModel):
     board_hash: str | None = None
     net_ids: tuple[NetId, ...] = ()
     layer: LayerId | None = None
-    position: Vec2 | None = None            # board-frame sample point
+    position: Vec2 | None = None  # board-frame sample point
     track_ids: tuple[ItemId, ...] = ()
 ```
 
@@ -121,34 +147,39 @@ Two sections with equal keys must give identical solver results. Geometry (WP-10
 ```python
 class RLGC(OAModel):
     """Per-unit-length matrices on a frequency grid. N = number of signal conductors."""
-    freqs: Floats                           # Hz, ascending; may include 0.0 (DC) as first point
-    R: NDArray                              # (F, N, N) ohm/m
-    L: NDArray                              # (F, N, N) H/m
-    G: NDArray                              # (F, N, N) S/m
-    C: NDArray                              # (F, N, N) F/m   (Maxwell form, C_ij <= 0 off-diagonal)
+
+    freqs: Floats  # Hz, ascending; may include 0.0 (DC) as first point
+    R: NDArray  # (F, N, N) ohm/m
+    L: NDArray  # (F, N, N) H/m
+    G: NDArray  # (F, N, N) S/m
+    C: NDArray  # (F, N, N) F/m   (Maxwell form, C_ij <= 0 off-diagonal)
     conductor_ids: tuple[str, ...]
+
 
 class LineParams(OAModel):
     """Derived characteristic values at each frequency (computed by oa_impedance, not consumers)."""
+
     freqs: Floats
-    zc_modal: NDArray                       # (F, N) complex, modal characteristic impedances
-    eps_eff_modal: NDArray                  # (F, N) real
-    zc_matrix: NDArray                      # (F, N, N) complex
-    z0: Floats | None = None                # N == 1: |Zc| (real part reported separately in zc_modal)
-    z_diff: Floats | None = None            # N == 2: Zc11+Zc22-Zc12-Zc21 (real part)
+    zc_modal: NDArray  # (F, N) complex, modal characteristic impedances
+    eps_eff_modal: NDArray  # (F, N) real
+    zc_matrix: NDArray  # (F, N, N) complex
+    z0: Floats | None = None  # N == 1: |Zc| (real part reported separately in zc_modal)
+    z_diff: Floats | None = None  # N == 2: Zc11+Zc22-Zc12-Zc21 (real part)
     z_comm: Floats | None = None
-    z_odd: Floats | None = None; z_even: Floats | None = None
-    delay_per_m: NDArray                    # (F, N) s/m per mode
-    loss_db_per_m: NDArray                  # (F, N)
+    z_odd: Floats | None = None
+    z_even: Floats | None = None
+    delay_per_m: NDArray  # (F, N) s/m per mode
+    loss_db_per_m: NDArray  # (F, N)
+
 
 class ImpedanceResult(OAModel):
     xs_key: str
     method: Literal["closed_form", "bem", "fem"]
-    model_name: str                         # e.g. "hammerstad_jensen_1980", "oa-bem 0.2"
-    rlgc: RLGC | None                       # None for closed forms that only give Z0/eeff
+    model_name: str  # e.g. "hammerstad_jensen_1980", "oa-bem 0.2"
+    rlgc: RLGC | None  # None for closed forms that only give Z0/eeff
     params: LineParams
     validity: Literal["in_range", "extrapolated", "invalid"]
-    notes: tuple[str, ...] = ()             # e.g. "plane truncated at 20*b", "mask approximated"
+    notes: tuple[str, ...] = ()  # e.g. "plane truncated at 20*b", "mask approximated"
     solver_version: str
 ```
 
@@ -164,89 +195,130 @@ Analyses and rules consume the board through this service. Every function is pur
 # oa_geometry/__init__.py
 class BoardGeometry:
     """Built with BoardGeometry.build(board). Holds shapely 2 geometries (GEOS) and STRtrees."""
+
     board: Board
+
     @classmethod
     def build(cls, board: Board, *, arc_tol: float = 1e-6) -> "BoardGeometry": ...
 
     # copper
-    def copper(self, layer: LayerId, net: NetId | None = None) -> shapely.MultiPolygon: ...
+    def copper(self, layer: LayerId, net: NetId | None = None) -> shapely.MultiPolygon:
+        ...
         # union of tracks (buffered, round caps), pads, via pads, zone fills, shapes for that net/layer
+
     def copper_by_net(self, layer: LayerId) -> Mapping[NetId | None, shapely.MultiPolygon]: ...
-    def voids(self, layer: LayerId, net: NetId) -> shapely.MultiPolygon: ...
+    def voids(self, layer: LayerId, net: NetId) -> shapely.MultiPolygon:
+        ...
         # outline ∩ complement(copper(layer, net)): splits, antipads, slots
+
     def outline(self) -> shapely.Polygon: ...
-    def strtree(self, layer: LayerId) -> "LayerIndex": ...   # query(geom) -> ItemRefs
+    def strtree(self, layer: LayerId) -> "LayerIndex": ...  # query(geom) -> ItemRefs
     def drills(self) -> tuple["DrillGeom", ...]: ...
 
     # connectivity
     def topology(self, net: NetId) -> "NetTopology": ...
-    def islands(self, net: NetId) -> tuple["Island", ...]: ...   # disconnected copper groups
+    def islands(self, net: NetId) -> tuple["Island", ...]: ...  # disconnected copper groups
 
     # return path (shared by ERC/EMI/SI/PI; report 07 §3.1)
     def reference_map(self) -> "ReferenceMap": ...
 
     # sampling for impedance and profiles
     def segments(self, net: NetId) -> tuple["RoutedSegment", ...]: ...
-    def cross_section_at(self, seg: "RoutedSegment", s: float, *,
-                         window: float | None = None,
-                         include_aggressors: bool = True,
-                         physics_temp: float | None = None) -> CrossSection: ...
-    def sample_net(self, net: NetId | tuple[NetId, NetId], *, ds: float | None = None
-                   ) -> tuple["XsSample", ...]: ...
+    def cross_section_at(
+        self,
+        seg: "RoutedSegment",
+        s: float,
+        *,
+        window: float | None = None,
+        include_aggressors: bool = True,
+        physics_temp: float | None = None,
+    ) -> CrossSection: ...
+    def sample_net(
+        self, net: NetId | tuple[NetId, NetId], *, ds: float | None = None
+    ) -> tuple["XsSample", ...]: ...
     # region extraction for 3D (EM, quasi-static, thermal 3D)
     def cut_region(self, spec: "RegionSpec") -> "RegionCut": ...
     def resolve_terminal(self, t: Terminal) -> "ResolvedTerminal": ...
 
+
 class RoutedSegment(OAModel):
-    id: str                                 # "<track_id>" or "<track_id>#k" for sub-pieces
-    net: NetId; layer: LayerId; width: float
-    seg: PathSeg                            # one line or arc
+    id: str  # "<track_id>" or "<track_id>#k" for sub-pieces
+    net: NetId
+    layer: LayerId
+    width: float
+    seg: PathSeg  # one line or arc
     length: float
-    s_start: float                          # cumulative path length from the topology root
+    s_start: float  # cumulative path length from the topology root
+
 
 class NetTopology(OAModel):
     """Graph of a net: nodes = pads, vias, junctions (T), track ends; edges = RoutedSegments or
     via barrels. Trees are rooted at the driver pad if intent gives one, else at the lowest-refdes pad."""
+
     net: NetId
     nodes: tuple["TopoNode", ...]
     edges: tuple["TopoEdge", ...]
-    stubs: tuple["Stub", ...]               # branches ending without a pad (and pad stubs)
+    stubs: tuple["Stub", ...]  # branches ending without a pad (and pad stubs)
+
     def networkx(self) -> "networkx.MultiGraph": ...
 
+
 class ReferenceSpan(OAModel):
-    s_start: float; s_end: float            # along the RoutedSegment
-    above: "RefInfo | None"; below: "RefInfo | None"
+    s_start: float
+    s_end: float  # along the RoutedSegment
+    above: "RefInfo | None"
+    below: "RefInfo | None"
+
+
 class RefInfo(OAModel):
     layer: LayerId
     net: NetId
-    distance: float                         # vertical distance trace->plane surface
-    coverage: float                         # 0..1 fraction of the (W + 2*k*h) footprint covered
-    edge_distance: float                    # lateral distance trace edge -> nearest plane edge
+    distance: float  # vertical distance trace->plane surface
+    coverage: float  # 0..1 fraction of the (W + 2*k*h) footprint covered
+    edge_distance: float  # lateral distance trace edge -> nearest plane edge
+
+
 class ReferenceMap(OAModel):
-    k_buffer: float = 3.0                   # footprint half-width = W/2 + k*h
-    spans: tuple[tuple[str, tuple[ReferenceSpan, ...]], ...]   # RoutedSegment.id -> spans
-    via_transitions: tuple["ViaTransition", ...]   # signal via: from/to references, return vias/caps near
+    k_buffer: float = 3.0  # footprint half-width = W/2 + k*h
+    spans: tuple[tuple[str, tuple[ReferenceSpan, ...]], ...]  # RoutedSegment.id -> spans
+    via_transitions: tuple[
+        "ViaTransition", ...
+    ]  # signal via: from/to references, return vias/caps near
+
     def for_segment(self, seg_id: str) -> tuple[ReferenceSpan, ...]: ...
 
+
 class XsSample(OAModel):
-    s: float; position: Vec2; layer: LayerId; seg_id: str
+    s: float
+    position: Vec2
+    layer: LayerId
+    seg_id: str
     xs: CrossSection
-    event: Literal["regular", "width_change", "ref_change", "layer_change", "neckdown",
-                   "plane_edge", "no_reference"] = "regular"
+    event: Literal[
+        "regular",
+        "width_change",
+        "ref_change",
+        "layer_change",
+        "neckdown",
+        "plane_edge",
+        "no_reference",
+    ] = "regular"
+
 
 class RegionSpec(OAModel):
-    nets: tuple[NetId, ...]                 # signal nets of interest
+    nets: tuple[NetId, ...]  # signal nets of interest
     reference_nets: tuple[NetId, ...] = ()  # empty = auto from ReferenceMap
-    bbox: tuple[float, float, float, float] | None = None   # xmin, ymin, xmax, ymax; None = auto
-    margin: float | None = None             # auto = max(5*h_max, 3*w_max, lambda_min/10)
+    bbox: tuple[float, float, float, float] | None = None  # xmin, ymin, xmax, ymax; None = auto
+    margin: float | None = None  # auto = max(5*h_max, 3*w_max, lambda_min/10)
     keep_all_copper: bool = True
-    layers: tuple[LayerId, ...] | None = None   # restrict z range; None = full stack
+    layers: tuple[LayerId, ...] | None = None  # restrict z range; None = full stack
     f_max: Frequency | None = None
+
 
 class RegionCut(OAModel):
     bbox: tuple[float, float, float, float]
-    structure: "Structure3D"                # section 5.1, ready for EM/QS/thermal problems
-    boundary_crossings: tuple["BoundaryCrossing", ...]   # traces crossing the box: candidate ports
+    structure: "Structure3D"  # section 5.1, ready for EM/QS/thermal problems
+    boundary_crossings: tuple["BoundaryCrossing", ...]  # traces crossing the box: candidate ports
 ```
 
 Acceptance contracts for `oa_geometry` are listed in TASKS.md (WP-104).
@@ -273,17 +345,19 @@ Acceptance contracts for `oa_geometry` are listed in TASKS.md (WP-104).
 
 ```python
 class ReadOptions(OAModel):
-    project_file: Path | None = None        # .kicad_pro next to .kicad_pcb (auto-detected if None)
-    refill_zones: Literal["never", "if_unfilled", "always"] = "never"   # needs oa_kicad_bridge
+    project_file: Path | None = None  # .kicad_pro next to .kicad_pcb (auto-detected if None)
+    refill_zones: Literal["never", "if_unfilled", "always"] = "never"  # needs oa_kicad_bridge
     arc_tolerance: float = 1e-6
     strict: bool = False
 
+
 @runtime_checkable
 class Reader(Protocol):
-    name: ClassVar[str]                     # "kicad", "ipc2581", "altium"
-    extensions: ClassVar[tuple[str, ...]]   # (".kicad_pcb",)
+    name: ClassVar[str]  # "kicad", "ipc2581", "altium"
+    extensions: ClassVar[tuple[str, ...]]  # (".kicad_pcb",)
+
     @classmethod
-    def can_read(cls, path: Path) -> bool: ...      # cheap sniff (first 4 KB)
+    def can_read(cls, path: Path) -> bool: ...  # cheap sniff (first 4 KB)
     def read(self, path: Path, options: ReadOptions) -> Board: ...
 ```
 
@@ -297,62 +371,75 @@ class Resources(OAModel):
     cpus: int = 1
     memory_gb: float = 1.0
     gpu: bool = False
-    needs: tuple[str, ...] = ()             # external capabilities, e.g. ("openems>=0.37",)
+    needs: tuple[str, ...] = ()  # external capabilities, e.g. ("openems>=0.37",)
     est_seconds: float | None = None
+
 
 class Task(OAModel):
     """A unit of cacheable work. MUST be JSON-serializable: executors ship it to other processes."""
-    id: str                                 # unique in the plan, e.g. "xs:<key>", "port:P1"
-    analysis: str                           # Analysis.kind
-    payload: dict[str, JsonValue]           # analysis-defined; validated by Analysis.TaskPayload
+
+    id: str  # unique in the plan, e.g. "xs:<key>", "port:P1"
+    analysis: str  # Analysis.kind
+    payload: dict[str, JsonValue]  # analysis-defined; validated by Analysis.TaskPayload
     inputs: tuple["ArtifactRef", ...] = ()  # files/blobs this task reads (content-addressed)
-    depends_on: tuple[str, ...] = ()        # other task ids in the same plan
+    depends_on: tuple[str, ...] = ()  # other task ids in the same plan
     resources: Resources = Resources()
     cache: bool = True
 
+
 class Plan(OAModel):
-    tasks: tuple[Task, ...]                 # a DAG; topologically sortable
-    reduce_inputs: tuple[str, ...] | None = None   # task ids whose outputs reduce() needs; None = all
+    tasks: tuple[Task, ...]  # a DAG; topologically sortable
+    reduce_inputs: tuple[str, ...] | None = (
+        None  # task ids whose outputs reduce() needs; None = all
+    )
+
 
 class TaskOutput(OAModel):
     task_id: str
-    data: dict[str, JsonValue] = {}         # small JSON results
-    artifacts: tuple["ArtifactRef", ...] = ()   # large outputs written via ctx.artifacts
+    data: dict[str, JsonValue] = {}  # small JSON results
+    artifacts: tuple["ArtifactRef", ...] = ()  # large outputs written via ctx.artifacts
     diagnostics: tuple[Diagnostic, ...] = ()
 
+
 class PlanContext(Protocol):
-    board: Board                            # physics already applied
+    board: Board  # physics already applied
     intent: ResolvedIntent
     setup_hash: str
-    def geometry(self) -> BoardGeometry: ...   # lazily built and cached
+
+    def geometry(self) -> BoardGeometry: ...  # lazily built and cached
     def services(self) -> "Services": ...
+
 
 class RunContext(Protocol):
     task: Task
-    scratch: Path                           # empty per-task working directory (deleted on success unless keep=True)
+    scratch: Path  # empty per-task working directory (deleted on success unless keep=True)
     threads: int
-    def board(self) -> Board: ...           # loaded lazily from the job's board artifact
+
+    def board(self) -> Board: ...  # loaded lazily from the job's board artifact
     def geometry(self) -> BoardGeometry: ...
     def services(self) -> "Services": ...
-    def progress(self, fraction: float, message: str = "") -> None: ...   # 0..1, rate-limited
+    def progress(self, fraction: float, message: str = "") -> None: ...  # 0..1, rate-limited
     def check_cancelled(self) -> None: ...  # raises Cancelled
     def log(self, level: str, message: str, **fields) -> None: ...
     def artifacts(self) -> "ArtifactStore": ...
-    def run_external(self, cmd: "ExternalCommand") -> "ExternalResult": ...   # section 4.3
+    def run_external(self, cmd: "ExternalCommand") -> "ExternalResult": ...  # section 4.3
+
 
 @runtime_checkable
 class Analysis(Protocol):
-    kind: ClassVar[str]                     # dotted: "impedance.xsection", "impedance.profile",
-                                            # "erc", "pi.dc", "em.sparams", "qs.extract", "thermal.board"
-    version: ClassVar[str]                  # bump when results change; part of the cache key
+    kind: ClassVar[str]  # dotted: "impedance.xsection", "impedance.profile",
+    # "erc", "pi.dc", "em.sparams", "qs.extract", "thermal.board"
+    version: ClassVar[str]  # bump when results change; part of the cache key
     title: ClassVar[str]
-    Config: ClassVar[type[OAModel]]         # setup schema -> UI form via JSON Schema
+    Config: ClassVar[type[OAModel]]  # setup schema -> UI form via JSON Schema
     TaskPayload: ClassVar[type[OAModel]]
+
     def validate_setup(self, ctx: PlanContext, cfg: OAModel) -> tuple[Diagnostic, ...]: ...
     def plan(self, ctx: PlanContext, cfg: OAModel) -> Plan: ...
     def run_task(self, ctx: RunContext, payload: OAModel) -> TaskOutput: ...
-    def reduce(self, ctx: RunContext, cfg: OAModel,
-               outputs: Mapping[str, TaskOutput]) -> "ResultBundle": ...
+    def reduce(
+        self, ctx: RunContext, cfg: OAModel, outputs: Mapping[str, TaskOutput]
+    ) -> "ResultBundle": ...
 ```
 
 The rules every analysis follows:
@@ -365,14 +452,25 @@ The rules every analysis follows:
 
 ```python
 class ImpedanceService(Protocol):
-    def solve(self, xs: CrossSection, freqs: Sequence[float] | None = None, *,
-              method: Literal["auto", "closed_form", "bem", "fem"] = "auto") -> ImpedanceResult: ...
-    def solve_many(self, xss: Sequence[CrossSection], freqs: Sequence[float] | None = None, *,
-                   method: str = "auto") -> list[ImpedanceResult]: ...   # dedups by key, parallel
-    def quick(self, xs: CrossSection) -> ImpedanceResult: ...            # closed form, < 1 ms
+    def solve(
+        self,
+        xs: CrossSection,
+        freqs: Sequence[float] | None = None,
+        *,
+        method: Literal["auto", "closed_form", "bem", "fem"] = "auto",
+    ) -> ImpedanceResult: ...
+    def solve_many(
+        self,
+        xss: Sequence[CrossSection],
+        freqs: Sequence[float] | None = None,
+        *,
+        method: str = "auto",
+    ) -> list[ImpedanceResult]: ...  # dedups by key, parallel
+    def quick(self, xs: CrossSection) -> ImpedanceResult: ...  # closed form, < 1 ms
+
 
 class Services(Protocol):
-    def get(self, name: str) -> Any: ...    # "impedance" -> ImpedanceService; KeyError if absent
+    def get(self, name: str) -> Any: ...  # "impedance" -> ImpedanceService; KeyError if absent
     def has(self, name: str) -> bool: ...
 ```
 
@@ -392,24 +490,40 @@ Reserved service names:
 # oa_framework/rules.py
 Severity = Literal["info", "warning", "error"]
 
+
 class RuleContext(Protocol):
     board: Board
     intent: ResolvedIntent
+
     def geometry(self) -> BoardGeometry: ...
     def services(self) -> Services: ...
-    def nets_in_scope(self) -> tuple[NetId, ...]: ...      # after the rule's NetSelector and intent
+    def nets_in_scope(self) -> tuple[NetId, ...]: ...  # after the rule's NetSelector and intent
+
 
 @runtime_checkable
 class Rule(Protocol):
-    id: ClassVar[str]                       # "RP-001"
+    id: ClassVar[str]  # "RP-001"
     title: ClassVar[str]
-    category: ClassVar[Literal["return_path", "edge", "impedance", "diff_pair", "via",
-                               "crosstalk", "timing", "power", "rf", "emi"]]
-    aliases: ClassVar[tuple[str, ...]] = () # e.g. ("E2",) for the EMI catalog in report 07
+    category: ClassVar[
+        Literal[
+            "return_path",
+            "edge",
+            "impedance",
+            "diff_pair",
+            "via",
+            "crosstalk",
+            "timing",
+            "power",
+            "rf",
+            "emi",
+        ]
+    ]
+    aliases: ClassVar[tuple[str, ...]] = ()  # e.g. ("E2",) for the EMI catalog in report 07
     default_severity: ClassVar[Severity]
-    requires: ClassVar[frozenset[str]] = frozenset()   # service names, e.g. {"impedance"}
-    references: ClassVar[tuple[str, ...]]   # citations for thresholds (report 07 risk 7)
-    Config: ClassVar[type[OAModel]]         # thresholds; MUST have defaults for every field
+    requires: ClassVar[frozenset[str]] = frozenset()  # service names, e.g. {"impedance"}
+    references: ClassVar[tuple[str, ...]]  # citations for thresholds (report 07 risk 7)
+    Config: ClassVar[type[OAModel]]  # thresholds; MUST have defaults for every field
+
     def check(self, ctx: RuleContext, cfg: OAModel) -> Iterable["Violation"]: ...
 ```
 
@@ -449,26 +563,27 @@ One rule engine covers both catalogs. Report 07's E-rules are aliases of ERC ids
 class Violation(OAModel):
     rule_id: str
     severity: Severity
-    message: str                            # one sentence, human-readable
+    message: str  # one sentence, human-readable
     nets: tuple[NetId, ...] = ()
     layers: tuple[LayerId, ...] = ()
-    items: tuple[ItemId, ...] = ()          # board item ids (tracks, vias, pads, zones)
-    location: Vec2                          # marker point (board frame)
-    geometry: Polygon | None = None         # highlight region (e.g. crossing area)
+    items: tuple[ItemId, ...] = ()  # board item ids (tracks, vias, pads, zones)
+    location: Vec2  # marker point (board frame)
+    geometry: Polygon | None = None  # highlight region (e.g. crossing area)
     measured: float | None = None
     limit: float | None = None
-    unit: str | None = None                 # "m", "s", "ohm", "Hz", ...
+    unit: str | None = None  # "m", "s", "ohm", "Hz", ...
     fix_hint: str | None = None
-    fingerprint: str                        # stable hash (rule_id, sorted items, rounded location 10 um)
+    fingerprint: str  # stable hash (rule_id, sorted items, rounded location 10 um)
     waived: "Waiver | None" = None
 
+
 class Waiver(OAModel):
-    fingerprint: str | None = None          # exact waiver
-    rule_id: str | None = None              # or rule + nets glob
+    fingerprint: str | None = None  # exact waiver
+    rule_id: str | None = None  # or rule + nets glob
     nets: tuple[str, ...] = ()
     reason: str
     author: str | None = None
-    expires: str | None = None              # ISO date
+    expires: str | None = None  # ISO date
 ```
 
 ---
@@ -515,54 +630,77 @@ class ResultBundle(OAModel):
 Typed payloads. UIs render by `kind`, never by analysis.
 
 ```python
-class NetworkResult(OAModel):               # S-parameters
+class NetworkResult(OAModel):  # S-parameters
     kind: Literal["network"] = "network"
-    freqs: Floats                           # Hz
-    s: NDArray                              # (F, P, P) complex128
-    z0: NDArray                             # (P,) or (F, P) complex: reference impedances
+    freqs: Floats  # Hz
+    s: NDArray  # (F, P, P) complex128
+    z0: NDArray  # (P,) or (F, P) complex: reference impedances
     port_names: tuple[str, ...]
-    port_map: tuple["PortMapEntry", ...]    # port -> nets, terminals, location
-    mixed_mode_pairs: tuple[tuple[int, int], ...] = ()   # (p, n) port index pairs for SDD/SCC
+    port_map: tuple["PortMapEntry", ...]  # port -> nets, terminals, location
+    mixed_mode_pairs: tuple[tuple[int, int], ...] = ()  # (p, n) port index pairs for SDD/SCC
     validity_fmax: Frequency | None = None  # quasi-static or model limit; None = full band
-    quality: "QualityReport"                # REQUIRED (gate, section 4.5)
-    touchstone: ArtifactRef | None = None   # the .sNp written by oa_results.io
+    quality: "QualityReport"  # REQUIRED (gate, section 4.5)
+    touchstone: ArtifactRef | None = None  # the .sNp written by oa_results.io
+
     def to_skrf(self) -> "skrf.Network": ...
 
+
 class TriMesh2D(OAModel):
-    nodes: Points                           # (N, 2) board frame
-    triangles: NDArray                      # (M, 3) int64
+    nodes: Points  # (N, 2) board frame
+    triangles: NDArray  # (M, 3) int64
     layer: LayerId | None = None
     z: float | None = None
-class TetMesh3D(OAModel):                   # M3+ (field dumps from Palace/Elmer)
-    nodes: NDArray                          # (N, 3)
-    tets: NDArray                           # (M, 4) int64
-class RasterGrid2D(OAModel):                # thermal FVM and raster DC reference
-    origin: Vec2; dx: float; dy: float; nx: int; ny: int; layer: LayerId | None = None
+
+
+class TetMesh3D(OAModel):  # M3+ (field dumps from Palace/Elmer)
+    nodes: NDArray  # (N, 3)
+    tets: NDArray  # (M, 4) int64
+
+
+class RasterGrid2D(OAModel):  # thermal FVM and raster DC reference
+    origin: Vec2
+    dx: float
+    dy: float
+    nx: int
+    ny: int
+    layer: LayerId | None = None
+
 
 class FieldData(OAModel):
-    name: str                               # "V", "dV", "J_mag", "J_vec", "T", "q"
-    unit: str                               # "V", "A/m^2", "K", "W/m^2"
+    name: str  # "V", "dV", "J_mag", "J_vec", "T", "q"
+    unit: str  # "V", "A/m^2", "K", "W/m^2"
     location: Literal["node", "cell"]
-    values: NDArray                         # (n,) or (n, k) real
+    values: NDArray  # (n,) or (n, k) real
     clim_hint: tuple[float, float] | None = None
     log_scale: bool = False
 
+
 class FieldResult(OAModel):
     kind: Literal["field"] = "field"
-    pieces: tuple["FieldPiece", ...]        # one per layer (2D) or one volume piece (3D)
+    pieces: tuple["FieldPiece", ...]  # one per layer (2D) or one volume piece (3D)
+
+
 class FieldPiece(OAModel):
     mesh: TriMesh2D | TetMesh3D | RasterGrid2D
     fields: tuple[FieldData, ...]
     net: NetId | None = None
 
+
 class ColumnSpec(OAModel):
-    name: str; dtype: Literal["f8", "i8", "str", "bool"]; unit: str | None = None
-    role: Literal["value", "id", "net", "layer", "item", "location_x", "location_y", "status"] = "value"
+    name: str
+    dtype: Literal["f8", "i8", "str", "bool"]
+    unit: str | None = None
+    role: Literal["value", "id", "net", "layer", "item", "location_x", "location_y", "status"] = (
+        "value"
+    )
+
+
 class TableResult(OAModel):
     kind: Literal["table"] = "table"
     columns: tuple[ColumnSpec, ...]
-    rows: ArtifactRef                       # Parquet file; small tables (<1000 rows) may also inline:
+    rows: ArtifactRef  # Parquet file; small tables (<1000 rows) may also inline:
     inline: tuple[tuple[JsonValue, ...], ...] | None = None
+
 
 class ViolationSet(OAModel):
     kind: Literal["violations"] = "violations"
@@ -570,41 +708,54 @@ class ViolationSet(OAModel):
     violations: tuple[Violation, ...]
     counts: dict[Severity, int]
 
-class ProfileResult(OAModel):               # impedance/delay vs distance along a net
+
+class ProfileResult(OAModel):  # impedance/delay vs distance along a net
     kind: Literal["profile"] = "profile"
     net: NetId | tuple[NetId, NetId]
-    s: Floats                               # path length (m)
-    quantities: tuple[FieldData, ...]       # location="node" over s: "Z0"/"Zdiff", "eps_eff", "loss_db_per_m"
-    events: tuple["ProfileEvent", ...]      # via, layer change, ref change, neckdown, plane edge
-    target: float | None = None; tolerance: float | None = None
+    s: Floats  # path length (m)
+    quantities: tuple[
+        FieldData, ...
+    ]  # location="node" over s: "Z0"/"Zdiff", "eps_eff", "loss_db_per_m"
+    events: tuple["ProfileEvent", ...]  # via, layer change, ref change, neckdown, plane edge
+    target: float | None = None
+    tolerance: float | None = None
+
 
 class ScalarSet(OAModel):
     kind: Literal["scalars"] = "scalars"
-    values: tuple["Scalar", ...]            # name, value, unit, status(pass/warn/fail), limit
+    values: tuple["Scalar", ...]  # name, value, unit, status(pass/warn/fail), limit
+
 
 class RLGCResultSet(OAModel):
     kind: Literal["rlgc"] = "rlgc"
     results: tuple[ImpedanceResult, ...]
 
-class ExtractionResult(OAModel):            # quasi-static 3D (Q3D-class), M2
-    kind: Literal["extraction"] = "extraction"
-    terminals: tuple[str, ...]              # net/terminal names, matrix order
-    C: NDArray                              # (T, T) Maxwell capacitance, F
-    G: NDArray | None                       # (F?, T, T) or (T, T) S
-    freqs: Floats | None                    # for R(f), L(f)
-    R: NDArray | None                       # (F, T, T) ohm (loop/port basis, see basis)
-    L: NDArray | None                       # (F, T, T) H
-    basis: Literal["port_loop", "partial"]
-    validity_fmax: Frequency                # REQUIRED: ~ c / (10 * max_dim * sqrt(eps_eff))
-    passivity: "MatrixPassivity"            # C diagonally dominant, R/L SPD; fixes applied
-    spice: ArtifactRef | None = None        # subckt (pi sections / vector-fitted RL)
 
-class FarFieldResult(OAModel):              # M2 (openEMS nf2ff), M3 (Palace/own transform)
+class ExtractionResult(OAModel):  # quasi-static 3D (Q3D-class), M2
+    kind: Literal["extraction"] = "extraction"
+    terminals: tuple[str, ...]  # net/terminal names, matrix order
+    C: NDArray  # (T, T) Maxwell capacitance, F
+    G: NDArray | None  # (F?, T, T) or (T, T) S
+    freqs: Floats | None  # for R(f), L(f)
+    R: NDArray | None  # (F, T, T) ohm (loop/port basis, see basis)
+    L: NDArray | None  # (F, T, T) H
+    basis: Literal["port_loop", "partial"]
+    validity_fmax: Frequency  # REQUIRED: ~ c / (10 * max_dim * sqrt(eps_eff))
+    passivity: "MatrixPassivity"  # C diagonally dominant, R/L SPD; fixes applied
+    spice: ArtifactRef | None = None  # subckt (pi sections / vector-fitted RL)
+
+
+class FarFieldResult(OAModel):  # M2 (openEMS nf2ff), M3 (Palace/own transform)
     kind: Literal["farfield"] = "farfield"
-    freqs: Floats; theta: Floats; phi: Floats
-    e_theta: NDArray; e_phi: NDArray        # (F, T, P) complex, V at r = 1 m normalization
-    p_rad: Floats; p_acc: Floats | None = None
-    directivity_max: Floats; efficiency: Floats | None = None
+    freqs: Floats
+    theta: Floats
+    phi: Floats
+    e_theta: NDArray
+    e_phi: NDArray  # (F, T, P) complex, V at r = 1 m normalization
+    p_rad: Floats
+    p_acc: Floats | None = None
+    directivity_max: Floats
+    efficiency: Floats | None = None
 ```
 
 ### 4.2 Writers and readers *(WP-107, `oa_results.io`)*
@@ -617,30 +768,38 @@ class FarFieldResult(OAModel):              # M2 (openEMS nf2ff), M3 (Palace/own
 
 ```python
 class ExternalCommand(OAModel):
-    program: str                            # logical tool: "openems-python", "palace", "fastercap",
-                                            # "fasthenry", "kicad-cli", "kicad-python", "elmer"
+    program: str  # logical tool: "openems-python", "palace", "fastercap",
+    # "fasthenry", "kicad-cli", "kicad-python", "elmer"
     args: tuple[str, ...]
-    workdir: Path                           # host path of the job directory (inputs already written)
+    workdir: Path  # host path of the job directory (inputs already written)
     env: dict[str, str] = {}
     stdin: str | None = None
     timeout_s: float | None = None
-    progress_parser: str | None = None      # registered parser id: "openems", "palace", "generic"
-    outputs: tuple[str, ...] = ()           # relative paths that must exist after a successful run
+    progress_parser: str | None = None  # registered parser id: "openems", "palace", "generic"
+    outputs: tuple[str, ...] = ()  # relative paths that must exist after a successful run
+
 
 class ExternalResult(OAModel):
     returncode: int
-    stdout_tail: str; stderr_tail: str      # last 200 lines each (full logs in workdir/logs)
+    stdout_tail: str
+    stderr_tail: str  # last 200 lines each (full logs in workdir/logs)
     wall_s: float
-    runner: str; tool_version: str | None
+    runner: str
+    tool_version: str | None
+
 
 @runtime_checkable
 class ExternalRunner(Protocol):
-    name: ClassVar[str]                     # "local", "wsl", "docker", "ssh-slurm"
+    name: ClassVar[str]  # "local", "wsl", "docker", "ssh-slurm"
+
     def available(self) -> bool: ...
-    def resolve(self, program: str) -> "ToolInfo": ...   # path/image + version; raises ToolMissing
-    def run(self, cmd: ExternalCommand, on_progress: Callable[[float, str], None],
-            cancel: "CancelToken") -> ExternalResult: ...
-    def translate_path(self, host_path: Path) -> str: ... # e.g. D:\x -> /mnt/d/x (wsl), /work (docker)
+    def resolve(self, program: str) -> "ToolInfo": ...  # path/image + version; raises ToolMissing
+    def run(
+        self, cmd: ExternalCommand, on_progress: Callable[[float, str], None], cancel: "CancelToken"
+    ) -> ExternalResult: ...
+    def translate_path(
+        self, host_path: Path
+    ) -> str: ...  # e.g. D:\x -> /mnt/d/x (wsl), /work (docker)
 ```
 
 Tool configuration lives in the user-level `~/.config/open_analysis/tools.toml` (or `%APPDATA%\open_analysis\tools.toml`), overridable per project (`oa-project.yaml: tools:`):
@@ -659,36 +818,52 @@ Tool configuration lives in the user-level `~/.config/open_analysis/tools.toml` 
 
 ```python
 class AnalysisRequest(OAModel):
-    project: Path                           # oa-project.yaml
-    setup: str                              # setup name (file stem under oa/setups/) or inline:
+    project: Path  # oa-project.yaml
+    setup: str  # setup name (file stem under oa/setups/) or inline:
     inline_setup: "AnalysisSetup | None" = None
     executor: Literal["inline", "process"] = "process"
     max_workers: int | None = None
     keep_scratch: bool = False
     priority: int = 0
 
-JobState = Literal["queued", "planning", "running", "reducing", "succeeded",
-                   "failed", "cancelled"]
+
+JobState = Literal["queued", "planning", "running", "reducing", "succeeded", "failed", "cancelled"]
+
 
 class JobStatus(OAModel):
-    id: str                                 # ULID
+    id: str  # ULID
     state: JobState
-    analysis: str; setup: str
-    progress: float                         # 0..1 (weighted by task est_seconds)
-    tasks_total: int; tasks_done: int; tasks_cached: int; tasks_failed: int
+    analysis: str
+    setup: str
+    progress: float  # 0..1 (weighted by task est_seconds)
+    tasks_total: int
+    tasks_done: int
+    tasks_cached: int
+    tasks_failed: int
     message: str = ""
     result_id: str | None = None
     error: "ErrorInfo | None" = None
-    created_utc: str; updated_utc: str
+    created_utc: str
+    updated_utc: str
+
 
 class JobEvent(OAModel):
-    seq: int                                # monotonically increasing per job
+    seq: int  # monotonically increasing per job
     job_id: str
-    type: Literal["state", "progress", "log", "task_started", "task_finished", "task_cached",
-                  "diagnostic", "result"]
+    type: Literal[
+        "state",
+        "progress",
+        "log",
+        "task_started",
+        "task_finished",
+        "task_cached",
+        "diagnostic",
+        "result",
+    ]
     task_id: str | None = None
     data: dict[str, JsonValue]
     utc: str
+
 
 @runtime_checkable
 class JobService(Protocol):
@@ -696,7 +871,9 @@ class JobService(Protocol):
     def status(self, job_id: str) -> JobStatus: ...
     def list(self, *, state: JobState | None = None, limit: int = 100) -> list[JobStatus]: ...
     def cancel(self, job_id: str) -> None: ...
-    def events(self, job_id: str, after_seq: int = 0, *, follow: bool = False) -> Iterator[JobEvent]: ...
+    def events(
+        self, job_id: str, after_seq: int = 0, *, follow: bool = False
+    ) -> Iterator[JobEvent]: ...
     def result(self, job_id: str) -> ResultBundle: ...
     def wait(self, job_id: str, timeout: float | None = None) -> JobStatus: ...
 ```
@@ -716,24 +893,32 @@ Implementation contract (`oa_jobs`):
 
 ```python
 class QualityCriteria(OAModel):
-    passivity_tol: float = 1e-6             # max singular value <= 1 + tol counts as passive
-    pqm_min: float = 99.0                   # IEEE 370 style: % ; >= 99.9 "good", >= 99 "acceptable"
+    passivity_tol: float = 1e-6  # max singular value <= 1 + tol counts as passive
+    pqm_min: float = 99.0  # IEEE 370 style: % ; >= 99.9 "good", >= 99 "acceptable"
     rqm_min: float = 99.0
-    cqm_min: float = 80.0                   # causality metric threshold for "acceptable"
+    cqm_min: float = 80.0  # causality metric threshold for "acceptable"
     require_dc: Literal["present", "extrapolatable", "none"] = "extrapolatable"
-    max_df_fraction: float = 0.01           # frequency step <= 1% of f_max for causality evaluation
+    max_df_fraction: float = 0.01  # frequency step <= 1% of f_max for causality evaluation
+
 
 class QualityReport(OAModel):
     verdict: Literal["pass", "warn", "fail"]
-    pqm: float; rqm: float; cqm: float      # percent, IEEE 370-2020 style definitions
+    pqm: float
+    rqm: float
+    cqm: float  # percent, IEEE 370-2020 style definitions
     max_singular_value: float
     worst_passivity_freq: Frequency | None
     reciprocity_max_err: float
     dc: Literal["present", "extrapolated", "missing"]
-    f_min: float; f_max: float; n_freqs: int
+    f_min: float
+    f_max: float
+    n_freqs: int
     criteria: QualityCriteria
-    fixes_applied: tuple[str, ...] = ()     # e.g. "dc_extrapolated", "passivity_enforced(vf, 24 poles)"
+    fixes_applied: tuple[
+        str, ...
+    ] = ()  # e.g. "dc_extrapolated", "passivity_enforced(vf, 24 poles)"
     notes: tuple[str, ...] = ()
+
 
 def assess(net: "skrf.Network", criteria: QualityCriteria = QualityCriteria()) -> QualityReport: ...
 def make_dc(net, method: Literal["skrf", "rational"] = "skrf") -> "skrf.Network": ...
@@ -757,58 +942,81 @@ A bundle that contains a network with verdict `fail` gets `status="failed_qualit
 ```python
 # oa_model/em.py
 class Box3(OAModel):
-    xmin: float; ymin: float; zmin: float; xmax: float; ymax: float; zmax: float
+    xmin: float
+    ymin: float
+    zmin: float
+    xmax: float
+    ymax: float
+    zmax: float
+
 
 class MaterialSlab(OAModel):
     """Dielectric layer clipped to the region: occupies [z_bottom, z_top] over `footprint`
     (default: the whole region box minus nothing)."""
-    material: str                           # key into Structure3D.materials
-    z_bottom: float; z_top: float
-    footprint: Polygon | None = None        # None = full region rectangle; board outline ∩ box otherwise
+
+    material: str  # key into Structure3D.materials
+    z_bottom: float
+    z_top: float
+    footprint: Polygon | None = None  # None = full region rectangle; board outline ∩ box otherwise
+
 
 class ConductorBody(OAModel):
     """Extruded copper: polygons (with holes, e.g. antipads) on one conductor layer."""
+
     id: str
     net: NetId | None
     role: Literal["signal", "reference", "floating"]
     layer: LayerId
-    z_bottom: float; z_top: float
+    z_bottom: float
+    z_top: float
     polygons: tuple[Polygon, ...]
     material: str = "copper"
     roughness: Roughness = NoRoughness()
-    representation: Literal["solid", "sheet", "auto"] = "auto"   # auto: sheet (zero-thickness at z_top
-                                            # of the copper) if thickness < cell/elem limit; adapter decides
+    representation: Literal["solid", "sheet", "auto"] = (
+        "auto"  # auto: sheet (zero-thickness at z_top
+    )
+    # of the copper) if thickness < cell/elem limit; adapter decides
+
 
 class ViaBody(OAModel):
     id: str
     net: NetId | None
     role: Literal["signal", "reference", "floating"]
     center: Vec2
-    z_bottom: float; z_top: float           # plated span after backdrill
-    r_outer: float                          # drill radius
-    plating: float                          # thickness; >= r_outer means filled
-    fill_material: str | None = None        # conductive fill or None
-    pads: tuple["ViaPad", ...] = ()         # pad discs at layers (already included in ConductorBody
-                                            # polygons; listed here for FDTD snapping hints)
+    z_bottom: float
+    z_top: float  # plated span after backdrill
+    r_outer: float  # drill radius
+    plating: float  # thickness; >= r_outer means filled
+    fill_material: str | None = None  # conductive fill or None
+    pads: tuple["ViaPad", ...] = ()  # pad discs at layers (already included in ConductorBody
+    # polygons; listed here for FDTD snapping hints)
+
 
 class LumpedElement(OAModel):
     """Component placeholder between two terminals (SMD R/L/C). Series RLC; parallel uses topology."""
-    id: str; refdes: str | None = None
-    positive: "EMTerminalGeom"; negative: "EMTerminalGeom"
-    r: float | None = None; l: float | None = None; c: float | None = None
+
+    id: str
+    refdes: str | None = None
+    positive: "EMTerminalGeom"
+    negative: "EMTerminalGeom"
+    r: float | None = None
+    l: float | None = None
+    c: float | None = None
     topology: Literal["series", "parallel"] = "series"
+
 
 class Structure3D(OAModel):
     schema: Literal["oa-structure/1"] = "oa-structure/1"
-    bbox: Box3                              # region of interest (copper + dielectric), board frame
+    bbox: Box3  # region of interest (copper + dielectric), board frame
     materials: tuple[Material, ...]
     slabs: tuple[MaterialSlab, ...]
     conductors: tuple[ConductorBody, ...]
     vias: tuple[ViaBody, ...]
     lumped: tuple[LumpedElement, ...] = ()
-    background: str = "air"                 # material outside the board
-    provenance: "RegionProvenance"          # board hash, RegionSpec, nets, bbox, cut rules applied
-    def key(self) -> str: ...               # canonical sha256 (1 nm rounding), excludes provenance
+    background: str = "air"  # material outside the board
+    provenance: "RegionProvenance"  # board hash, RegionSpec, nets, bbox, cut rules applied
+
+    def key(self) -> str: ...  # canonical sha256 (1 nm rounding), excludes provenance
 ```
 
 ### 5.2 EM ports and boundaries (resolved geometric forms)
@@ -816,51 +1024,78 @@ class Structure3D(OAModel):
 ```python
 class EMTerminalGeom(OAModel):
     """A conductor contact as geometry: a small face/edge on a conductor surface."""
-    position: Vec2; z: float
+
+    position: Vec2
+    z: float
     layer: LayerId | None
-    extent: tuple[float, float] = (0.0, 0.0)   # width along u, v of the contact patch
+    extent: tuple[float, float] = (0.0, 0.0)  # width along u, v of the contact patch
+
 
 class EMLumpedPort(OAModel):
     kind: Literal["lumped"] = "lumped"
     name: str
-    positive: EMTerminalGeom; negative: EMTerminalGeom
-    width: float                            # current sheet width
+    positive: EMTerminalGeom
+    negative: EMTerminalGeom
+    width: float  # current sheet width
     z0: float = 50.0
     excite: bool = True
+
 
 class EMWavePort(OAModel):
     """Axis-aligned rectangular face on the region boundary. FDTD adapters may implement it as a
     TL port (MSL/stripline/CPW probes) if they lack modal ports; they must say so in capabilities."""
+
     kind: Literal["wave"] = "wave"
     name: str
     face: Literal["xmin", "xmax", "ymin", "ymax"]
-    rect: tuple[float, float, float, float] # (u_min, u_max, z_min, z_max) on that face
+    rect: tuple[float, float, float, float]  # (u_min, u_max, z_min, z_max) on that face
     n_modes: int = 1
     line_type: Literal["microstrip", "stripline", "cpw", "cpwg", "general"] = "general"
-    signal_conductors: tuple[str, ...]      # ConductorBody ids crossing the face
-    z0: float | None = None                 # None: renormalize to modal impedance
-    deembed: float = 0.0                    # reference plane shift into the structure (m)
+    signal_conductors: tuple[str, ...]  # ConductorBody ids crossing the face
+    z0: float | None = None  # None: renormalize to modal impedance
+    deembed: float = 0.0  # reference plane shift into the structure (m)
     excite: bool = True
+
 
 class EMCoaxPort(OAModel):
     kind: Literal["coax"] = "coax"
-    name: str; center: Vec2; z: float; r_inner: float; r_outer: float
-    dielectric: str; direction: Literal["+z", "-z"]; z0: float = 50.0; excite: bool = True
+    name: str
+    center: Vec2
+    z: float
+    r_inner: float
+    r_outer: float
+    dielectric: str
+    direction: Literal["+z", "-z"]
+    z0: float = 50.0
+    excite: bool = True
+
 
 EMPort = Annotated[EMLumpedPort | EMWavePort | EMCoaxPort, Field(discriminator="kind")]
 
+
 class Boundaries(OAModel):
-    xmin: "BC"; xmax: "BC"; ymin: "BC"; ymax: "BC"; zmin: "BC"; zmax: "BC"
-    air_padding: float | None = None        # extra air around bbox for open faces; auto = lambda(f_min)/4
-BC = Literal["pec", "pmc", "absorbing", "pml"]   # adapters map absorbing->Mur/1st-order ABC, pml->UPML
+    xmin: "BC"
+    xmax: "BC"
+    ymin: "BC"
+    ymax: "BC"
+    zmin: "BC"
+    zmax: "BC"
+    air_padding: float | None = None  # extra air around bbox for open faces; auto = lambda(f_min)/4
+
+
+BC = Literal[
+    "pec", "pmc", "absorbing", "pml"
+]  # adapters map absorbing->Mur/1st-order ABC, pml->UPML
+
 
 class FrequencyPlan(OAModel):
-    f_min: float = Field(ge=0)              # 0 allowed: adapter starts at its lowest valid point
+    f_min: float = Field(ge=0)  # 0 allowed: adapter starts at its lowest valid point
     f_max: Frequency
     n_points: int = 401
     spacing: Literal["linear", "log"] = "linear"
-    adaptive: bool = False                  # FEM fast sweep
+    adaptive: bool = False  # FEM fast sweep
     extra_points: tuple[Frequency, ...] = ()
+
 
 class MeshSettings(OAModel):
     preset: Literal["coarse", "medium", "fine", "expert"] = "medium"
@@ -868,30 +1103,48 @@ class MeshSettings(OAModel):
     max_grading: float = 1.3
     min_cell: float | None = None
     fem_order: int = 2
-    amr_max_passes: int = 0                 # FEM: 0 = none
-    expert: dict[str, JsonValue] = {}       # adapter-specific overrides, namespaced: {"openems.x": ...}
+    amr_max_passes: int = 0  # FEM: 0 = none
+    expert: dict[str, JsonValue] = {}  # adapter-specific overrides, namespaced: {"openems.x": ...}
+
 
 class Convergence(OAModel):
-    energy_decay_db: float = -50.0          # FDTD end criterion
+    energy_decay_db: float = -50.0  # FDTD end criterion
     max_timesteps: int = 1_000_000
-    delta_s: float = 0.02                   # FEM AMR target |ΔS|
+    delta_s: float = 0.02  # FEM AMR target |ΔS|
     max_wall_s: float | None = None
+
 
 class OutputRequest(OAModel):
     sparams: bool = True
     farfield: "FarFieldRequest | None" = None
-    field_dumps: tuple["FieldDumpRequest", ...] = ()   # planes or volumes at frequencies (bounded size)
-    port_impedance: bool = True             # modal Z0 per port vs frequency
+    field_dumps: tuple[
+        "FieldDumpRequest", ...
+    ] = ()  # planes or volumes at frequencies (bounded size)
+    port_impedance: bool = True  # modal Z0 per port vs frequency
+
 
 class FullWaveDriven(OAModel):
     kind: Literal["fullwave_driven"] = "fullwave_driven"
-class Eigenmode(OAModel):                   # M3
-    kind: Literal["eigenmode"] = "eigenmode"; n_modes: int = 10; f_target: Frequency
-class Electrostatic(OAModel):               # quasi-static C (Palace/FasterCap/Elmer), M2
+
+
+class Eigenmode(OAModel):  # M3
+    kind: Literal["eigenmode"] = "eigenmode"
+    n_modes: int = 10
+    f_target: Frequency
+
+
+class Electrostatic(OAModel):  # quasi-static C (Palace/FasterCap/Elmer), M2
     kind: Literal["electrostatic"] = "electrostatic"
-class Magnetostatic(OAModel):               # DC L (Palace); FastHenry uses QSProblem below
+
+
+class Magnetostatic(OAModel):  # DC L (Palace); FastHenry uses QSProblem below
     kind: Literal["magnetostatic"] = "magnetostatic"
-Physics = Annotated[FullWaveDriven | Eigenmode | Electrostatic | Magnetostatic, Field(discriminator="kind")]
+
+
+Physics = Annotated[
+    FullWaveDriven | Eigenmode | Electrostatic | Magnetostatic, Field(discriminator="kind")
+]
+
 
 class EMProblem(OAModel):
     schema: Literal["oa-emproblem/1"] = "oa-emproblem/1"
@@ -904,32 +1157,35 @@ class EMProblem(OAModel):
     mesh: MeshSettings = MeshSettings()
     convergence: Convergence = Convergence()
     outputs: OutputRequest = OutputRequest()
-    def key(self) -> str: ...               # sha256 of canonical form excluding `name`
+
+    def key(self) -> str: ...  # sha256 of canonical form excluding `name`
 ```
 
 ### 5.3 Solver adapter interface *(W0 protocol, `oa_framework.em`)*
 
 ```python
 class AdapterCapabilities(OAModel):
-    physics: frozenset[str]                 # {"fullwave_driven"} ...
-    ports: frozenset[str]                   # {"lumped", "wave", "coax"}
+    physics: frozenset[str]  # {"fullwave_driven"} ...
+    ports: frozenset[str]  # {"lumped", "wave", "coax"}
     wave_port_mode: Literal["modal", "tl_probe", "none"]
     boundaries: frozenset[str]
     dispersive_dielectric: Literal["broadband", "single_frequency_fit", "none"]
     surface_roughness: bool
     sheet_conductors: bool
-    excitations_per_run: Literal["one", "all"]    # openEMS: one; Palace: all
+    excitations_per_run: Literal["one", "all"]  # openEMS: one; Palace: all
     farfield: bool
-    platforms: frozenset[str]               # {"windows", "linux", "macos"}
+    platforms: frozenset[str]  # {"windows", "linux", "macos"}
+
 
 class PreparedRun(OAModel):
     workdir: Path
-    commands: tuple[ExternalCommand, ...]   # one per excitation when excitations_per_run == "one"
-    mesh_stats: dict[str, JsonValue]        # cells/DOF, min cell, est memory (GB), est time
+    commands: tuple[ExternalCommand, ...]  # one per excitation when excitations_per_run == "one"
+    mesh_stats: dict[str, JsonValue]  # cells/DOF, min cell, est memory (GB), est time
     files: tuple[str, ...]
 
+
 class EMSolveOutput(OAModel):
-    network: NetworkResult | None           # quality NOT yet assessed: quality filled by oa_em
+    network: NetworkResult | None  # quality NOT yet assessed: quality filled by oa_em
     port_impedance: TableResult | None
     farfield: FarFieldResult | None
     fields: tuple[ArtifactRef, ...] = ()
@@ -937,15 +1193,20 @@ class EMSolveOutput(OAModel):
     solver_version: str
     warnings: tuple[Diagnostic, ...] = ()
 
+
 @runtime_checkable
 class SolverAdapter(Protocol):
-    name: ClassVar[str]                     # "openems", "palace", "emerge"
-    tool: ClassVar[str]                     # ExternalCommand.program used
+    name: ClassVar[str]  # "openems", "palace", "emerge"
+    tool: ClassVar[str]  # ExternalCommand.program used
+
     def capabilities(self) -> AdapterCapabilities: ...
-    def check(self, problem: EMProblem) -> tuple[Diagnostic, ...]: ...   # unsupported features -> error
+    def check(
+        self, problem: EMProblem
+    ) -> tuple[Diagnostic, ...]: ...  # unsupported features -> error
     def prepare(self, problem: EMProblem, workdir: Path, tool: "ToolInfo") -> PreparedRun: ...
-    def collect(self, problem: EMProblem, run: PreparedRun,
-                results: Sequence[ExternalResult]) -> EMSolveOutput: ...
+    def collect(
+        self, problem: EMProblem, run: PreparedRun, results: Sequence[ExternalResult]
+    ) -> EMSolveOutput: ...
 ```
 
 Flow inside `oa_em` (`kind="em.sparams"`):
@@ -959,26 +1220,33 @@ Adapters must be testable without the solver: `prepare()` is pure file generatio
 
 ```python
 class QSTerminal(OAModel):
-    name: str; net: NetId
-    source: EMTerminalGeom | None = None    # for R/L: current injection face
-    sink: EMTerminalGeom | None = None      # for R/L: current return face
+    name: str
+    net: NetId
+    source: EMTerminalGeom | None = None  # for R/L: current injection face
+    sink: EMTerminalGeom | None = None  # for R/L: current return face
+
 
 class QSProblem(OAModel):
     schema: Literal["oa-qsproblem/1"] = "oa-qsproblem/1"
     structure: Structure3D
     terminals: tuple[QSTerminal, ...]
     want: frozenset[Literal["C", "G", "R", "L"]]
-    freqs: Floats | None = None             # for R(f), L(f)
+    freqs: Floats | None = None  # for R(f), L(f)
     ground_net: NetId | None = None
     discretization: dict[str, JsonValue] = {}
 
+
 @runtime_checkable
-class ExtractionAdapter(Protocol):          # FasterCap, FastHenry2, Palace ES/MS, Elmer
-    name: ClassVar[str]; tool: ClassVar[str]
-    provides: ClassVar[frozenset[str]]      # {"C"} for FasterCap, {"R","L"} for FastHenry
+class ExtractionAdapter(Protocol):  # FasterCap, FastHenry2, Palace ES/MS, Elmer
+    name: ClassVar[str]
+    tool: ClassVar[str]
+    provides: ClassVar[frozenset[str]]  # {"C"} for FasterCap, {"R","L"} for FastHenry
+
     def check(self, p: QSProblem) -> tuple[Diagnostic, ...]: ...
     def prepare(self, p: QSProblem, workdir: Path, tool: "ToolInfo") -> PreparedRun: ...
-    def collect(self, p: QSProblem, run: PreparedRun, results: Sequence[ExternalResult]) -> ExtractionResult: ...
+    def collect(
+        self, p: QSProblem, run: PreparedRun, results: Sequence[ExternalResult]
+    ) -> ExtractionResult: ...
 ```
 
 `oa_qs` (M2) merges adapter outputs per `want`, enforces matrix passivity, and emits a SPICE subcircuit made of π sections, with vector-fitted RL ladders for R(f)/L(f) (report 07 §1.5). `validity_fmax` is always set.
@@ -989,16 +1257,22 @@ class ExtractionAdapter(Protocol):          # FasterCap, FastHenry2, Palace ES/M
 class HeatSource(OAModel):
     id: str
     kind: Literal["component", "polygon", "joule_field"]
-    component: str | None = None            # refdes: power over courtyard (or pads)
-    polygon: Polygon | None = None; layer: LayerId | None = None
-    power: float = 0.0                      # W
-    theta_jc: float | None = None; theta_jb: float | None = None   # K/W two-resistor model (JESD15-3)
+    component: str | None = None  # refdes: power over courtyard (or pads)
+    polygon: Polygon | None = None
+    layer: LayerId | None = None
+    power: float = 0.0  # W
+    theta_jc: float | None = None
+    theta_jb: float | None = None  # K/W two-resistor model (JESD15-3)
+
 
 class ThermalBC(OAModel):
-    t_ambient: float = 298.15               # K
-    h_top: float = 10.0; h_bottom: float = 10.0       # W/(m^2 K) convection
-    emissivity_top: float | None = 0.9; emissivity_bottom: float | None = 0.9
-    fixed_temperature: tuple[tuple[Polygon, float], ...] = ()     # heatsink / cold plate (K)
+    t_ambient: float = 298.15  # K
+    h_top: float = 10.0
+    h_bottom: float = 10.0  # W/(m^2 K) convection
+    emissivity_top: float | None = 0.9
+    emissivity_bottom: float | None = 0.9
+    fixed_temperature: tuple[tuple[Polygon, float], ...] = ()  # heatsink / cold plate (K)
+
 
 class ThermalProblem(OAModel):
     schema: Literal["oa-thermalproblem/1"] = "oa-thermalproblem/1"
@@ -1006,7 +1280,7 @@ class ThermalProblem(OAModel):
     cell_size: float = 0.25e-3
     sources: tuple[HeatSource, ...]
     bc: ThermalBC
-    structure: Structure3D | None = None    # fem3d (Elmer) only; layered_fvm reads the Board directly
+    structure: Structure3D | None = None  # fem3d (Elmer) only; layered_fvm reads the Board directly
 ```
 
 Electro-thermal coupling (M2) is a Picard loop owned by `oa_thermal`:
@@ -1034,21 +1308,22 @@ myboard/
 class ProjectManifest(OAModel):
     schema: Literal["oa-project/1"]
     name: str
-    board: Path                             # relative: myboard.kicad_pcb | .xml | .PcbDoc | .oab(.json)
+    board: Path  # relative: myboard.kicad_pcb | .xml | .PcbDoc | .oab(.json)
     physics: Path | None = None
     intent: Path | None = None
     setups_dir: Path = Path("oa/setups")
     read_options: ReadOptions = ReadOptions()
-    tools: dict[str, dict[str, str]] = {}   # per-project tool overrides
+    tools: dict[str, dict[str, str]] = {}  # per-project tool overrides
+
 
 class AnalysisSetup(OAModel):
     schema: Literal["oa-setup/1"]
-    name: str                               # unique in project; defaults to file stem
-    analysis: str                           # Analysis.kind
+    name: str  # unique in project; defaults to file stem
+    analysis: str  # Analysis.kind
     description: str = ""
-    config: dict[str, JsonValue]            # validated against Analysis.Config at load
-    ports: tuple[Port, ...] = ()            # EM / PI
-    waivers: tuple[Waiver, ...] = ()        # ERC
+    config: dict[str, JsonValue]  # validated against Analysis.Config at load
+    ports: tuple[Port, ...] = ()  # EM / PI
+    waivers: tuple[Waiver, ...] = ()  # ERC
 ```
 
 Example `oa/setups/via-sparams.yaml`:
@@ -1152,18 +1427,32 @@ Exit codes:
 ## 9. Mesh contracts (`oa_mesh`, WP-109 2D, WP-210 3D)
 
 ```python
-def mesh_cross_section(xs: CrossSection, *, h_max: float | None = None, order: int = 2,
-                       corner_refine: float = 0.1, box_factor: float = 20.0) -> "XsMesh": ...
+def mesh_cross_section(
+    xs: CrossSection,
+    *,
+    h_max: float | None = None,
+    order: int = 2,
+    corner_refine: float = 0.1,
+    box_factor: float = 20.0,
+) -> "XsMesh": ...
+
+
 # XsMesh: nodes (N,2), triangles (M,3 or 6 for P2), region tag per triangle (dielectric index or -1 air),
 #         boundary edge tags per conductor id, outer boundary tag.
 
-def mesh_copper_sheets(pieces: Sequence["SheetPiece"], *, h_default: float, size_fields: Sequence["SizeField"]
-                       ) -> tuple[TriMesh2D, ...]: ...
+
+def mesh_copper_sheets(
+    pieces: Sequence["SheetPiece"], *, h_default: float, size_fields: Sequence["SizeField"]
+) -> tuple[TriMesh2D, ...]: ...
+
+
 # SheetPiece: (layer, net, shapely-free Polygon list, embedded points/rings for via & pad contacts)
 # Output nodes include every contact-ring node; mapping contact_id -> node indices returned in .contacts
 
-def build_occ_model(structure: Structure3D, *, sheet_threshold: float, ports: Sequence[EMPort]
-                    ) -> "OccModel": ...          # WP-210: BooleanFragments, physical groups
+
+def build_occ_model(
+    structure: Structure3D, *, sheet_threshold: float, ports: Sequence[EMPort]
+) -> "OccModel": ...  # WP-210: BooleanFragments, physical groups
 def write_msh(model: "OccModel", path: Path, *, sizes: MeshSettings) -> "MeshStats": ...
 ```
 
@@ -1207,16 +1496,34 @@ def kk_residual(freqs, eps: np.ndarray) -> float                              # 
 
 ```python
 class OAError(Exception):
-    code: str                                     # stable machine code
-class IngestError(OAError): ...                   # INGEST_*
-class BoardValidationError(OAError): ...          # MODEL_INVALID
-class UnsupportedSchemaVersion(OAError): ...      # SCHEMA_VERSION
-class SetupError(OAError): ...                    # SETUP_INVALID (carries Diagnostics)
-class ToolMissing(OAError): ...                   # TOOL_MISSING (program, hint)
-class ExternalToolFailed(OAError): ...            # TOOL_FAILED (returncode, log tail)
-class Cancelled(OAError): ...                     # CANCELLED
-class QualityGateMissing(OAError): ...            # QUALITY_GATE_MISSING
-class UnsupportedFeature(OAError): ...            # adapter cannot represent a problem feature
+    code: str  # stable machine code
+
+
+class IngestError(OAError): ...  # INGEST_*
+
+
+class BoardValidationError(OAError): ...  # MODEL_INVALID
+
+
+class UnsupportedSchemaVersion(OAError): ...  # SCHEMA_VERSION
+
+
+class SetupError(OAError): ...  # SETUP_INVALID (carries Diagnostics)
+
+
+class ToolMissing(OAError): ...  # TOOL_MISSING (program, hint)
+
+
+class ExternalToolFailed(OAError): ...  # TOOL_FAILED (returncode, log tail)
+
+
+class Cancelled(OAError): ...  # CANCELLED
+
+
+class QualityGateMissing(OAError): ...  # QUALITY_GATE_MISSING
+
+
+class UnsupportedFeature(OAError): ...  # adapter cannot represent a problem feature
 ```
 
 Logging uses stdlib `logging` with structured `extra` fields. The logger names match the packages (`oa.ingest.kicad` and so on). Nothing prints to stdout except the CLI.

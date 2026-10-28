@@ -57,32 +57,37 @@ SideEffect = Literal["read", "compute", "write"]
 #           workspace; may start jobs (subject to Budget)
 #  write:   modifies user files (KiCad project files, setups, intent, sidecar). Always two-step (§10.3)
 
+
 class CommandSpec(OAModel):
-    name: str                       # dotted, stable: "board.open", "erc.run", "results.violations"
-    mcp_tool: str | None            # snake_case MCP tool name ("open_board"); None = not exposed over MCP
-    cli: tuple[str, ...]            # CLI path, e.g. ("results", "violations")
+    name: str  # dotted, stable: "board.open", "erc.run", "results.violations"
+    mcp_tool: str | None  # snake_case MCP tool name ("open_board"); None = not exposed over MCP
+    cli: tuple[str, ...]  # CLI path, e.g. ("results", "violations")
     title: str
-    description: str                # <= 1024 chars: what, when to use, cost, side effects, units
+    description: str  # <= 1024 chars: what, when to use, cost, side effects, units
     side_effect: SideEffect
     idempotent: bool
-    long_running: bool              # may return a JobHandle instead of data
-    input_model: str                # schema id, e.g. "oa.cmd.board_open.in/1"
-    output_model: str               # schema id, e.g. "oa.board_summary/1"
-    examples: tuple[dict[str, JsonValue], ...] = ()   # valid inputs; tested
+    long_running: bool  # may return a JobHandle instead of data
+    input_model: str  # schema id, e.g. "oa.cmd.board_open.in/1"
+    output_model: str  # schema id, e.g. "oa.board_summary/1"
+    examples: tuple[dict[str, JsonValue], ...] = ()  # valid inputs; tested
+
 
 class CallContext(OAModel):
     caller: Literal["cli", "rest", "mcp", "assistant", "ui", "test"]
-    roots: tuple[Path, ...]         # allow-listed directories; paths outside -> PERMISSION_DENIED
-    allow_writes: bool = False      # server/process-level switch for write commands
-    budget_ceiling: "Budget"        # hard limits; per-call budgets are clamped to this (§10.4)
+    roots: tuple[Path, ...]  # allow-listed directories; paths outside -> PERMISSION_DENIED
+    allow_writes: bool = False  # server/process-level switch for write commands
+    budget_ceiling: "Budget"  # hard limits; per-call budgets are clamped to this (§10.4)
     default_budget: "Budget"
-    max_response_bytes: int = 24_576   # structured payload cap for mcp/assistant callers
+    max_response_bytes: int = 24_576  # structured payload cap for mcp/assistant callers
 
-class Registry:                     # oa_service.commands.registry
-    def specs(self) -> tuple[CommandSpec, ...]: ...      # sorted by name
+
+class Registry:  # oa_service.commands.registry
+    def specs(self) -> tuple[CommandSpec, ...]: ...  # sorted by name
     def input_type(self, name: str) -> type[OAModel]: ...
     def output_type(self, name: str) -> type[OAModel]: ...
-    def dispatch(self, name: str, args: Mapping[str, JsonValue], ctx: CallContext) -> "Envelope": ...
+    def dispatch(
+        self, name: str, args: Mapping[str, JsonValue], ctx: CallContext
+    ) -> "Envelope": ...
 ```
 
 Third parties add commands through the entry-point group `open_analysis.commands`. `oa_cli` builds a generic typer sub-command for every spec it does not hand-write. Commands added by WP-210, such as `propose`, therefore appear in the CLI without anyone editing `oa_cli`.
@@ -102,9 +107,11 @@ class OAService(Protocol):
     def cancel(self, job_id: str) -> JobStatus: ...
     def result(self, result_id: str) -> ResultBundle: ...
 
+
 class ProjectSession(Protocol):
-    id: str                          # "p_" + sha1(abs project path)[:12]: stable across restarts
-    board: Board                     # physics applied
+    id: str  # "p_" + sha1(abs project path)[:12]: stable across restarts
+    board: Board  # physics applied
+
     def summary(self) -> "BoardSummary": ...
     def nets(self, q: "NetQuery") -> "Page[NetInfo]": ...
     def net(self, name_or_id: str) -> "NetDetail": ...
@@ -151,11 +158,11 @@ REST keeps its raw typed response bodies, as the generated TS client expects. On
 
 ```python
 class Envelope(OAModel, Generic[T]):
-    schema: str                     # schema id of `data`, e.g. "oa.board_summary/1" (resolvable via oa schema)
-    version: str                    # producing Open_Analysis version (PEP 440), e.g. "0.1.0"
-    ok: bool                        # False iff errors is non-empty
-    data: T | None                  # None when ok is False
-    warnings: tuple[ErrorInfo, ...] = ()   # non-fatal: truncation, extrapolation, defaulted stackup
+    schema: str  # schema id of `data`, e.g. "oa.board_summary/1" (resolvable via oa schema)
+    version: str  # producing Open_Analysis version (PEP 440), e.g. "0.1.0"
+    ok: bool  # False iff errors is non-empty
+    data: T | None  # None when ok is False
+    warnings: tuple[ErrorInfo, ...] = ()  # non-fatal: truncation, extrapolation, defaulted stackup
     errors: tuple[ErrorInfo, ...] = ()
 ```
 
@@ -165,12 +172,12 @@ The envelope itself is described by `schemas/oa-envelope.v1.json`. Keys are seri
 
 ```python
 class ErrorInfo(OAModel):
-    code: str                       # stable, UPPER_SNAKE (registry in §6)
-    message: str                    # one sentence, no stack trace
-    path: str | None = None         # RFC 6901 JSON Pointer into the command input or the named document,
-                                    # e.g. "/config/rail/net"; "#/..." form not used
-    hint: str | None = None         # one actionable sentence: what to change or call next
-    source: "SourceRef | None" = None   # file + line/column for YAML/JSON/KiCad file errors
+    code: str  # stable, UPPER_SNAKE (registry in §6)
+    message: str  # one sentence, no stack trace
+    path: str | None = None  # RFC 6901 JSON Pointer into the command input or the named document,
+    # e.g. "/config/rail/net"; "#/..." form not used
+    hint: str | None = None  # one actionable sentence: what to change or call next
+    source: "SourceRef | None" = None  # file + line/column for YAML/JSON/KiCad file errors
     details: dict[str, JsonValue] = {}  # code-specific, documented per code
 ```
 
@@ -181,12 +188,14 @@ class PageRequest(OAModel):
     offset: int = Field(0, ge=0, description="Index of the first item to return.")
     limit: int = Field(50, ge=1, le=500, description="Maximum items to return.")
 
+
 class Page(OAModel, Generic[T]):
     items: tuple[T, ...]
-    offset: int; limit: int
-    total: int                      # total matching items after filtering
-    next_offset: int | None         # None when exhausted
-    sort: str                       # the effective sort key, documented per command
+    offset: int
+    limit: int
+    total: int  # total matching items after filtering
+    next_offset: int | None  # None when exhausted
+    sort: str  # the effective sort key, documented per command
 ```
 
 - Default sorts are total orders, so the result is deterministic. They are documented in each command's description:
@@ -213,30 +222,33 @@ The same inputs give byte-identical `data`, apart from these **volatile fields**
 
 ```python
 AccuracyClass = Literal[
-    "rule",             # geometric rule check: exact geometry, heuristic threshold
-    "closed_form",      # empirical/analytic formula (HJ, Cohn, Wheeler, IPC-2141 ...)
-    "2d_field",         # 2D quasi-TEM field solve (BEM, FEM) of a cross-section
-    "2d_sheet",         # 2D conduction on copper sheets + via resistors (DC IR)
-    "lumped",           # lumped/ladder circuit models (PDN M2, via pi model)
+    "rule",  # geometric rule check: exact geometry, heuristic threshold
+    "closed_form",  # empirical/analytic formula (HJ, Cohn, Wheeler, IPC-2141 ...)
+    "2d_field",  # 2D quasi-TEM field solve (BEM, FEM) of a cross-section
+    "2d_sheet",  # 2D conduction on copper sheets + via resistors (DC IR)
+    "lumped",  # lumped/ladder circuit models (PDN M2, via pi model)
     "3d_quasi_static",  # FasterCap/FastHenry/Palace ES-MS (M2)
-    "3d_full_wave",     # openEMS, Palace driven
-    "surrogate",        # ML model trained on our own solver outputs (M3)
-    "estimate",         # order-of-magnitude screening (EMI DM/CM estimates)
+    "3d_full_wave",  # openEMS, Palace driven
+    "surrogate",  # ML model trained on our own solver outputs (M3)
+    "estimate",  # order-of-magnitude screening (EMI DM/CM estimates)
     "unknown",
 ]
 
+
 class Accuracy(OAModel):
     accuracy_class: AccuracyClass
-    method: str                       # "bem", "hammerstad_jensen_1980", "openems-fdtd", "oa-dc-fem-p1"
-    tolerance_rel: float | None       # validated relative tolerance of the headline quantity, e.g. 0.005
-    tolerance_basis: str | None       # where the tolerance comes from: "golden:impedance_bem (T0)",
-                                      # "ROADMAP M1 gate BEM vs FEM", "surrogate holdout p99"
+    method: str  # "bem", "hammerstad_jensen_1980", "openems-fdtd", "oa-dc-fem-p1"
+    tolerance_rel: float | None  # validated relative tolerance of the headline quantity, e.g. 0.005
+    tolerance_basis: str | None  # where the tolerance comes from: "golden:impedance_bem (T0)",
+    # "ROADMAP M1 gate BEM vs FEM", "surrogate holdout p99"
     validity: Literal["in_range", "extrapolated", "invalid", "unknown"]
-    f_min: float | None = None        # Hz, valid band (None = not frequency-dependent / full band)
-    f_max: float | None = None        # Hz; quasi-static/model results MUST set it (validity_fmax)
-    converged: bool | None = None     # mesh/energy/AMR convergence met; None = not applicable
-    quality: Literal["pass", "warn", "fail"] | None = None   # S-param gate verdict where applicable
-    assumptions: tuple[str, ...] = () # short phrases, e.g. "plane truncated at 20*b", "zones refilled by tool"
+    f_min: float | None = None  # Hz, valid band (None = not frequency-dependent / full band)
+    f_max: float | None = None  # Hz; quasi-static/model results MUST set it (validity_fmax)
+    converged: bool | None = None  # mesh/energy/AMR convergence met; None = not applicable
+    quality: Literal["pass", "warn", "fail"] | None = None  # S-param gate verdict where applicable
+    assumptions: tuple[
+        str, ...
+    ] = ()  # short phrases, e.g. "plane truncated at 20*b", "zones refilled by tool"
 ```
 
 Rules:
@@ -260,34 +272,38 @@ Default classes:
 
 ```python
 class SummaryMetric(OAModel):
-    name: str                         # "z0_min", "worst_drop", "max_|S21|_loss"
+    name: str  # "z0_min", "worst_drop", "max_|S21|_loss"
     value: float | int | str | bool
-    unit: str | None = None           # SI unit string; None for dimensionless/str
+    unit: str | None = None  # SI unit string; None for dimensionless/str
     status: Literal["pass", "warn", "fail", "info"] = "info"
     limit: float | None = None
-    where: str | None = None          # net/layer/item/frequency the value refers to
+    where: str | None = None  # net/layer/item/frequency the value refers to
+
 
 class ResultSummary(OAModel):
     item_id: str
-    kind: str                         # ResultItem.kind
+    kind: str  # ResultItem.kind
     title: str
     status: Literal["pass", "warn", "fail", "info"]
-    text: str                         # <= 600 chars, plain text, no markdown tables
-    metrics: tuple[SummaryMetric, ...]   # <= 24, most important first (order is deterministic)
+    text: str  # <= 600 chars, plain text, no markdown tables
+    metrics: tuple[SummaryMetric, ...]  # <= 24, most important first (order is deterministic)
     facts: dict[str, JsonValue] = {}  # <= 32 keys; scalar values or lists <= 20 elements
-    accuracy: Accuracy                # copied from ResultItem.accuracy ("unknown" if absent)
+    accuracy: Accuracy  # copied from ResultItem.accuracy ("unknown" if absent)
     truncated: bool = False
-    more: str | None = None           # how to get more, e.g. "list_violations(result_id=..., offset=20)"
+    more: str | None = None  # how to get more, e.g. "list_violations(result_id=..., offset=20)"
+
 
 class BundleSummary(OAModel):
     result_id: str
     analysis: str
     status: Literal["ok", "warning", "failed_quality", "error"]
-    text: str                         # <= 1500 chars; equals ResultBundle.summary
-    items: tuple[ResultSummary, ...]  # <= 20; larger bundles summarize the first 20 by item order + "more"
-    diagnostics: dict[str, int]       # counts by severity
-    top_diagnostics: tuple[Diagnostic, ...]   # <= 10, errors first
-    provenance: "ProvenanceBrief"     # analysis, versions, board/physics/setup/inputs hashes, solver
+    text: str  # <= 1500 chars; equals ResultBundle.summary
+    items: tuple[
+        ResultSummary, ...
+    ]  # <= 20; larger bundles summarize the first 20 by item order + "more"
+    diagnostics: dict[str, int]  # counts by severity
+    top_diagnostics: tuple[Diagnostic, ...]  # <= 10, errors first
+    provenance: "ProvenanceBrief"  # analysis, versions, board/physics/setup/inputs hashes, solver
 ```
 
 Rules (000A implements the types and the generic `summary()` for every payload; analyses may enrich them):
@@ -329,23 +345,40 @@ The frozen `Violation` (interfaces.md §3.7) already carries the stable `rule_id
 ```python
 # oa_results.violations (000A)
 class RemediationAction(OAModel):
-    kind: Literal["reroute", "move", "widen", "narrow", "change_spacing", "change_layer",
-                  "add_return_via", "add_stitching_vias", "add_decap", "move_decap", "backdrill",
-                  "change_stackup", "change_netclass", "change_rule", "add_waiver", "other"]
-    description: str                          # one imperative sentence
-    targets: tuple[str, ...] = ()             # ItemIds / NetIds / layer ids / refdes the action applies to
-    parameter: str | None = None              # "width", "clearance", "via_pitch", "stub_length", "dk" ...
-    current_value: float | None = None        # SI
-    suggested_value: float | None = None      # SI; None if the rule cannot compute one
+    kind: Literal[
+        "reroute",
+        "move",
+        "widen",
+        "narrow",
+        "change_spacing",
+        "change_layer",
+        "add_return_via",
+        "add_stitching_vias",
+        "add_decap",
+        "move_decap",
+        "backdrill",
+        "change_stackup",
+        "change_netclass",
+        "change_rule",
+        "add_waiver",
+        "other",
+    ]
+    description: str  # one imperative sentence
+    targets: tuple[str, ...] = ()  # ItemIds / NetIds / layer ids / refdes the action applies to
+    parameter: str | None = None  # "width", "clearance", "via_pitch", "stub_length", "dk" ...
+    current_value: float | None = None  # SI
+    suggested_value: float | None = None  # SI; None if the rule cannot compute one
     unit: str | None = None
     applies_via: Literal["board_edit", "dru_rule", "netclass", "stackup", "setup", "waiver"]
-                                              # board_edit = a human/EDA edit Open_Analysis cannot apply
+    # board_edit = a human/EDA edit Open_Analysis cannot apply
     confidence: Literal["low", "medium", "high"] = "medium"
 
+
 class Remediation(OAModel):
-    summary: str                              # one sentence; Violation.fix_hint MUST equal this
-    actions: tuple[RemediationAction, ...]    # >= 1, ordered by preference
-    evidence: dict[str, JsonValue] = {}       # e.g. {"z0": 41.2, "z0_accuracy": "2d_field"} (<= 16 keys)
+    summary: str  # one sentence; Violation.fix_hint MUST equal this
+    actions: tuple[RemediationAction, ...]  # >= 1, ordered by preference
+    evidence: dict[str, JsonValue] = {}  # e.g. {"z0": 41.2, "z0_accuracy": "2d_field"} (<= 16 keys)
+
 
 # Violation gains:  remediation: Remediation | None = None   (MUST be set by every M1 rule; tests enforce)
 ```
@@ -589,13 +622,13 @@ In JSON mode the envelope is printed for every exit code, and `ok=false` iff the
 
 ```python
 class ChangeProposal(OAModel):
-    proposal_id: str                  # ULID; stored at .oa/proposals/<id>.json; expires after 24 h
+    proposal_id: str  # ULID; stored at .oa/proposals/<id>.json; expires after 24 h
     project_id: str
-    files: tuple["FileChange", ...]   # {path, sha256_base, unified_diff, new_size}
-    changes: tuple[RuleChange, ...]   # structured form of what the diff does
-    rationale: tuple["ChangeRationale", ...]   # {change_index, fingerprints, rule_id, explanation}
-    not_applicable: tuple[RemediationAction, ...]   # board edits that need a human
-    confirm_token: str                # hmac(proposal content, per-process secret); single use
+    files: tuple["FileChange", ...]  # {path, sha256_base, unified_diff, new_size}
+    changes: tuple[RuleChange, ...]  # structured form of what the diff does
+    rationale: tuple["ChangeRationale", ...]  # {change_index, fingerprints, rule_id, explanation}
+    not_applicable: tuple[RemediationAction, ...]  # board edits that need a human
+    confirm_token: str  # hmac(proposal content, per-process secret); single use
     expires_utc: str
 ```
 
@@ -614,11 +647,21 @@ class ChangeProposal(OAModel):
 
 ```python
 class Budget(OAModel):
-    max_runtime_s: float | None = Field(None, gt=0, description="Wall-clock limit for the whole job [s].")
-    max_memory_gb: float | None = Field(None, gt=0, description="Peak resident memory across workers and external processes [GB].")
-    max_cpus: int | None = Field(None, ge=1, description="Maximum concurrent worker processes/threads [1].")
-    allow_external: bool = Field(True, description="Whether external solver binaries (openEMS, Palace, ...) may run.")
-    allowed_tools: tuple[str, ...] | None = Field(None, description="Allow-list of logical tool names; None = all configured tools.")
+    max_runtime_s: float | None = Field(
+        None, gt=0, description="Wall-clock limit for the whole job [s]."
+    )
+    max_memory_gb: float | None = Field(
+        None, gt=0, description="Peak resident memory across workers and external processes [GB]."
+    )
+    max_cpus: int | None = Field(
+        None, ge=1, description="Maximum concurrent worker processes/threads [1]."
+    )
+    allow_external: bool = Field(
+        True, description="Whether external solver binaries (openEMS, Palace, ...) may run."
+    )
+    allowed_tools: tuple[str, ...] | None = Field(
+        None, description="Allow-list of logical tool names; None = all configured tools."
+    )
 ```
 
 - **Effective budget** = the per-call budget clamped field by field to `CallContext.budget_ceiling`. The MCP defaults are `max_runtime_s=600`, `max_memory_gb=8`, `max_cpus=min(cpu-1, 8)` and `allow_external=true`. The ceiling defaults are 4 h, 32 GB and all CPUs, and the operator sets them by flag or config. Agents can raise the budget up to the ceiling but never beyond it.
@@ -649,20 +692,31 @@ class Budget(OAModel):
 ### 11.2 Provider interface
 
 ```python
-class ToolSpec(OAModel):              # generated from the oa_service catalog (same as MCP tools)
-    name: str; description: str; input_schema: dict[str, JsonValue]; side_effect: SideEffect
+class ToolSpec(OAModel):  # generated from the oa_service catalog (same as MCP tools)
+    name: str
+    description: str
+    input_schema: dict[str, JsonValue]
+    side_effect: SideEffect
 
-class AssistantEvent(OAModel):        # streamed to the UI
+
+class AssistantEvent(OAModel):  # streamed to the UI
     type: Literal["text", "tool_call", "tool_result", "proposal", "usage", "error", "done"]
     data: dict[str, JsonValue]
 
+
 @runtime_checkable
 class AssistantProvider(Protocol):
-    name: ClassVar[str]               # "anthropic"
+    name: ClassVar[str]  # "anthropic"
+
     def configure(self, settings: "ProviderSettings", secret: str) -> None: ...
-    def run_turn(self, conversation: "Conversation", tools: Sequence[ToolSpec],
-                 execute: Callable[[str, dict[str, JsonValue]], "Envelope"],
-                 on_event: Callable[[AssistantEvent], None], cancel: "CancelToken") -> "Conversation": ...
+    def run_turn(
+        self,
+        conversation: "Conversation",
+        tools: Sequence[ToolSpec],
+        execute: Callable[[str, dict[str, JsonValue]], "Envelope"],
+        on_event: Callable[[AssistantEvent], None],
+        cancel: "CancelToken",
+    ) -> "Conversation": ...
 ```
 
 - Providers register under the entry point `open_analysis.assistant_providers`.

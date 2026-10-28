@@ -1,0 +1,333 @@
+{
+ "components": [],
+ "diagnostics": [],
+ "diff_pairs": [],
+ "meta": {
+  "arc_tolerance": 1e-06,
+  "created_utc": "2026-01-01T00:00:00Z",
+  "name": "oa_testkit_stripline",
+  "reader": "oa-testkit 0.1.0",
+  "source_file": null,
+  "source_hash": null,
+  "source_tool": "synthetic",
+  "source_version": null
+ },
+ "net_classes": [
+  {
+   "clearance": null,
+   "dp_gap": null,
+   "dp_width": null,
+   "name": "Z50",
+   "patterns": [],
+   "source": null,
+   "target_tolerance": 0.1,
+   "target_z_diff": null,
+   "target_z_se": 50.0,
+   "track_width": 0.0003,
+   "tuning_profile": null,
+   "via_diameter": null,
+   "via_drill": null
+  }
+ ],
+ "nets": [
+  {
+   "id": "SIG",
+   "kind": "signal",
+   "net_class": "Z50",
+   "source": null
+  },
+  {
+   "id": "GND",
+   "kind": "ground",
+   "net_class": null,
+   "source": null
+  }
+ ],
+ "outline": {
+  "edges": [],
+  "extra_boards": [],
+  "polygon": {
+   "exterior": [
+    0.0,
+    -0.005,
+    0.025,
+    -0.005,
+    0.025,
+    0.005,
+    0.0,
+    0.005
+   ],
+   "holes": []
+  }
+ },
+ "pads": [],
+ "padstacks": [],
+ "schema_version": "1.0",
+ "shapes": [],
+ "stackup": {
+  "finish": null,
+  "known": true,
+  "layers": [
+   {
+    "etch": null,
+    "id": "L1",
+    "index": 1,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L1",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.00047000000000000004,
+    "z_top": 0.000505
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D1",
+    "index": 1,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0002,
+    "z_bottom": 0.00027,
+    "z_top": 0.00047000000000000004
+   },
+   {
+    "etch": null,
+    "id": "L2",
+    "index": 2,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "signal",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L2",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.00023500000000000002,
+    "z_top": 0.00027
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D2",
+    "index": 2,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0002,
+    "z_bottom": 3.5e-05,
+    "z_top": 0.00023500000000000002
+   },
+   {
+    "etch": null,
+    "id": "L3",
+    "index": 3,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L3",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.0,
+    "z_top": 3.5e-05
+   }
+  ],
+  "materials": [
+   {
+    "dk_z_over_dk_xy": 1.0,
+    "kind": "dielectric",
+    "model": {
+     "df": 0.02,
+     "dk": 4.3,
+     "f_ref": 1000000000.0,
+     "kind": "constant"
+    },
+    "name": "FR4_generic",
+    "source": "default",
+    "thermal": null
+   },
+   {
+    "conductivity": 58000000.0,
+    "kind": "conductor",
+    "mu_r": 1.0,
+    "name": "copper",
+    "source": "default",
+    "t_ref": 293.15,
+    "temp_coeff": 0.00393,
+    "thermal": {
+     "density": null,
+     "emissivity": null,
+     "k_xy": 390.0,
+     "k_z": 390.0,
+     "specific_heat": null
+    }
+   }
+  ],
+  "total_thickness": 0.000505
+ },
+ "tracks": [
+  {
+   "end_caps": "round",
+   "id": "trk:SIG:1",
+   "layer": "L2",
+   "net": "SIG",
+   "path": [
+    {
+     "end": [
+      0.025,
+      0.0
+     ],
+     "kind": "line",
+     "start": [
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "source": {
+    "name": null,
+    "token": "segment",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "width": 0.0002
+  }
+ ],
+ "vias": [],
+ "zones": [
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L1",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        -0.005,
+        0.025,
+        -0.005,
+        0.025,
+        0.005,
+        0.0,
+        0.005
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L1",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L1"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.005,
+     0.025,
+     -0.005,
+     0.025,
+     0.005,
+     0.0,
+     0.005
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L3",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        -0.005,
+        0.025,
+        -0.005,
+        0.025,
+        0.005,
+        0.0,
+        0.005
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L3",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L3"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.005,
+     0.025,
+     -0.005,
+     0.025,
+     0.005,
+     0.0,
+     0.005
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ]
+}

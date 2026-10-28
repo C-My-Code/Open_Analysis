@@ -1,0 +1,457 @@
+{
+ "components": [
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:J1.1",
+    "pad:J1.2"
+   ],
+   "position": [
+    0.0,
+    0.0
+   ],
+   "refdes": "J1",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:J2.1",
+    "pad:J2.2"
+   ],
+   "position": [
+    0.025,
+    0.0
+   ],
+   "refdes": "J2",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  }
+ ],
+ "diagnostics": [],
+ "diff_pairs": [
+  {
+   "id": "dp:DP",
+   "n_net": "DP_N",
+   "origin": "naming",
+   "p_net": "DP_P",
+   "target_z_diff": 90.0
+  }
+ ],
+ "meta": {
+  "arc_tolerance": 1e-06,
+  "created_utc": "2026-01-01T00:00:00Z",
+  "name": "oa_testkit_diff_pair",
+  "reader": "oa-testkit 0.1.0",
+  "source_file": null,
+  "source_hash": null,
+  "source_tool": "synthetic",
+  "source_version": null
+ },
+ "net_classes": [
+  {
+   "clearance": null,
+   "dp_gap": 0.00015,
+   "dp_width": 0.00015,
+   "name": "Z90",
+   "patterns": [],
+   "source": null,
+   "target_tolerance": 0.1,
+   "target_z_diff": 90.0,
+   "target_z_se": null,
+   "track_width": null,
+   "tuning_profile": null,
+   "via_diameter": null,
+   "via_drill": null
+  }
+ ],
+ "nets": [
+  {
+   "id": "DP_P",
+   "kind": "signal",
+   "net_class": "Z90",
+   "source": null
+  },
+  {
+   "id": "DP_N",
+   "kind": "signal",
+   "net_class": "Z90",
+   "source": null
+  },
+  {
+   "id": "GND",
+   "kind": "ground",
+   "net_class": null,
+   "source": null
+  }
+ ],
+ "outline": {
+  "edges": [],
+  "extra_boards": [],
+  "polygon": {
+   "exterior": [
+    -0.005,
+    -0.00515,
+    0.030000000000000002,
+    -0.00515,
+    0.030000000000000002,
+    0.00515,
+    -0.005,
+    0.00515
+   ],
+   "holes": []
+  }
+ },
+ "pads": [
+  {
+   "component": "J1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:J1.1",
+   "kind": "smd",
+   "net": "DP_P",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0,
+    0.00015
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "J2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:J2.1",
+   "kind": "smd",
+   "net": "DP_P",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.025,
+    0.00015
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "J1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:J1.2",
+   "kind": "smd",
+   "net": "DP_N",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0,
+    -0.00015
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "J2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:J2.2",
+   "kind": "smd",
+   "net": "DP_N",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.025,
+    -0.00015
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ],
+ "padstacks": [
+  {
+   "drill": null,
+   "id": "smd_L1",
+   "keep_end_layers": true,
+   "layers": [
+    {
+     "antipad": null,
+     "connection": "unknown",
+     "layer": "L1",
+     "pad": {
+      "height": 0.0006,
+      "kind": "rect",
+      "width": 0.0006
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    }
+   ],
+   "mask_opening_bottom": null,
+   "mask_opening_top": null,
+   "remove_unused_layers": false
+  }
+ ],
+ "schema_version": "1.0",
+ "shapes": [],
+ "stackup": {
+  "finish": null,
+  "known": true,
+  "layers": [
+   {
+    "etch": null,
+    "id": "L1",
+    "index": 1,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "signal",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L1",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.000135,
+    "z_top": 0.00017
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D1",
+    "index": 1,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0001,
+    "z_bottom": 3.5e-05,
+    "z_top": 0.000135
+   },
+   {
+    "etch": null,
+    "id": "L2",
+    "index": 2,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L2",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.0,
+    "z_top": 3.5e-05
+   }
+  ],
+  "materials": [
+   {
+    "dk_z_over_dk_xy": 1.0,
+    "kind": "dielectric",
+    "model": {
+     "df": 0.02,
+     "dk": 4.3,
+     "f_ref": 1000000000.0,
+     "kind": "constant"
+    },
+    "name": "FR4_generic",
+    "source": "default",
+    "thermal": null
+   },
+   {
+    "conductivity": 58000000.0,
+    "kind": "conductor",
+    "mu_r": 1.0,
+    "name": "copper",
+    "source": "default",
+    "t_ref": 293.15,
+    "temp_coeff": 0.00393,
+    "thermal": {
+     "density": null,
+     "emissivity": null,
+     "k_xy": 390.0,
+     "k_z": 390.0,
+     "specific_heat": null
+    }
+   }
+  ],
+  "total_thickness": 0.00017
+ },
+ "tracks": [
+  {
+   "end_caps": "round",
+   "id": "trk:DP_P:1",
+   "layer": "L1",
+   "net": "DP_P",
+   "path": [
+    {
+     "end": [
+      0.025,
+      0.00015
+     ],
+     "kind": "line",
+     "start": [
+      0.0,
+      0.00015
+     ]
+    }
+   ],
+   "source": {
+    "name": null,
+    "token": "segment",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "width": 0.00015
+  },
+  {
+   "end_caps": "round",
+   "id": "trk:DP_N:1",
+   "layer": "L1",
+   "net": "DP_N",
+   "path": [
+    {
+     "end": [
+      0.025,
+      -0.00015
+     ],
+     "kind": "line",
+     "start": [
+      0.0,
+      -0.00015
+     ]
+    }
+   ],
+   "source": {
+    "name": null,
+    "token": "segment",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "width": 0.00015
+  }
+ ],
+ "vias": [],
+ "zones": [
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L2",
+     "polygons": [
+      {
+       "exterior": [
+        -0.005,
+        -0.00515,
+        0.030000000000000002,
+        -0.00515,
+        0.030000000000000002,
+        0.00515,
+        -0.005,
+        0.00515
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L2",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L2"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     -0.005,
+     -0.00515,
+     0.030000000000000002,
+     -0.00515,
+     0.030000000000000002,
+     0.00515,
+     -0.005,
+     0.00515
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ]
+}

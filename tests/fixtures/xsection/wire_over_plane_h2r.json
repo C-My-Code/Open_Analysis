@@ -1,0 +1,64 @@
+{
+ "name": "wire_over_plane_h2r",
+ "kind": "analytic",
+ "source": "analytic: Z0 = eta0/(2 pi sqrt(er)) acosh(h/r) (method of images; textbook result, e.g. Ramo, Whinnery & Van Duzer, Fields and Waves in Communication Electronics, two-wire/image-theory sections)",
+ "note": "Air, r = 0.25 mm; the plane is infinite and zero thickness.",
+ "rtol": 0.0001,
+ "expected": {
+  "z0": 78.96280904330571,
+  "eeff": 1.0
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "circle",
+     "u_center": 0.0,
+     "z_center": 0.0005,
+     "radius": 0.00025
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g1",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [],
+  "background_dk": 1.0,
+  "topology_hint": "wire_over_plane",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

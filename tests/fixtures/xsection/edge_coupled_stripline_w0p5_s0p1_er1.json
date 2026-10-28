@@ -1,0 +1,132 @@
+{
+ "name": "edge_coupled_stripline_w0p5_s0p1_er1",
+ "kind": "analytic",
+ "source": "analytic: Z0e,o = eta0/(4 sqrt(er)) K(k')/K(k), ke = tanh(pi W/2b) tanh(pi (W+S)/2b), ko = tanh(pi W/2b) coth(pi (W+S)/2b); S. B. Cohn, 'Shielded Coupled-Strip Transmission Line', IRE Trans. MTT-3, Oct. 1955, pp. 29-38 (zero thickness, centred; strips modelled with t = 1e-4 b). zdiff = 2 Z0o, zcomm = Z0e/2.",
+ "note": "",
+ "rtol": 0.01,
+ "expected": {
+  "z0e": 122.88566524066987,
+  "z0o": 69.86609075266898,
+  "zdiff": 139.73218150533796,
+  "zcomm": 61.44283262033493,
+  "eeff": 1.0
+ },
+ "xsection": {
+  "schema": "oa-xsection/1",
+  "conductors": [
+   {
+    "id": "g1",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "s1",
+    "role": "signal",
+    "shape": {
+     "kind": "trapezoid",
+     "u_center": -0.00015000000000000001,
+     "z_bottom": 0.000249975,
+     "w_bottom": 0.00025,
+     "w_top": 0.00025,
+     "thickness": 5.0000000000000004e-08
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "s2",
+    "role": "signal",
+    "shape": {
+     "kind": "trapezoid",
+     "u_center": 0.00015000000000000001,
+     "z_bottom": 0.000249975,
+     "w_bottom": 0.00025,
+     "w_top": 0.00025,
+     "thickness": 5.0000000000000004e-08
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   },
+   {
+    "id": "g2",
+    "role": "ground",
+    "shape": {
+     "kind": "plane",
+     "z_bottom": 0.0005,
+     "thickness": 0.0,
+     "u_min": null,
+     "u_max": null
+    },
+    "net": null,
+    "conductivity": 58000000.0,
+    "roughness_top": {
+     "kind": "none"
+    },
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    }
+   }
+  ],
+  "dielectrics": [
+   {
+    "region": {
+     "kind": "slab",
+     "z_bottom": 0.0,
+     "z_top": 0.0005,
+     "u_min": null,
+     "u_max": null
+    },
+    "model": {
+     "kind": "constant",
+     "dk": 1.0,
+     "df": 0.0,
+     "f_ref": 1000000000.0
+    },
+    "dk_z_over_dk_xy": 1.0,
+    "priority": 0
+   }
+  ],
+  "background_dk": 1.0,
+  "topology_hint": "edge_coupled_stripline",
+  "symmetric_about_u0": true,
+  "provenance": null
+ }
+}

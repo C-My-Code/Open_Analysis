@@ -1,0 +1,1509 @@
+{
+ "components": [
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:U1.1",
+    "pad:U1.2"
+   ],
+   "position": [
+    0.004,
+    0.0
+   ],
+   "refdes": "U1",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:U2.1",
+    "pad:U2.2"
+   ],
+   "position": [
+    0.036000000000000004,
+    0.0
+   ],
+   "refdes": "U2",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:C1.1",
+    "pad:C1.2"
+   ],
+   "position": [
+    0.007,
+    0.0
+   ],
+   "refdes": "C1",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:C2.1",
+    "pad:C2.2"
+   ],
+   "position": [
+    0.0086,
+    0.0
+   ],
+   "refdes": "C2",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:C3.1",
+    "pad:C3.2"
+   ],
+   "position": [
+    0.0102,
+    0.0
+   ],
+   "refdes": "C3",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  },
+  {
+   "body_height": null,
+   "courtyard": null,
+   "dnp": false,
+   "exclude_from_bom": false,
+   "fields": [],
+   "footprint": "oa_testkit:SMD_PAD",
+   "model_ref": null,
+   "pads": [
+    "pad:C4.1",
+    "pad:C4.2"
+   ],
+   "position": [
+    0.011800000000000001,
+    0.0
+   ],
+   "refdes": "C4",
+   "rotation": 0.0,
+   "side": "top",
+   "source": {
+    "name": null,
+    "token": "footprint",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "value": null
+  }
+ ],
+ "diagnostics": [],
+ "diff_pairs": [],
+ "meta": {
+  "arc_tolerance": 1e-06,
+  "created_utc": "2026-01-01T00:00:00Z",
+  "name": "oa_testkit_power_plane",
+  "reader": "oa-testkit 0.1.0",
+  "source_file": null,
+  "source_hash": null,
+  "source_tool": "synthetic",
+  "source_version": null
+ },
+ "net_classes": [],
+ "nets": [
+  {
+   "id": "VDD",
+   "kind": "power",
+   "net_class": null,
+   "source": null
+  },
+  {
+   "id": "GND",
+   "kind": "ground",
+   "net_class": null,
+   "source": null
+  }
+ ],
+ "outline": {
+  "edges": [],
+  "extra_boards": [],
+  "polygon": {
+   "exterior": [
+    0.0,
+    -0.015,
+    0.04,
+    -0.015,
+    0.04,
+    0.015,
+    0.0,
+    0.015
+   ],
+   "holes": []
+  }
+ },
+ "pads": [
+  {
+   "component": "U1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:U1.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.004,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "U1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:U1.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.004,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "U2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:U2.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.036000000000000004,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "U2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:U2.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.036000000000000004,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C1.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.007,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C1",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C1.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.007,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C2.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0086,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C2",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C2.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0086,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C3",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C3.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0102,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C3",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C3.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.0102,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C4",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C4.1",
+   "kind": "smd",
+   "net": "VDD",
+   "number": "1",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.011800000000000001,
+    0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "component": "C4",
+   "die_delay": null,
+   "die_length": null,
+   "id": "pad:C4.2",
+   "kind": "smd",
+   "net": "GND",
+   "number": "2",
+   "padstack": "smd_L1",
+   "pin_function": null,
+   "pin_type": null,
+   "position": [
+    0.011800000000000001,
+    -0.00075
+   ],
+   "rotation": 0.0,
+   "source": {
+    "name": null,
+    "token": "pad",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ],
+ "padstacks": [
+  {
+   "drill": null,
+   "id": "smd_L1",
+   "keep_end_layers": true,
+   "layers": [
+    {
+     "antipad": null,
+     "connection": "unknown",
+     "layer": "L1",
+     "pad": {
+      "height": 0.0008,
+      "kind": "rect",
+      "width": 0.0008
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    }
+   ],
+   "mask_opening_bottom": null,
+   "mask_opening_top": null,
+   "remove_unused_layers": false
+  },
+  {
+   "drill": {
+    "diameter": 0.0002,
+    "kind": "plated",
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "plating_thickness": 2.5e-05,
+    "shape": "round",
+    "slot_length": null
+   },
+   "id": "via_vdd",
+   "keep_end_layers": true,
+   "layers": [
+    {
+     "antipad": null,
+     "connection": "unknown",
+     "layer": "L1",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    },
+    {
+     "antipad": {
+      "diameter": 0.0008,
+      "kind": "circle"
+     },
+     "connection": "unknown",
+     "layer": "L2",
+     "pad": null,
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    },
+    {
+     "antipad": null,
+     "connection": "unknown",
+     "layer": "L3",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    }
+   ],
+   "mask_opening_bottom": null,
+   "mask_opening_top": null,
+   "remove_unused_layers": false
+  },
+  {
+   "drill": {
+    "diameter": 0.0002,
+    "kind": "plated",
+    "offset": [
+     0.0,
+     0.0
+    ],
+    "plating_thickness": 2.5e-05,
+    "shape": "round",
+    "slot_length": null
+   },
+   "id": "via_gnd",
+   "keep_end_layers": true,
+   "layers": [
+    {
+     "antipad": null,
+     "connection": "unknown",
+     "layer": "L1",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    },
+    {
+     "antipad": null,
+     "connection": "solid",
+     "layer": "L2",
+     "pad": {
+      "diameter": 0.0004,
+      "kind": "circle"
+     },
+     "thermal_gap": null,
+     "thermal_spoke_width": null
+    }
+   ],
+   "mask_opening_bottom": null,
+   "mask_opening_top": null,
+   "remove_unused_layers": false
+  }
+ ],
+ "schema_version": "1.0",
+ "shapes": [],
+ "stackup": {
+  "finish": null,
+  "known": true,
+  "layers": [
+   {
+    "etch": null,
+    "id": "L1",
+    "index": 1,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "signal",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L1",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.000905,
+    "z_top": 0.00094
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D1",
+    "index": 1,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0002,
+    "z_bottom": 0.000705,
+    "z_top": 0.000905
+   },
+   {
+    "etch": null,
+    "id": "L2",
+    "index": 2,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L2",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.00067,
+    "z_top": 0.000705
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D2",
+    "index": 2,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0004,
+    "z_bottom": 0.00027,
+    "z_top": 0.00067
+   },
+   {
+    "etch": null,
+    "id": "L3",
+    "index": 3,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "plane",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L3",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.00023500000000000002,
+    "z_top": 0.00027
+   },
+   {
+    "construction": "core",
+    "fills_between_traces": true,
+    "id": "D3",
+    "index": 3,
+    "kind": "dielectric",
+    "material": "FR4_generic",
+    "source_name": null,
+    "thickness": 0.0002,
+    "z_bottom": 3.5e-05,
+    "z_top": 0.00023500000000000002
+   },
+   {
+    "etch": null,
+    "id": "L4",
+    "index": 4,
+    "kind": "conductor",
+    "material": "copper",
+    "plating_thickness": null,
+    "role": "signal",
+    "roughness_bottom": {
+     "kind": "none"
+    },
+    "roughness_side": {
+     "kind": "none"
+    },
+    "roughness_top": {
+     "kind": "none"
+    },
+    "source_name": "L4",
+    "thickness": 3.5e-05,
+    "user_name": null,
+    "z_bottom": 0.0,
+    "z_top": 3.5e-05
+   }
+  ],
+  "materials": [
+   {
+    "dk_z_over_dk_xy": 1.0,
+    "kind": "dielectric",
+    "model": {
+     "df": 0.02,
+     "dk": 4.3,
+     "f_ref": 1000000000.0,
+     "kind": "constant"
+    },
+    "name": "FR4_generic",
+    "source": "default",
+    "thermal": null
+   },
+   {
+    "conductivity": 58000000.0,
+    "kind": "conductor",
+    "mu_r": 1.0,
+    "name": "copper",
+    "source": "default",
+    "t_ref": 293.15,
+    "temp_coeff": 0.00393,
+    "thermal": {
+     "density": null,
+     "emissivity": null,
+     "k_xy": 390.0,
+     "k_z": 390.0,
+     "specific_heat": null
+    }
+   }
+  ],
+  "total_thickness": 0.00094
+ },
+ "tracks": [],
+ "vias": [
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:U1",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.004,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:U1",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.004,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:U2",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.036000000000000004,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:U2",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.036000000000000004,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:C1",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.007,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:C1",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.007,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:C2",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.0086,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:C2",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0086,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:C3",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.0102,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:C3",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.0102,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L3",
+   "id": "via:VDD:C4",
+   "kind": "blind",
+   "net": "VDD",
+   "padstack": "via_vdd",
+   "position": [
+    0.011800000000000001,
+    0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  },
+  {
+   "backdrills": [],
+   "end_layer": "L2",
+   "id": "via:GND:C4",
+   "kind": "blind",
+   "net": "GND",
+   "padstack": "via_gnd",
+   "position": [
+    0.011800000000000001,
+    -0.00075
+   ],
+   "protection": {
+    "capped": false,
+    "fill_material": null,
+    "filled": "none",
+    "plugged": false,
+    "tented_bottom": false,
+    "tented_top": false
+   },
+   "source": {
+    "name": null,
+    "token": "via",
+    "tool": "synthetic",
+    "uuid": null
+   },
+   "start_layer": "L1"
+  }
+ ],
+ "zones": [
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L2",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        -0.015,
+        0.04,
+        -0.015,
+        0.04,
+        0.015,
+        0.0,
+        0.015
+       ],
+       "holes": [
+        [
+         0.004386370330515628,
+         0.0006464723819589914,
+         0.004346410161513776,
+         0.0005499999999999998,
+         0.0042828427124746195,
+         0.00046715728752538095,
+         0.0042,
+         0.00040358983848622456,
+         0.004103527618041008,
+         0.00036362966948437264,
+         0.004,
+         0.00035,
+         0.003896472381958992,
+         0.0003636296694843727,
+         0.0038,
+         0.0004035898384862246,
+         0.0037171572875253807,
+         0.00046715728752538116,
+         0.0036535898384862245,
+         0.0005500000000000001,
+         0.0036136296694843726,
+         0.0006464723819589917,
+         0.0036,
+         0.00075,
+         0.0036136296694843726,
+         0.0008535276180410084,
+         0.0036535898384862245,
+         0.00095,
+         0.003717157287525381,
+         0.001032842712474619,
+         0.0038,
+         0.0010964101615137756,
+         0.003896472381958992,
+         0.0011363703305156273,
+         0.004,
+         0.00115,
+         0.004103527618041008,
+         0.0011363703305156273,
+         0.0042,
+         0.0010964101615137754,
+         0.0042828427124746195,
+         0.001032842712474619,
+         0.004346410161513776,
+         0.00095,
+         0.004386370330515628,
+         0.0008535276180410083,
+         0.0044,
+         0.00075
+        ],
+        [
+         0.03638637033051563,
+         0.0006464723819589914,
+         0.03634641016151378,
+         0.0005499999999999998,
+         0.036282842712474624,
+         0.00046715728752538095,
+         0.0362,
+         0.00040358983848622456,
+         0.03610352761804101,
+         0.00036362966948437264,
+         0.036000000000000004,
+         0.00035,
+         0.035896472381959,
+         0.0003636296694843727,
+         0.035800000000000005,
+         0.0004035898384862246,
+         0.035717157287525385,
+         0.00046715728752538116,
+         0.03565358983848623,
+         0.0005500000000000001,
+         0.03561362966948438,
+         0.0006464723819589917,
+         0.03560000000000001,
+         0.00075,
+         0.03561362966948438,
+         0.0008535276180410084,
+         0.03565358983848623,
+         0.00095,
+         0.035717157287525385,
+         0.001032842712474619,
+         0.035800000000000005,
+         0.0010964101615137756,
+         0.035896472381959,
+         0.0011363703305156273,
+         0.036000000000000004,
+         0.00115,
+         0.03610352761804101,
+         0.0011363703305156273,
+         0.0362,
+         0.0010964101615137754,
+         0.036282842712474624,
+         0.001032842712474619,
+         0.03634641016151378,
+         0.00095,
+         0.03638637033051563,
+         0.0008535276180410083,
+         0.0364,
+         0.00075
+        ],
+        [
+         0.007386370330515628,
+         0.0006464723819589914,
+         0.007346410161513776,
+         0.0005499999999999998,
+         0.007282842712474619,
+         0.00046715728752538095,
+         0.0072,
+         0.00040358983848622456,
+         0.007103527618041008,
+         0.00036362966948437264,
+         0.007,
+         0.00035,
+         0.006896472381958992,
+         0.0003636296694843727,
+         0.0068,
+         0.0004035898384862246,
+         0.006717157287525381,
+         0.00046715728752538116,
+         0.006653589838486225,
+         0.0005500000000000001,
+         0.006613629669484373,
+         0.0006464723819589917,
+         0.0066,
+         0.00075,
+         0.006613629669484373,
+         0.0008535276180410084,
+         0.006653589838486225,
+         0.00095,
+         0.006717157287525381,
+         0.001032842712474619,
+         0.0068000000000000005,
+         0.0010964101615137756,
+         0.006896472381958992,
+         0.0011363703305156273,
+         0.007,
+         0.00115,
+         0.007103527618041008,
+         0.0011363703305156273,
+         0.0072,
+         0.0010964101615137754,
+         0.0072828427124746195,
+         0.001032842712474619,
+         0.007346410161513776,
+         0.00095,
+         0.007386370330515628,
+         0.0008535276180410083,
+         0.0074,
+         0.00075
+        ],
+        [
+         0.008986370330515627,
+         0.0006464723819589914,
+         0.008946410161513775,
+         0.0005499999999999998,
+         0.00888284271247462,
+         0.00046715728752538095,
+         0.0088,
+         0.00040358983848622456,
+         0.008703527618041008,
+         0.00036362966948437264,
+         0.0086,
+         0.00035,
+         0.008496472381958992,
+         0.0003636296694843727,
+         0.0084,
+         0.0004035898384862246,
+         0.00831715728752538,
+         0.00046715728752538116,
+         0.008253589838486224,
+         0.0005500000000000001,
+         0.008213629669484373,
+         0.0006464723819589917,
+         0.0082,
+         0.00075,
+         0.008213629669484373,
+         0.0008535276180410084,
+         0.008253589838486225,
+         0.00095,
+         0.00831715728752538,
+         0.001032842712474619,
+         0.0084,
+         0.0010964101615137756,
+         0.008496472381958992,
+         0.0011363703305156273,
+         0.0086,
+         0.00115,
+         0.008703527618041008,
+         0.0011363703305156273,
+         0.0088,
+         0.0010964101615137754,
+         0.00888284271247462,
+         0.001032842712474619,
+         0.008946410161513775,
+         0.00095,
+         0.008986370330515627,
+         0.0008535276180410083,
+         0.009,
+         0.00075
+        ],
+        [
+         0.010586370330515628,
+         0.0006464723819589914,
+         0.010546410161513775,
+         0.0005499999999999998,
+         0.01048284271247462,
+         0.00046715728752538095,
+         0.010400000000000001,
+         0.00040358983848622456,
+         0.010303527618041009,
+         0.00036362966948437264,
+         0.0102,
+         0.00035,
+         0.010096472381958993,
+         0.0003636296694843727,
+         0.01,
+         0.0004035898384862246,
+         0.009917157287525381,
+         0.00046715728752538116,
+         0.009853589838486224,
+         0.0005500000000000001,
+         0.009813629669484373,
+         0.0006464723819589917,
+         0.009800000000000001,
+         0.00075,
+         0.009813629669484373,
+         0.0008535276180410084,
+         0.009853589838486226,
+         0.00095,
+         0.009917157287525381,
+         0.001032842712474619,
+         0.01,
+         0.0010964101615137756,
+         0.010096472381958993,
+         0.0011363703305156273,
+         0.0102,
+         0.00115,
+         0.010303527618041009,
+         0.0011363703305156273,
+         0.010400000000000001,
+         0.0010964101615137754,
+         0.01048284271247462,
+         0.001032842712474619,
+         0.010546410161513775,
+         0.00095,
+         0.010586370330515628,
+         0.0008535276180410083,
+         0.0106,
+         0.00075
+        ],
+        [
+         0.012186370330515629,
+         0.0006464723819589914,
+         0.012146410161513776,
+         0.0005499999999999998,
+         0.01208284271247462,
+         0.00046715728752538095,
+         0.012000000000000002,
+         0.00040358983848622456,
+         0.01190352761804101,
+         0.00036362966948437264,
+         0.011800000000000001,
+         0.00035,
+         0.011696472381958993,
+         0.0003636296694843727,
+         0.011600000000000001,
+         0.0004035898384862246,
+         0.011517157287525382,
+         0.00046715728752538116,
+         0.011453589838486225,
+         0.0005500000000000001,
+         0.011413629669484374,
+         0.0006464723819589917,
+         0.011400000000000002,
+         0.00075,
+         0.011413629669484374,
+         0.0008535276180410084,
+         0.011453589838486227,
+         0.00095,
+         0.011517157287525382,
+         0.001032842712474619,
+         0.011600000000000001,
+         0.0010964101615137756,
+         0.011696472381958993,
+         0.0011363703305156273,
+         0.011800000000000001,
+         0.00115,
+         0.01190352761804101,
+         0.0011363703305156273,
+         0.012000000000000002,
+         0.0010964101615137754,
+         0.01208284271247462,
+         0.001032842712474619,
+         0.012146410161513776,
+         0.00095,
+         0.012186370330515629,
+         0.0008535276180410083,
+         0.0122,
+         0.00075
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:GND:L2",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L2"
+   ],
+   "min_thickness": null,
+   "net": "GND",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.015,
+     0.04,
+     -0.015,
+     0.04,
+     0.015,
+     0.0,
+     0.015
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  },
+  {
+   "fill_state": "filled",
+   "fills": [
+    {
+     "layer": "L3",
+     "polygons": [
+      {
+       "exterior": [
+        0.0,
+        -0.015,
+        0.04,
+        -0.015,
+        0.04,
+        0.015,
+        0.0,
+        0.015
+       ],
+       "holes": []
+      }
+     ]
+    }
+   ],
+   "hatch": false,
+   "id": "zone:VDD:L3",
+   "is_teardrop": false,
+   "keepout": null,
+   "layers": [
+    "L3"
+   ],
+   "min_thickness": null,
+   "net": "VDD",
+   "outline": {
+    "exterior": [
+     0.0,
+     -0.015,
+     0.04,
+     -0.015,
+     0.04,
+     0.015,
+     0.0,
+     0.015
+    ],
+    "holes": []
+   },
+   "priority": 0,
+   "source": {
+    "name": null,
+    "token": "zone",
+    "tool": "synthetic",
+    "uuid": null
+   }
+  }
+ ]
+}
