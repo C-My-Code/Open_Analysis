@@ -1,0 +1,36 @@
+{
+  "$id": "oa.export_info/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A written export.",
+  "properties": {
+    "media_type": {
+      "description": "IANA media type.",
+      "title": "Media Type",
+      "type": "string"
+    },
+    "path": {
+      "description": "Absolute path of the file (first file for multi-file formats).",
+      "title": "Path",
+      "type": "string"
+    },
+    "sha256": {
+      "description": "SHA-256 of the file.",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "size": {
+      "description": "Size [B].",
+      "title": "Size",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "path",
+    "media_type",
+    "size",
+    "sha256"
+  ],
+  "title": "ExportInfo",
+  "type": "object"
+}

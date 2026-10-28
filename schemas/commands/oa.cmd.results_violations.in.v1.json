@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "PageRequest": {
+      "additionalProperties": false,
+      "description": "Paging window shared by every list command.",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum items to return [1].",
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Index of the first item to return [1].",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        }
+      },
+      "title": "PageRequest",
+      "type": "object"
+    }
+  },
+  "$id": "oa.cmd.results_violations.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Filters for results.violations; ANDed.",
+  "properties": {
+    "fields": {
+      "default": "brief",
+      "description": "Detail level.",
+      "enum": [
+        "brief",
+        "full"
+      ],
+      "title": "Fields",
+      "type": "string"
+    },
+    "include_waived": {
+      "default": false,
+      "description": "Include waived violations.",
+      "title": "Include Waived",
+      "type": "boolean"
+    },
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Violations item id; required when the bundle has several.",
+      "title": "Item Id"
+    },
+    "layer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Layer id.",
+      "title": "Layer"
+    },
+    "net": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "fnmatch glob on the net names.",
+      "title": "Net"
+    },
+    "page": {
+      "$ref": "#/$defs/PageRequest",
+      "description": "Paging window."
+    },
+    "result_id": {
+      "description": "Result id (ULID) of an analysis with a violations item.",
+      "title": "Result Id",
+      "type": "string"
+    },
+    "rule_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "fnmatch glob on the rule id, 'IM-*'.",
+      "title": "Rule Id"
+    },
+    "severity_min": {
+      "default": "info",
+      "description": "Lowest severity to include.",
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "title": "Severity Min",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result_id"
+  ],
+  "title": "ViolationQuery",
+  "type": "object"
+}

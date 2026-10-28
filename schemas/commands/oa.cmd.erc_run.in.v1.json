@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "Budget": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_external": {
+          "default": true,
+          "description": "Whether external solver binaries may run.",
+          "title": "Allow External",
+          "type": "boolean"
+        },
+        "allowed_tools": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allow-list of logical tool names; None = all configured tools.",
+          "title": "Allowed Tools"
+        },
+        "max_cpus": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum concurrent worker processes/threads [1].",
+          "title": "Max Cpus"
+        },
+        "max_memory_gb": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Peak resident memory across workers and external processes [GB].",
+          "title": "Max Memory Gb"
+        },
+        "max_runtime_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wall-clock limit for the whole job [s].",
+          "title": "Max Runtime S"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "$id": "oa.cmd.erc_run.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Run the electrical rule check.",
+  "properties": {
+    "budget": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Budget"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Per-call budget, clamped to the ceiling."
+    },
+    "dry_run": {
+      "default": false,
+      "description": "Estimate only; start no job.",
+      "title": "Dry Run",
+      "type": "boolean"
+    },
+    "executor": {
+      "default": "process",
+      "description": "Where tasks run.",
+      "enum": [
+        "inline",
+        "process"
+      ],
+      "title": "Executor",
+      "type": "string"
+    },
+    "nets": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "NetSelector limiting the nets checked (names, net_classes, ...).",
+      "title": "Nets"
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "rules": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Per-rule overrides {RULE_ID: {enabled, severity, ...thresholds}}.",
+      "title": "Rules"
+    },
+    "setup": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Stored setup name (analysis 'erc').",
+      "title": "Setup"
+    },
+    "wait_s": {
+      "default": 20.0,
+      "description": "Wait for the result [s].",
+      "maximum": 3600,
+      "minimum": 0,
+      "title": "Wait S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "ErcRunIn",
+  "type": "object"
+}

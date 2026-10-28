@@ -1,0 +1,168 @@
+{
+  "$id": "oa.xs_impedance/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Impedance results for one cross-section at several frequencies.",
+  "properties": {
+    "accuracy_class": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Accuracy class, if stated.",
+      "title": "Accuracy Class"
+    },
+    "delay_s_per_m": {
+      "description": "Propagation delay [s/m].",
+      "items": {
+        "type": "number"
+      },
+      "title": "Delay S Per M",
+      "type": "array"
+    },
+    "eps_eff": {
+      "description": "Effective permittivity [1].",
+      "items": {
+        "type": "number"
+      },
+      "title": "Eps Eff",
+      "type": "array"
+    },
+    "freqs_hz": {
+      "description": "Frequencies [Hz].",
+      "items": {
+        "type": "number"
+      },
+      "title": "Freqs Hz",
+      "type": "array"
+    },
+    "loss_db_per_m": {
+      "description": "Attenuation [dB/m].",
+      "items": {
+        "type": "number"
+      },
+      "title": "Loss Db Per M",
+      "type": "array"
+    },
+    "method": {
+      "description": "Method actually used.",
+      "title": "Method",
+      "type": "string"
+    },
+    "model_name": {
+      "description": "Model or solver name.",
+      "title": "Model Name",
+      "type": "string"
+    },
+    "notes": {
+      "description": "Caveats from the solver.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "xs_key": {
+      "description": "Content hash of the cross-section.",
+      "title": "Xs Key",
+      "type": "string"
+    },
+    "z0_ohm": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Single-ended Z0 [ohm].",
+      "title": "Z0 Ohm"
+    },
+    "zcomm_ohm": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Common-mode Z [ohm].",
+      "title": "Zcomm Ohm"
+    },
+    "zdiff_ohm": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Differential Z [ohm].",
+      "title": "Zdiff Ohm"
+    },
+    "zeven_ohm": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Even-mode Z [ohm].",
+      "title": "Zeven Ohm"
+    },
+    "zodd_ohm": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Odd-mode Z [ohm].",
+      "title": "Zodd Ohm"
+    }
+  },
+  "required": [
+    "xs_key",
+    "method",
+    "model_name",
+    "freqs_hz",
+    "eps_eff",
+    "delay_s_per_m",
+    "loss_db_per_m",
+    "notes"
+  ],
+  "title": "XsImpedance",
+  "type": "object"
+}

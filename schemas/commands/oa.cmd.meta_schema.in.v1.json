@@ -1,0 +1,23 @@
+{
+  "$id": "oa.cmd.meta_schema.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Fetch a schema by id, or list them.",
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Schema id, for example 'oa.board_summary/1'.",
+      "title": "Id"
+    }
+  },
+  "title": "SchemaIn",
+  "type": "object"
+}

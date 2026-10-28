@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-service"
+version = "0.1.0"
+description = "Command catalog, project sessions and envelopes shared by the CLI, REST, MCP and assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-results",
+    "oa-framework",
+    "oa-jobs",
+    "oa-geometry",
+    "oa-ingest-kicad",
+    "oa-ingest-ipc2581",
+    "oa-kicad-bridge",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+# oa_service.testing.FakeService serves oa_testkit boards.
+testing = ["oa-testkit"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_service"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-results = { workspace = true }
+oa-framework = { workspace = true }
+oa-jobs = { workspace = true }
+oa-geometry = { workspace = true }
+oa-ingest-kicad = { workspace = true }
+oa-ingest-ipc2581 = { workspace = true }
+oa-kicad-bridge = { workspace = true }
+oa-testkit = { workspace = true }

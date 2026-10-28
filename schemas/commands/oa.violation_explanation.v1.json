@@ -1,0 +1,364 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "RuleExplain": {
+      "additionalProperties": false,
+      "description": "Rule metadata for an explanation.",
+      "properties": {
+        "aliases": {
+          "description": "Alternative ids.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "category": {
+          "description": "Rule category.",
+          "title": "Category",
+          "type": "string"
+        },
+        "default_severity": {
+          "description": "Default severity.",
+          "title": "Default Severity",
+          "type": "string"
+        },
+        "explanation": {
+          "description": "Physics and rationale.",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "id": {
+          "description": "Rule id.",
+          "title": "Id",
+          "type": "string"
+        },
+        "references": {
+          "description": "Citations.",
+          "items": {
+            "type": "string"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "title": {
+          "description": "Rule title.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "category",
+        "aliases",
+        "default_severity",
+        "references",
+        "explanation"
+      ],
+      "title": "RuleExplain",
+      "type": "object"
+    },
+    "ViolationView": {
+      "additionalProperties": false,
+      "description": "A violation with its item references and remediation.",
+      "properties": {
+        "fingerprint": {
+          "description": "Stable violation hash.",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "fix_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "One-sentence remedy.",
+          "title": "Fix Hint"
+        },
+        "geometry_bbox_m": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Highlight bounding box (x0, y0, x1, y1) [m].",
+          "title": "Geometry Bbox M"
+        },
+        "items": {
+          "description": "Board item ids involved.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "kicad_mm": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Marker point in KiCad's frame, Y down [mm]; null if unknown.",
+          "title": "Kicad Mm"
+        },
+        "layers": {
+          "description": "Layers involved.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers",
+          "type": "array"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Limit in `unit`.",
+          "title": "Limit"
+        },
+        "location_m": {
+          "description": "Marker point in the board frame, Y up [m].",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Location M",
+          "type": "array"
+        },
+        "measured": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Measured value in `unit`.",
+          "title": "Measured"
+        },
+        "message": {
+          "description": "One sentence.",
+          "title": "Message",
+          "type": "string"
+        },
+        "nets": {
+          "description": "Nets involved.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Nets",
+          "type": "array"
+        },
+        "remediation": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Structured remediation.",
+          "title": "Remediation"
+        },
+        "rule_id": {
+          "description": "Stable rule id.",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "description": "Severity.",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SI unit of measured and limit.",
+          "title": "Unit"
+        },
+        "waived": {
+          "description": "True when a waiver applies.",
+          "title": "Waived",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fingerprint",
+        "rule_id",
+        "severity",
+        "message",
+        "nets",
+        "layers",
+        "location_m",
+        "items",
+        "waived"
+      ],
+      "title": "ViolationView",
+      "type": "object"
+    }
+  },
+  "$id": "oa.violation_explanation/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Deterministic explanation of a violation: facts, margin, context and a waiver snippet.",
+  "properties": {
+    "margin": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "measured - limit in `unit`.",
+      "title": "Margin"
+    },
+    "margin_rel": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "margin / limit [1].",
+      "title": "Margin Rel"
+    },
+    "nearby_items": {
+      "description": "Up to 20 item ids near the marker.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Nearby Items",
+      "type": "array"
+    },
+    "related": {
+      "description": "Up to 20 fingerprints of violations on the same nets or items.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Related",
+      "type": "array"
+    },
+    "remediation": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Structured remediation.",
+      "title": "Remediation"
+    },
+    "rule": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RuleExplain"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Rule metadata; null if the rule is not installed."
+    },
+    "violation": {
+      "$ref": "#/$defs/ViolationView",
+      "description": "The violation."
+    },
+    "waiver_yaml": {
+      "description": "Ready-to-paste waiver for oa/setups/*.yaml `waivers`.",
+      "title": "Waiver Yaml",
+      "type": "string"
+    }
+  },
+  "required": [
+    "violation",
+    "rule",
+    "nearby_items",
+    "related",
+    "waiver_yaml"
+  ],
+  "title": "ViolationExplanation",
+  "type": "object"
+}

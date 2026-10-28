@@ -1,0 +1,24 @@
+{
+  "$defs": {
+    "JsonValue": {}
+  },
+  "$id": "oa.doctor_out/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`oa doctor`: platform, external tools, KiCad and gmsh versions, optional packages.",
+  "properties": {
+    "report": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "Environment report; keys documented in `oa doctor`.",
+      "title": "Report",
+      "type": "object"
+    }
+  },
+  "required": [
+    "report"
+  ],
+  "title": "DoctorOut",
+  "type": "object"
+}

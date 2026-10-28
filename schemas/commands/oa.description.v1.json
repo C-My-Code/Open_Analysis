@@ -1,0 +1,280 @@
+{
+  "$defs": {
+    "AnalysisInfo": {
+      "additionalProperties": false,
+      "description": "An installed analysis.",
+      "properties": {
+        "config_schema": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "JSON Schema of the setup `config`.",
+          "title": "Config Schema",
+          "type": "object"
+        },
+        "kind": {
+          "description": "Analysis kind, for example 'erc'.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "description": "Display title.",
+          "title": "Title",
+          "type": "string"
+        },
+        "version": {
+          "description": "Analysis version (part of cache keys).",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "version",
+        "config_schema"
+      ],
+      "title": "AnalysisInfo",
+      "type": "object"
+    },
+    "CommandSpecView": {
+      "additionalProperties": false,
+      "description": "A catalog entry as served by describe (mirror of CommandSpec plus exit codes).",
+      "properties": {
+        "cli": {
+          "description": "CLI path.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Cli",
+          "type": "array"
+        },
+        "description": {
+          "description": "What, when, cost, side effects, units.",
+          "title": "Description",
+          "type": "string"
+        },
+        "examples": {
+          "description": "Valid inputs (tested).",
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "idempotent": {
+          "description": "Same input gives same output.",
+          "title": "Idempotent",
+          "type": "boolean"
+        },
+        "input_model": {
+          "description": "Input schema id.",
+          "title": "Input Model",
+          "type": "string"
+        },
+        "long_running": {
+          "description": "May return a JobHandle.",
+          "title": "Long Running",
+          "type": "boolean"
+        },
+        "mcp_tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "MCP tool name, or null if not exposed.",
+          "title": "Mcp Tool"
+        },
+        "name": {
+          "description": "Dotted command name.",
+          "title": "Name",
+          "type": "string"
+        },
+        "output_model": {
+          "description": "Output schema id.",
+          "title": "Output Model",
+          "type": "string"
+        },
+        "side_effect": {
+          "description": "Side-effect class.",
+          "enum": [
+            "read",
+            "compute",
+            "write"
+          ],
+          "title": "Side Effect",
+          "type": "string"
+        },
+        "title": {
+          "description": "Short title.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "mcp_tool",
+        "cli",
+        "title",
+        "description",
+        "side_effect",
+        "idempotent",
+        "long_running",
+        "input_model",
+        "output_model",
+        "examples"
+      ],
+      "title": "CommandSpecView",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "RuleInfo": {
+      "additionalProperties": false,
+      "description": "An installed ERC or EMI rule.",
+      "properties": {
+        "aliases": {
+          "description": "Alternative ids.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "category": {
+          "description": "Rule category.",
+          "title": "Category",
+          "type": "string"
+        },
+        "config_schema": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "JSON Schema of the rule thresholds.",
+          "title": "Config Schema",
+          "type": "object"
+        },
+        "default_severity": {
+          "description": "Severity used when the setup does not set one.",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Default Severity",
+          "type": "string"
+        },
+        "explanation": {
+          "description": "Physics and rationale (empty if the rule has none).",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable rule id, for example 'RP-001'.",
+          "title": "Id",
+          "type": "string"
+        },
+        "references": {
+          "description": "Citations for the thresholds.",
+          "items": {
+            "type": "string"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "title": {
+          "description": "Display title.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "category",
+        "aliases",
+        "default_severity",
+        "config_schema",
+        "references",
+        "explanation"
+      ],
+      "title": "RuleInfo",
+      "type": "object"
+    }
+  },
+  "$id": "oa.description/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Catalog description.",
+  "properties": {
+    "analyses": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/AnalysisInfo"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Installed analyses.",
+      "title": "Analyses"
+    },
+    "commands": {
+      "description": "Commands sorted by name.",
+      "items": {
+        "$ref": "#/$defs/CommandSpecView"
+      },
+      "title": "Commands",
+      "type": "array"
+    },
+    "error_codes": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Error code -> CLI exit code.",
+      "title": "Error Codes",
+      "type": "object"
+    },
+    "exit_codes": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "CLI exit code -> meaning.",
+      "title": "Exit Codes",
+      "type": "object"
+    },
+    "rules": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RuleInfo"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Installed rules.",
+      "title": "Rules"
+    }
+  },
+  "required": [
+    "commands",
+    "exit_codes",
+    "error_codes"
+  ],
+  "title": "Description",
+  "type": "object"
+}

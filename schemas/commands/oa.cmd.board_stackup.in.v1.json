@@ -1,0 +1,33 @@
+{
+  "$id": "oa.cmd.board_stackup.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Stackup at a frequency.",
+  "properties": {
+    "frequency": {
+      "anyOf": [
+        {
+          "description": "Frequency in hertz, > 0. Strings such as '1GHz' parse.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Evaluation frequency [Hz]; '1GHz' parses. Default 1 GHz.",
+      "title": "Frequency"
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "StackupIn",
+  "type": "object"
+}

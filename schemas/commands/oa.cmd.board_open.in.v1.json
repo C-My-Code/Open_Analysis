@@ -1,0 +1,54 @@
+{
+  "$id": "oa.cmd.board_open.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Open a project directory, an `oa-project.yaml`, or a bare board file.",
+  "properties": {
+    "intent": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Intent file path for a bare board file.",
+      "title": "Intent"
+    },
+    "path": {
+      "description": "Project directory, oa-project.yaml, or board file (.kicad_pcb, .xml, .PcbDoc, .oab, .oab.json).",
+      "title": "Path",
+      "type": "string"
+    },
+    "physics": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Physics sidecar path for a bare board file.",
+      "title": "Physics"
+    },
+    "refill_zones": {
+      "default": "never",
+      "description": "Refill KiCad zones through kicad-cli before reading.",
+      "enum": [
+        "never",
+        "if_unfilled"
+      ],
+      "title": "Refill Zones",
+      "type": "string"
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "title": "BoardOpenIn",
+  "type": "object"
+}

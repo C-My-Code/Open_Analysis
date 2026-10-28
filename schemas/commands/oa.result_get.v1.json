@@ -1,0 +1,372 @@
+{
+  "$defs": {
+    "ArrayRef": {
+      "additionalProperties": false,
+      "description": "Pointer to a large array that is not inlined (never more than 1000 elements inline).",
+      "properties": {
+        "dtype": {
+          "description": "NumPy dtype string, for example 'float64'.",
+          "title": "Dtype",
+          "type": "string"
+        },
+        "name": {
+          "description": "Array name within the result item.",
+          "title": "Name",
+          "type": "string"
+        },
+        "shape": {
+          "description": "Array shape [1].",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Shape",
+          "type": "array"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SI unit of the values, if known.",
+          "title": "Unit"
+        },
+        "uri": {
+          "description": "MCP resource URI or REST path serving the array (application/x-npy).",
+          "title": "Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "shape",
+        "dtype",
+        "uri"
+      ],
+      "title": "ArrayRef",
+      "type": "object"
+    },
+    "ItemSummary": {
+      "additionalProperties": false,
+      "description": "Size-bounded summary of one result item (at most 2 KiB).",
+      "properties": {
+        "accuracy_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "reference, validated, screening, estimate or unverified; null if not stated.",
+          "title": "Accuracy Class"
+        },
+        "digest": {
+          "description": "One or two plain-text sentences.",
+          "title": "Digest",
+          "type": "string"
+        },
+        "item_id": {
+          "description": "Item id within the bundle.",
+          "title": "Item Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Item kind: violations, profile, scalars, network, ...",
+          "title": "Kind",
+          "type": "string"
+        },
+        "stats": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Small statistics; lists are capped.",
+          "title": "Stats",
+          "type": "object"
+        },
+        "title": {
+          "description": "Item title.",
+          "title": "Title",
+          "type": "string"
+        },
+        "truncated": {
+          "default": false,
+          "description": "True when statistics were cut to fit.",
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "validity_flags": {
+          "description": "Validity statements.",
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "title": "Validity Flags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "item_id",
+        "kind",
+        "title",
+        "digest",
+        "stats",
+        "validity_flags"
+      ],
+      "title": "ItemSummary",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Page_list_JsonValue__": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "description": "The items of this page.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "array"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "limit": {
+          "description": "Requested page size [1].",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "next_offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Offset of the next page; null when exhausted.",
+          "title": "Next Offset"
+        },
+        "offset": {
+          "description": "Index of the first item [1].",
+          "title": "Offset",
+          "type": "integer"
+        },
+        "sort": {
+          "description": "The effective sort key, documented per command.",
+          "title": "Sort",
+          "type": "string"
+        },
+        "total": {
+          "description": "Total matching items after filtering [1].",
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "offset",
+        "limit",
+        "total",
+        "next_offset",
+        "sort"
+      ],
+      "title": "Page[list[JsonValue]]",
+      "type": "object"
+    },
+    "ResultItemBrief": {
+      "additionalProperties": false,
+      "description": "Manifest entry of a result item.",
+      "properties": {
+        "accuracy_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Accuracy class, if stated.",
+          "title": "Accuracy Class"
+        },
+        "id": {
+          "description": "Item id.",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Item kind.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "description": "Item title.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title"
+      ],
+      "title": "ResultItemBrief",
+      "type": "object"
+    },
+    "ResultItemView": {
+      "additionalProperties": false,
+      "description": "One item rendered compactly: summary, decimated series and ArrayRefs.",
+      "properties": {
+        "arrays": {
+          "description": "Arrays too large to inline.",
+          "items": {
+            "$ref": "#/$defs/ArrayRef"
+          },
+          "title": "Arrays",
+          "type": "array"
+        },
+        "columns": {
+          "default": [],
+          "description": "Table column names.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "decimated_from": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Original length when decimated [1].",
+          "title": "Decimated From"
+        },
+        "item": {
+          "$ref": "#/$defs/ResultItemBrief",
+          "description": "Item identity."
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Page_list_JsonValue__"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Table rows window."
+        },
+        "series": {
+          "additionalProperties": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "description": "Decimated 1-D numeric arrays (at most max_points each), SI units.",
+          "title": "Series",
+          "type": "object"
+        },
+        "summary": {
+          "$ref": "#/$defs/ItemSummary",
+          "description": "Item summary."
+        }
+      },
+      "required": [
+        "item",
+        "summary",
+        "series",
+        "arrays"
+      ],
+      "title": "ResultItemView",
+      "type": "object"
+    },
+    "ResultManifest": {
+      "additionalProperties": false,
+      "description": "Bundle manifest.",
+      "properties": {
+        "analysis": {
+          "description": "Analysis kind.",
+          "title": "Analysis",
+          "type": "string"
+        },
+        "id": {
+          "description": "Result id.",
+          "title": "Id",
+          "type": "string"
+        },
+        "items": {
+          "description": "Items in bundle order.",
+          "items": {
+            "$ref": "#/$defs/ResultItemBrief"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "status": {
+          "description": "Verdict.",
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "description": "Bundle digest text.",
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "analysis",
+        "summary",
+        "items"
+      ],
+      "title": "ResultManifest",
+      "type": "object"
+    }
+  },
+  "$id": "oa.result_get/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Either the manifest or one rendered item.",
+  "properties": {
+    "item": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResultItemView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The requested item, if any."
+    },
+    "manifest": {
+      "$ref": "#/$defs/ResultManifest"
+    }
+  },
+  "required": [
+    "manifest"
+  ],
+  "title": "ResultGetOut",
+  "type": "object"
+}
