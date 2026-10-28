@@ -69,9 +69,12 @@ class RoutedSegment(OAModel):
 
 
 class TopoNode(OAModel):
-    id: str = Field(description="Unique node id: 'pad:<id>', 'via:<id>@<layer>', 'j<k>', 'e<k>'.")
-    kind: Literal["pad", "via", "junction", "end"] = Field(
-        description="Pad, via barrel contact on one layer, T-junction, or free track end."
+    id: str = Field(
+        description="Unique node id: 'pad:<id>', 'via:<id>@<layer>', 'zone:<id>@<layer>', 'j<k>', 'v<k>', 'e<k>'."
+    )
+    kind: Literal["pad", "via", "junction", "vertex", "end", "zone"] = Field(
+        description="Pad, via contact on one layer, T-junction (degree >= 3), plain joint of two "
+        "segments, free track end, or zone-copper hub."
     )
     position: Vec2 = Field(description="Board-frame (x, y) [m].")
     layer: LayerId | None = Field(description="Conductor layer id of the contact, if any.")

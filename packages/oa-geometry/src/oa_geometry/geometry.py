@@ -230,11 +230,12 @@ class BoardGeometry:
         return _r.reference_map(self, k_buffer)
 
     # ------------------------------------------------------------------ sampling
-    def segments(self, net: str) -> tuple[RoutedSegment, ...]:
-        """Routed segments of `net` ordered by distance from the topology root."""
+    def segments(self, net: str, *, root: str | None = None) -> tuple[RoutedSegment, ...]:
+        """Routed segments of `net`, oriented away from the topology root and ordered by
+        ``s_start`` (the root is pad/via `root`, default the lowest-refdes pad)."""
         from oa_geometry import topology as _t
 
-        return _t.net_segments(self, net)
+        return _t.net_segments(self, net, root)
 
     def cross_section_at(
         self,
