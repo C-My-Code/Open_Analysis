@@ -59,3 +59,11 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] Summary stats are lost on a JSON round trip, because the subclass reverts to ProfileResult.
 - [ ] The tuning profile is only a JSON artifact (`oa-tuning-profile/1`); the KiCad format is unspecified.
 - [ ] Via delay is not included.
+
+## DC IR drop (WP-204)
+- [ ] PERF: the agent relaxed its own 3e5-unknown test from total <20 s to solve <20 s / total <60 s, because gmsh meshing takes 12-20 s. Check this against the WP-204 acceptance criterion in TASKS.md; it needs a mesher speed-up (WP-211) or a spec decision.
+- [ ] BUG in oa_mesh: hole-mode contact ring nodes are wrong (CR WP-204-mesh-hole-contacts). WP-204 uses embedded mode instead. Needs a fix in WP-109's package (WP-211).
+- [ ] CR WP-204-accuracy-class: there is no `2d_sheet` accuracy class or ResultItem.accuracy in oa_results.
+- [ ] The KiPI/padne/kicad-irdrop cross-checks were not run.
+- [ ] Multi-rail trees and series elements are not done.
+- [ ] Pads are ideal equipotentials, drawn as holes in field plots.
