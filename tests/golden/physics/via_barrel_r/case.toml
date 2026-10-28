@@ -1,0 +1,13 @@
+source = "analytic: R = rho h / (pi (ro^2 - ri^2)), drill 0.30 mm, plating 25 um, h 1.6 mm, rho = 1/5.8e7"
+
+[tolerance]
+rtol = 0.01
+atol = 0.0
+
+[inputs]
+drill_m = 0.30e-3
+plating_m = 25e-6
+h_m = 1.6e-3
+
+[expected]
+r_ohm = 1.27e-3

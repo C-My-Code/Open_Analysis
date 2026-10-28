@@ -1,0 +1,12 @@
+source = "analytic: 30 mm lossy line, Djordjevic-Sarkar Dk 4 Df 0.02, DC to 20 GHz"
+
+[tolerance]
+rtol = 1e-9
+atol = 0.0
+
+[inputs]
+file = "line.s2p"
+
+[expected]
+verdict = "pass"
+dc = "present"

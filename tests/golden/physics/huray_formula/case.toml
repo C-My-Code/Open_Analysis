@@ -1,0 +1,13 @@
+source = "analytic: Huray (DesignCon 2010) K = A_matte/A_flat + 1.5 SR/(1 + d/a + d^2/(2a^2)); a = 0.5 um, SR = 2.9 (snowball values after Hall et al. 2007), 10 GHz"
+
+[tolerance]
+rtol = 0.02
+atol = 0.0
+
+[inputs]
+a_m = 0.5e-6
+surface_ratio = 2.9
+f_hz = 1.0e10
+
+[expected]
+k = 2.361430614856813

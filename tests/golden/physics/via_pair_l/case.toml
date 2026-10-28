@@ -1,0 +1,13 @@
+source = "analytic: L = mu0 h / pi ln(s/r), h = 1 mm, s = 1 mm, r = 0.15 mm"
+
+[tolerance]
+rtol = 0.01
+atol = 0.0
+
+[inputs]
+h_m = 1e-3
+s_m = 1e-3
+r_m = 0.15e-3
+
+[expected]
+l_h = 0.76e-9

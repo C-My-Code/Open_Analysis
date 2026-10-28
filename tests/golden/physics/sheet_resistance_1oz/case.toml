@@ -1,0 +1,12 @@
+source = "analytic: Rs = 1/(sigma t), t = 35 um, 20 C"
+
+[tolerance]
+rtol = 0.01
+atol = 0.0
+
+[inputs]
+t_m = 35e-6
+T_k = 293.15
+
+[expected]
+rs_ohm_sq = 0.49e-3

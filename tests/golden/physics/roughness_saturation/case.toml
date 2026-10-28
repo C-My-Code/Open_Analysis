@@ -1,0 +1,13 @@
+source = "analytic: Hammerstad K -> 2 and Groisse K -> 2 for delta << Rq"
+
+[tolerance]
+rtol = 0.001
+atol = 0.0
+
+[inputs]
+rq_m = 1.0e-6
+f_hz = 1.0e16
+
+[expected]
+k_hammerstad = 2.0
+k_groisse = 2.0

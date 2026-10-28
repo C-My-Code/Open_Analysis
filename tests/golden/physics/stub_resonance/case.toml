@@ -1,0 +1,12 @@
+source = "analytic: f = c / (4 l sqrt(er)), l = 1.5 mm, er = 4 (formula lock)"
+
+[tolerance]
+rtol = 0.001
+atol = 0.0
+
+[inputs]
+l_m = 1.5e-3
+er = 4.0
+
+[expected]
+f_hz = 25.0e9

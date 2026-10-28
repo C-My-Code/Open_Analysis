@@ -17,6 +17,9 @@ dependencies = [
     "scipy>=1.11",
 ]
 
+[project.entry-points."open_analysis.services"]
+via_model = "oa_physics.via:make_service"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_physics"]
 

@@ -1,0 +1,12 @@
+source = "analytic: passive_line sampled from 10 MHz (no DC point)"
+
+[tolerance]
+rtol = 1e-9
+atol = 0.0
+
+[inputs]
+file = "line.s2p"
+
+[expected]
+verdict = "pass"
+dc = "extrapolated"
