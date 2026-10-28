@@ -53,3 +53,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 ## MCP (WP-210), held unmerged until WP-207 lands
 - [ ] Reconcile `OaServiceLike` with the real oa-service: schema_ids, read_resource, the progress hook, the service factory name.
 - [ ] Not done: `oa_service.proposals`, MCP elicitation for apply_proposal, the `tests/agents/` M1 workflow test, CLI parity, the socket guard, `llms-full.txt`.
+
+## Impedance profile (WP-203)
+- [ ] ProfileEvent.kind lacks no_reference, width_change and the pair causes; they map to `other` (CR WP-203-profile-event-kinds).
+- [ ] Summary stats are lost on a JSON round trip, because the subclass reverts to ProfileResult.
+- [ ] The tuning profile is only a JSON artifact (`oa-tuning-profile/1`); the KiCad format is unspecified.
+- [ ] Via delay is not included.
