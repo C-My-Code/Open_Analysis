@@ -86,7 +86,7 @@ dev = [
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
-testpaths = ["packages/*/tests"]
+testpaths = ["packages/*/tests", "tests/integration"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 filterwarnings = [
     "error",
