@@ -70,7 +70,8 @@ class RoutedSegment(OAModel):
 
 class TopoNode(OAModel):
     id: str = Field(
-        description="Unique node id: 'pad:<id>', 'via:<id>@<layer>', 'zone:<id>@<layer>', 'j<k>', 'v<k>', 'e<k>'."
+        description="Unique node id: 'pad:<id>', 'via:<id>@<layer>', 'zone:<id>@<layer>', "
+        "'j<k>', 'v<k>', 'e<k>'."
     )
     kind: Literal["pad", "via", "junction", "vertex", "end", "zone"] = Field(
         description="Pad, via contact on one layer, T-junction (degree >= 3), plain joint of two "

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import itertools
 import math
 import re
 from collections import defaultdict
@@ -13,13 +14,13 @@ from typing import TYPE_CHECKING
 import networkx as nx
 import numpy as np
 import shapely
-from oa_model.index import ItemRef
 from shapely import STRtree
 
 from oa_geometry.errors import UnknownItem
 from oa_geometry.models import Island, NetTopology, RoutedSegment, Stub, TopoEdge, TopoNode
 from oa_geometry.segs import JOIN_EPS, Piece, build_pieces, reverse_seg
 from oa_geometry.vias import pad_copper_layers, via_copper_layers, via_stubs
+from oa_model.index import ItemRef
 
 if TYPE_CHECKING:
     from oa_geometry.geometry import BoardGeometry
@@ -75,9 +76,7 @@ def _contacts(
     idx = geo.strtree(layer)
     geoms: list[object] = []
     info: list[tuple[str, str, tuple[float, float]]] = []
-    for i in range(len(idx)):
-        if idx.net(i) != net:
-            continue
+    for i in geo._copper[layer].net_indices().get(net, ()):
         ref = idx.ref(i)
         if ref.kind == "pad":
             geoms.append(idx.geometry(i))
@@ -131,7 +130,7 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
             )
             chain.append((lid, nid))
         via_layer_nodes[v.id] = chain
-        for k, ((l0, n0), (l1, n1)) in enumerate(zip(chain[:-1], chain[1:], strict=False)):
+        for k, ((l0, n0), (l1, n1)) in enumerate(itertools.pairwise(chain)):
             z0, z1 = geo.conductor(l0), geo.conductor(l1)
             length = abs((z0.z_bottom + z0.z_top) / 2 - (z1.z_bottom + z1.z_top) / 2)
             edges.append(TopoEdge(id=f"barrel:{v.id}:{k}", kind="via", a=n0, b=n1, length=length))
@@ -474,7 +473,7 @@ def _islands(geo: BoardGeometry, net: str) -> tuple[Island, ...]:
         lays = via_copper_layers(geo.idx, v, geo.idx.padstack(v.padstack))
         found = [part_at(lid, v.position) for lid in lays]
         keep = [f for f in found if f is not None]
-        for a, b in zip(keep[:-1], keep[1:], strict=False):
+        for a, b in itertools.pairwise(keep):
             uf.union(a, b)
     for p in geo.board.pads:
         if p.net != net:
@@ -484,7 +483,7 @@ def _islands(geo: BoardGeometry, net: str) -> tuple[Island, ...]:
             continue
         found = [part_at(lid, p.position) for lid in pad_copper_layers(ps)]
         keep = [f for f in found if f is not None]
-        for a, b in zip(keep[:-1], keep[1:], strict=False):
+        for a, b in itertools.pairwise(keep):
             uf.union(a, b)
 
     groups: dict[tuple[str, int], list[tuple[str, int]]] = defaultdict(list)

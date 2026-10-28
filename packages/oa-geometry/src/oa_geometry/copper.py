@@ -120,6 +120,16 @@ class LayerCopper:
         self._by_net: dict[str | None, MultiPolygon] | None = None
         self._all: MultiPolygon | None = None
         self.index_cache: LayerIndex | None = None
+        self._net_ix: dict[str | None, list[int]] | None = None
+
+    def net_indices(self) -> dict[str | None, list[int]]:
+        """Primitive indices grouped by net."""
+        if self._net_ix is None:
+            ix: dict[str | None, list[int]] = defaultdict(list)
+            for i, n in enumerate(self.prims.nets):
+                ix[n].append(i)
+            self._net_ix = dict(ix)
+        return self._net_ix
 
     def by_net(self) -> dict[str | None, MultiPolygon]:
         if self._by_net is None:

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 from helpers import poly, rect_ring, track, with_items, zone
+
 from oa_geometry import BoardGeometry, UnknownItem
 from oa_model.copper import Zone, ZoneFill
 from oa_model.geometry import LineSeg

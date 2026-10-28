@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import itertools
 import math
 from collections import defaultdict
 from dataclasses import dataclass
@@ -12,11 +13,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.typing as npt
 import shapely
-from oa_model.geometry import ArcSeg, LineSeg, PathSeg
 from shapely import LineString, STRtree
 
 from oa_geometry._shapes import arc_points, seg_length
 from oa_geometry.models import RoutedSegment
+from oa_model.geometry import ArcSeg, LineSeg, PathSeg
 
 if TYPE_CHECKING:
     from oa_geometry.geometry import BoardGeometry
@@ -72,7 +73,7 @@ def _split_seg(seg: PathSeg, fractions: list[float]) -> list[PathSeg]:
                 )
             )
         pts.append(seg.end)
-        return [LineSeg(start=a, end=b) for a, b in zip(pts[:-1], pts[1:], strict=True)]
+        return [LineSeg(start=a, end=b) for a, b in itertools.pairwise(pts)]
     cx, cy = seg.center
     r = math.hypot(seg.start[0] - cx, seg.start[1] - cy)
     a0 = math.atan2(seg.start[1] - cy, seg.start[0] - cx)
@@ -85,8 +86,7 @@ def _split_seg(seg: PathSeg, fractions: list[float]) -> list[PathSeg]:
         pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
     pts.append(seg.end)
     return [
-        ArcSeg(start=a, end=b, center=seg.center, ccw=seg.ccw)
-        for a, b in zip(pts[:-1], pts[1:], strict=True)
+        ArcSeg(start=a, end=b, center=seg.center, ccw=seg.ccw) for a, b in itertools.pairwise(pts)
     ]
 
 

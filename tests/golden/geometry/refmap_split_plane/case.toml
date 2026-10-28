@@ -1,0 +1,23 @@
+source = "analytic: slot interval = split_x +/- split_gap/2 (split_plane_board defaults: length 25 mm, split_x = 12.5 mm, split_gap = 0.5 mm); cut-line coverage is 1 elsewhere"
+
+[tolerance]
+rtol = 0.0
+atol = 1e-5
+
+[inputs]
+length = 0.025
+split_x = 0.0125
+split_gap = 0.0005
+h = 0.0002
+
+[expected]
+slot_start = 0.01225
+slot_end = 0.01275
+n_spans = 3
+left_net = "GND"
+right_net = "VDD"
+left_distance = 0.0002
+
+[tolerance.per_key.left_distance]
+rtol = 0.0
+atol = 1e-9
