@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Validate every ``expected.yaml`` against ``expected.schema.json`` and cross-check it with the board directory.
+"""Validate every ``expected.yaml`` against ``expected.schema.json`` and cross-check it with the
+board directory.
 
     python tools/boardgen/validate_expected.py [tests/boards/kicad10]
 
@@ -29,7 +30,13 @@ def main(root: Path) -> int:
         doc = yaml.safe_load(exp_path.read_text(encoding="utf8"))
         errs = sorted(validator.iter_errors(doc), key=lambda e: list(e.path))
         extra = []
-        for f in ("board.kicad_pcb", "board.kicad_pro", "board.ipc2581.xml", "drc.json", "README.md"):
+        for f in (
+            "board.kicad_pcb",
+            "board.kicad_pro",
+            "board.ipc2581.xml",
+            "drc.json",
+            "README.md",
+        ):
             if not (d / f).exists():
                 extra.append(f"missing {f}")
         if doc["board"] != d.name:
