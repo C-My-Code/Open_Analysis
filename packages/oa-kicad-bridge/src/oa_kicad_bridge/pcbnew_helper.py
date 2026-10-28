@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+# mypy: ignore-errors
 """pcbnew helper. Runs ONLY under KiCad's bundled Python, as a subprocess; never imported.
 
 Usage (all modes print one JSON document on the last line of stdout)::
