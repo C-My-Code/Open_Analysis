@@ -43,6 +43,12 @@ Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 
    - Run the full CI command set once, before reporting done: `ruff check`, `ruff format --check`, `mypy`, `lint-imports`, and `pytest -m "not external and not kicad"`.
    - Read only the spec sections your brief names. Look up other sections only when you hit a specific question.
 
+10. **Respect machine limits.** The dev machine has 8 CPUs, and an earlier run of parallel agents froze it.
+    - Thread caps are set by the root `conftest.py`: numerical libraries and openEMS get 2 threads each. Shell commands outside pytest must `export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 OA_NUM_THREADS=2`.
+    - Only the agent the integrator names may run `slow` or `external` tests, such as 3D meshing, openEMS or large solves. Everyone else uses `-m "not external and not kicad and not slow"`.
+    - Use oa_jobs budgets (`max_runtime_s` and `max_memory_gb`, 8 GB by default) for solver runs.
+    - Before reporting done, check that no stray python, openEMS or gmsh processes from your worktree are still running, and end your own if any are.
+
 ---
 
 ## Dependency graph
