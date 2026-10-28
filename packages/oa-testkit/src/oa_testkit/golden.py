@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Golden-data helpers.
 
@@ -193,10 +194,7 @@ def _compare(actual: Any, expected: Any, tol: Tolerance, path: str, errs: list[s
             errs.append(f"{path}: expected a number, got {actual!r}")
             return
         a, e = float(actual), float(expected)
-        if math.isnan(e):
-            ok = math.isnan(a)
-        else:
-            ok = abs(a - e) <= tol.atol + tol.rtol * abs(e)
+        ok = math.isnan(a) if math.isnan(e) else abs(a - e) <= tol.atol + tol.rtol * abs(e)
         if not ok:
             rel = abs(a - e) / abs(e) if e else float("inf")
             errs.append(
@@ -238,7 +236,9 @@ def assert_close_to_golden(
                 inp = dict(inputs)
         else:
             if not source:
-                raise GoldenError(f"creating {path} requires source=... (citation or 'analytic: ...')")
+                raise GoldenError(
+                    f"creating {path} requires source=... (citation or 'analytic: ...')"
+                )
             src, tol, inp = source, Tolerance(), dict(inputs or {})
         if rtol is not None or atol is not None:
             tol = Tolerance(

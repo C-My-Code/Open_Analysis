@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """run_inline on a dummy analysis with 3 tasks and a reduce."""
 
@@ -7,15 +8,16 @@ import threading
 from typing import ClassVar
 
 import pytest
+from pydantic import Field
+
 from oa_framework.analysis import Plan, Task, TaskOutput
 from oa_framework.registry import Registry
 from oa_model._base import OAModel
 from oa_model.common import Diagnostic
 from oa_model.errors import Cancelled, SetupError
 from oa_model.setup import AnalysisSetup
-from oa_results.bundle import Provenance, ResultBundle, ResultItem, Scalar, ScalarSet
-from pydantic import Field
-
+from oa_results.bundle import Provenance, ResultBundle, ResultItem
+from oa_results.scalars import Scalar, ScalarSet
 from oa_testkit import builders
 from oa_testkit.harness import InlineRun, run_inline, run_inline_full
 
@@ -73,7 +75,9 @@ class DummyAnalysis:
         ctx.log("info", "computing", index=payload.index)
         (ctx.scratch / "work.txt").write_text("x")
         factor = ctx.services().get("factor")
-        ref = ctx.artifacts().put(f"blob{payload.index}".encode(), name=f"b{payload.index}")
+        ref = ctx.artifacts().put_bytes(
+            f"blob{payload.index}".encode(), name=f"b{payload.index}", media_type="text/plain"
+        )
         return TaskOutput(
             task_id=ctx.task.id,
             data={"value": payload.index**2 * factor},
@@ -133,7 +137,7 @@ def test_three_tasks_and_reduce(board, registry) -> None:  # type: ignore[no-unt
     assert run.order == ("sq:0", "sq:1", "sq:2")
     assert [run.outputs[t].data["value"] for t in run.order] == [0, 10, 40]
     assert _total(run.bundle) == 50.0
-    assert run.bundle.summary == "3 tasks"
+    assert run.bundle.summary_text == "3 tasks"
     assert run.bundle.provenance.board_hash == board.content_hash()
     assert len(run.artifacts) == 3
     assert run.artifacts.get(run.outputs["sq:2"].artifacts[0]) == b"blob2"
@@ -167,7 +171,7 @@ def test_setup_for_other_analysis(board, registry) -> None:  # type: ignore[no-u
 
 
 def test_validate_setup_error_raises(board, registry) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(SetupError, match="DUMMY.BAD"):
+    with pytest.raises(SetupError, match=r"DUMMY\.BAD"):
         run_inline(DummyAnalysis(), board, _setup(fail_validation=True), registry)
 
 
@@ -207,6 +211,11 @@ def test_geometry_factory(board, registry) -> None:  # type: ignore[no-untyped-d
             return super().run_task(ctx, payload)
 
     run_inline(
-        UsesGeometry(), board, _setup(), registry, services={"factor": 1}, geometry=lambda b: object()
+        UsesGeometry(),
+        board,
+        _setup(),
+        registry,
+        services={"factor": 1},
+        geometry=lambda b: object(),
     )
     assert seen == [True, True, True]

@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Golden helper, TOML round trip and the pytest plugin (run in a subprocess)."""
 
@@ -28,7 +29,9 @@ def _make(root: Path, expected: dict, **tol: object) -> None:
 
 def test_pass_and_fail(tmp_path: Path) -> None:
     _make(tmp_path, {"z0": 50.0, "arr": [1.0, 2.0]}, rtol=1e-3)
-    assert_close_to_golden({"z0": 50.01, "arr": np.array([1.0, 2.001])}, "suite", "c1", root=tmp_path)
+    assert_close_to_golden(
+        {"z0": 50.01, "arr": np.array([1.0, 2.001])}, "suite", "c1", root=tmp_path
+    )
     with pytest.raises(GoldenError, match="z0"):
         assert_close_to_golden({"z0": 51.0, "arr": [1.0, 2.0]}, "suite", "c1", root=tmp_path)
     with pytest.raises(GoldenError, match="arr"):
@@ -69,13 +72,17 @@ def test_update_rewrites_expected_only(tmp_path: Path) -> None:
     assert data["tolerance"]["rtol"] == 1e-4
     assert data["inputs"] == {"a": 1.5, "name": "n"}
     assert data["expected"] == {"z0": 49.0, "c": {"re": [1.0], "im": [2.0]}}
-    assert_close_to_golden({"z0": 49.0, "c": {"re": [1.0], "im": [2.0]}}, "suite", "c1", root=tmp_path)
+    assert_close_to_golden(
+        {"z0": 49.0, "c": {"re": [1.0], "im": [2.0]}}, "suite", "c1", root=tmp_path
+    )
 
 
 def test_update_new_case_needs_source(tmp_path: Path) -> None:
     with pytest.raises(GoldenError, match="source"):
         assert_close_to_golden({"x": 1.0}, "s", "new", root=tmp_path, update=True)
-    assert_close_to_golden({"x": 1.0}, "s", "new", root=tmp_path, update=True, source="analytic: x=1")
+    assert_close_to_golden(
+        {"x": 1.0}, "s", "new", root=tmp_path, update=True, source="analytic: x=1"
+    )
     assert_close_to_golden({"x": 1.0}, "s", "new", root=tmp_path)
 
 

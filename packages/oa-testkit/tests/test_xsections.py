@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """CrossSection fixtures: canonical form, provenance of expected values, key stability."""
 
@@ -6,6 +7,7 @@ from __future__ import annotations
 import math
 
 import pytest
+
 from oa_model.xsection import (
     CrossSection,
     XsCircle,
@@ -14,7 +16,6 @@ from oa_model.xsection import (
     XsSlab,
     XsTrapezoid,
 )
-
 from oa_testkit import analytic as an
 from oa_testkit.xsections import XsCase, all_cases, get_case
 

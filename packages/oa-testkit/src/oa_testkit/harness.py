@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """In-process analysis harness: ``run_inline(analysis, board, setup, registry)``.
 
@@ -30,18 +31,19 @@ from typing import Any
 
 from oa_framework.analysis import Analysis, Plan, Task, TaskOutput
 from oa_framework.registry import Registry
+from oa_framework.services import DictServices, Services
 from oa_model.board import Board
 from oa_model.common import Diagnostic
 from oa_model.errors import Cancelled, SetupError
 from oa_model.physics import PhysicsOverlay, apply_physics
 from oa_model.setup import AnalysisSetup, resolve_intent
 from oa_model.setup.intent import DesignIntent
-from oa_results.bundle import ArtifactRef, ResultBundle
+from oa_results.artifact import ArtifactRef
+from oa_results.bundle import ResultBundle
 
 __all__ = [
     "InMemoryArtifactStore",
     "InlineRun",
-    "InlineServices",
     "run_inline",
     "run_inline_full",
 ]
@@ -50,17 +52,24 @@ REDUCE_TASK_ID = "__reduce__"
 
 
 class InMemoryArtifactStore:
-    """Content-addressed blob store held in a dict (stand-in for ``ctx.artifacts()``)."""
+    """Content-addressed blob store held in a dict (stand-in for ``ctx.artifacts()``).
+
+    Implements ``oa_framework.analysis.ArtifactStore`` (``put_bytes``, ``put_file``, ``path``)
+    plus ``get``/``has`` for assertions. ``path`` materializes the blob in a private temp
+    directory that is removed by :meth:`close`.
+    """
 
     def __init__(self) -> None:
         self._blobs: dict[str, bytes] = {}
+        self._tmp: Path | None = None
 
-    def put(
-        self, data: bytes, *, name: str, media_type: str = "application/octet-stream"
-    ) -> ArtifactRef:
+    def put_bytes(self, data: bytes, *, name: str, media_type: str) -> ArtifactRef:
         digest = hashlib.sha256(data).hexdigest()
         self._blobs[digest] = bytes(data)
         return ArtifactRef(sha256=digest, media_type=media_type, name=name, size=len(data))
+
+    def put_file(self, path: Path, *, name: str, media_type: str) -> ArtifactRef:
+        return self.put_bytes(Path(path).read_bytes(), name=name, media_type=media_type)
 
     def get(self, ref: ArtifactRef) -> bytes:
         return self._blobs[ref.sha256]
@@ -68,37 +77,27 @@ class InMemoryArtifactStore:
     def has(self, ref: ArtifactRef) -> bool:
         return ref.sha256 in self._blobs
 
+    def path(self, ref: ArtifactRef) -> Path:
+        if self._tmp is None:
+            self._tmp = Path(tempfile.mkdtemp(prefix="oa_inline_cas_"))
+        target = self._tmp / ref.sha256
+        if not target.exists():
+            target.write_bytes(self._blobs[ref.sha256])
+        return target
+
+    def close(self) -> None:
+        if self._tmp is not None:
+            shutil.rmtree(self._tmp, ignore_errors=True)
+            self._tmp = None
+
     def __len__(self) -> int:
         return len(self._blobs)
 
 
-class InlineServices:
-    """``Services`` over a plain mapping ``name -> service object``."""
-
-    def __init__(self, services: Mapping[str, Any] | None = None) -> None:
-        self._services = dict(services or {})
-
-    def get(self, name: str) -> Any:
-        try:
-            return self._services[name]
-        except KeyError:
-            raise KeyError(f"service {name!r} not available (have: {sorted(self._services)})") from None
-
-    def has(self, name: str) -> bool:
-        return name in self._services
-
-
-def _services_from(registry: Registry | None, services: Any) -> Any:
-    if services is not None:
-        return InlineServices(services) if isinstance(services, Mapping) else services
-    reg = getattr(registry, "services", None)
-    if reg is None:
-        return InlineServices()
-    if isinstance(reg, Mapping):
-        return InlineServices(reg)
-    if hasattr(reg, "get") and hasattr(reg, "has"):
-        return reg
-    return InlineServices()
+def _services_from(registry: Registry | None, services: Any) -> Services:
+    if services is None:
+        return registry.services() if registry is not None else DictServices()
+    return DictServices(services) if isinstance(services, Mapping) else services  # type: ignore[no-any-return]
 
 
 class _Shared:
@@ -250,11 +249,16 @@ def run_inline_full(
 ) -> InlineRun:
     """Run ``analysis`` end to end in this process and return the bundle plus run details.
 
-    ``analysis`` is an ``Analysis`` instance (or class, instantiated without arguments).
-    ``registry`` supplies services unless ``services`` (a ``Services`` object or a
-    ``{name: service}`` mapping) is given. ``physics`` is applied to ``board`` first, as the job
-    service does. ``geometry`` builds the ``BoardGeometry`` returned by ``ctx.geometry()``.
+    ``analysis`` is an ``Analysis`` instance, a class (instantiated without arguments) or a kind
+    string resolved through ``registry``. ``registry`` supplies services unless ``services`` (a
+    ``Services`` object or a ``{name: service}`` mapping) is given. ``physics`` is applied to
+    ``board`` first, as the job service does. ``geometry`` builds the ``BoardGeometry``
+    returned by ``ctx.geometry()``.
     """
+    if isinstance(analysis, str):
+        if registry is None:
+            raise ValueError("an analysis kind string needs a registry to resolve it")
+        analysis = registry.analysis(analysis)
     inst: Analysis = analysis() if isinstance(analysis, type) else analysis
     if setup.analysis != inst.kind:
         raise ValueError(f"setup is for analysis {setup.analysis!r}, not {inst.kind!r}")
@@ -312,6 +316,7 @@ def run_inline_full(
     finally:
         if not keep_scratch:
             shutil.rmtree(scratch_root, ignore_errors=True)
+        shared.artifacts.close()
 
     return InlineRun(
         bundle=bundle,
@@ -332,7 +337,7 @@ def run_inline(
     registry: Registry | None = None,
     **kwargs: Any,
 ) -> ResultBundle:
-    """``validate_setup`` -> ``plan`` -> ``run_task`` x N -> ``reduce``; returns the ``ResultBundle``.
+    """validate_setup -> plan -> run_task x N -> reduce; returns the ``ResultBundle``.
 
     See :func:`run_inline_full` for the keyword options and for access to per-task outputs.
     """

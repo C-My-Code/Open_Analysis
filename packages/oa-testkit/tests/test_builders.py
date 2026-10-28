@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Board builders: validity, determinism, round trip and builder-specific geometry."""
 
@@ -6,9 +7,9 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
+
 from oa_model.board import Board
 from oa_model.validate import validate_board
-
 from oa_testkit import builders as bld
 
 BUILDERS: dict[str, Callable[..., Board]] = {
@@ -122,7 +123,7 @@ def test_power_plane_variants() -> None:
     assert len(vdd(neck).outline.exterior) == 12
     assert {c.refdes for c in rect.components} >= {"U1", "U2", "C1", "C4"}
     validate_board(neck, strict=True)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="neck_width"):
         bld.power_plane_board(neck_width=1e-3)
 
 

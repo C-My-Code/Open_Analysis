@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """pytest plugin (entry point ``pytest11``): ``--update-golden``, markers and tool skipping.
 
@@ -38,9 +39,13 @@ def tool_available(tool: str) -> bool:
     if t in ("kicad", "kicad-cli"):
         if os.environ.get("KICAD_CLI") and Path(os.environ["KICAD_CLI"]).is_file():
             return True
-        return shutil.which("kicad-cli") is not None or any(Path(p).is_file() for p in _KICAD_DEFAULTS)
+        return shutil.which("kicad-cli") is not None or any(
+            Path(p).is_file() for p in _KICAD_DEFAULTS
+        )
     if t in ("openems", "openems-python"):
-        return importlib.util.find_spec("openEMS") is not None or shutil.which("openEMS") is not None
+        return (
+            importlib.util.find_spec("openEMS") is not None or shutil.which("openEMS") is not None
+        )
     return shutil.which(t) is not None
 
 
@@ -49,7 +54,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--update-golden",
         action="store_true",
         default=False,
-        help="Rewrite the [expected] table of golden cases from actual values instead of comparing.",
+        help="Rewrite the [expected] table of golden cases from actual values, do not compare.",
     )
 
 

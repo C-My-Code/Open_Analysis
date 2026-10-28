@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Pure-Python reference formulas against independent known values."""
 
@@ -11,7 +12,7 @@ from oa_testkit import analytic as an
 
 
 def test_eta0_matches_codata() -> None:
-    assert an.ETA0 == pytest.approx(376.730313668, rel=1e-10)
+    assert pytest.approx(376.730313668, rel=1e-10) == an.ETA0
 
 
 @pytest.mark.parametrize("k", [0.01, 0.3, 0.7, 0.999])

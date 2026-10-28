@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Pure-Python reference formulas for transmission-line cross-sections.
 
@@ -59,7 +60,7 @@ def coax_z0(b_over_a: float, er: float = 1.0) -> float:
 
 
 def wire_over_plane_z0(h_over_r: float, er: float = 1.0) -> float:
-    """Round wire (radius r, centre height h) over an infinite plane: eta0/(2 pi sqrt(er)) acosh(h/r)."""
+    """Round wire (radius r, height h) over an infinite plane: eta0/(2 pi sqrt(er)) acosh(h/r)."""
     return ETA0 / (2.0 * math.pi * math.sqrt(er)) * math.acosh(h_over_r)
 
 
@@ -74,7 +75,10 @@ def two_wire_z0(d_over_diam: float, er: float = 1.0) -> float:
 
 
 def cohn_stripline_z0(w_over_b: float, er: float = 1.0) -> float:
-    """Symmetric zero-thickness stripline (Cohn 1954): eta0/(4 sqrt(er)) K(k)/K(k'), k = sech(pi W/2b)."""
+    """Zero-thickness symmetric stripline (Cohn 1954): eta0/(4 sqrt(er)) K(k)/K(k').
+
+    The modulus is k = sech(pi W / 2b).
+    """
     x = math.pi * w_over_b / 2.0
     return ETA0 / (4.0 * math.sqrt(er)) * k_ratio(1.0 / math.cosh(x), math.tanh(x))
 
@@ -97,7 +101,7 @@ def cohn_edge_coupled_stripline(
 
 
 def wheeler_stripline_z0(w_over_b: float, t_over_b: float, er: float = 1.0) -> float:
-    """Symmetric stripline with finite thickness (Wheeler 1978, Wadell eq. 3.5.1). ~0.5 % accurate."""
+    """Symmetric stripline with thickness (Wheeler 1978, Wadell eq. 3.5.1), ~0.5 % accurate."""
     if t_over_b <= 0.0:
         return cohn_stripline_z0(w_over_b, er)
     x = t_over_b
@@ -105,11 +109,7 @@ def wheeler_stripline_z0(w_over_b: float, t_over_b: float, er: float = 1.0) -> f
     dw = (
         x
         / (math.pi * (1.0 - x))
-        * (
-            1.0
-            - 0.5
-            * math.log((x / (2.0 - x)) ** 2 + (0.0796 * x / (w_over_b + 1.1 * x)) ** m)
-        )
+        * (1.0 - 0.5 * math.log((x / (2.0 - x)) ** 2 + (0.0796 * x / (w_over_b + 1.1 * x)) ** m))
     )
     wp = w_over_b / (1.0 - x) + dw  # W'/(b-t)
     q = 4.0 / (math.pi * wp)

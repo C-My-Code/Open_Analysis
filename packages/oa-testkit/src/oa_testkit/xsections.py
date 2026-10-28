@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """``CrossSection`` fixtures with reference impedances (docs/research/02-impedance.md sec. 4).
 
@@ -279,7 +280,9 @@ def _coax_case(er: float) -> XsCase:
     )
     xs = CrossSection(
         conductors=(
-            XsConductor(id="s1", role="signal", shape=XsCircle(u_center=0.0, z_center=zc, radius=a)),
+            XsConductor(
+                id="s1", role="signal", shape=XsCircle(u_center=0.0, z_center=zc, radius=a)
+            ),
             XsConductor(id="g1", role="ground", shape=outer),
         ),
         dielectrics=dielectrics,
@@ -293,7 +296,7 @@ def _coax_case(er: float) -> XsCase:
         rtol=1e-4,
         source=(
             "analytic: Z0 = eta0/(2 pi sqrt(er)) ln(b/a), ln(b/a) = 1 "
-            "(textbook coaxial-line result, e.g. Pozar, Microwave Engineering, coaxial line; 59.958 ohm in air)"
+            "(textbook coaxial-line result, e.g. Pozar, Microwave Engineering; 59.958 ohm in air)"
         ),
         kind="analytic",
         note="a = 0.5 mm, b = a e, outer wall 0.5 mm.",
@@ -332,8 +335,12 @@ def _two_wire_case(d_over_diam: float) -> XsCase:
     big_d = d_over_diam * 2 * r
     xs = CrossSection(
         conductors=(
-            XsConductor(id="s1", role="signal", shape=XsCircle(u_center=-big_d / 2, z_center=r, radius=r)),
-            XsConductor(id="s2", role="signal", shape=XsCircle(u_center=+big_d / 2, z_center=r, radius=r)),
+            XsConductor(
+                id="s1", role="signal", shape=XsCircle(u_center=-big_d / 2, z_center=r, radius=r)
+            ),
+            XsConductor(
+                id="s2", role="signal", shape=XsCircle(u_center=+big_d / 2, z_center=r, radius=r)
+            ),
         ),
         dielectrics=(),
         topology_hint="general",
@@ -349,14 +356,22 @@ def _two_wire_case(d_over_diam: float) -> XsCase:
             "textbook result, e.g. Ramo, Whinnery & Van Duzer; Pozar, Microwave Engineering)"
         ),
         kind="analytic",
-        note="Air, wire diameter 0.5 mm, centre spacing D; Z0 is the line (differential) impedance.",
+        note="Air, wire diameter 0.5 mm, centre spacing D; Z0 is the line (differential) value.",
     )
 
 
 def _build() -> tuple[XsCase, ...]:
     cases: list[XsCase] = []
     # Hammerstad-Jensen seed table (research 02 sec. 4.3)
-    for u, er in [(0.5, 1.0), (0.5, 4.3), (1.0, 4.3), (1.9, 4.3), (2.0, 4.3), (2.0, 10.2), (4.0, 4.3)]:
+    for u, er in [
+        (0.5, 1.0),
+        (0.5, 4.3),
+        (1.0, 4.3),
+        (1.9, 4.3),
+        (2.0, 4.3),
+        (2.0, 10.2),
+        (4.0, 4.3),
+    ]:
         cases.append(_hj_case(u, er))
     # Cohn stripline (research 02 sec. 1.7)
     for w in (0.1, 0.25, 0.5, 1.0, 2.0):

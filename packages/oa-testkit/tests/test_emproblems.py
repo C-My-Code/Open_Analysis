@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """EMProblem fixtures: structure, ports and JSON round trip."""
 
@@ -6,8 +7,8 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
-from oa_model.em import EMLumpedPort, EMProblem, EMWavePort
 
+from oa_model.em import EMLumpedPort, EMProblem, EMWavePort
 from oa_testkit import emproblems as emp
 
 FACTORIES: dict[str, Callable[[], EMProblem]] = {

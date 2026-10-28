@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """``EMProblem`` fixtures (interfaces.md section 5).
 
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from oa_model.arrays import Points
 from oa_model.board import Board
 from oa_model.em import (
     Boundaries,
@@ -36,7 +38,6 @@ from oa_model.em import (
 )
 from oa_model.geometry import Polygon
 from oa_model.materials import ConductorMaterial, DielectricMaterial, DjordjevicSarkar
-from oa_model.arrays import Points
 from oa_model.stackup import ConductorLayer, DielectricLayer
 
 from . import builders as bld
@@ -138,7 +139,12 @@ def microstrip_thru_problem(
     board = bld.microstrip_board(length=length, width=width, h=h)
     l1, l2 = _layer(board, "L1"), _layer(board, "L2")
     box = Box3(
-        xmin=0.0, xmax=length, ymin=-y_half, ymax=y_half, zmin=0.0, zmax=board.stackup.total_thickness + air
+        xmin=0.0,
+        xmax=length,
+        ymin=-y_half,
+        ymax=y_half,
+        zmin=0.0,
+        zmax=board.stackup.total_thickness + air,
     )
     trace = _track_body(board, "trk:SIG:1")
     ports: list[EMPort] = []
@@ -146,8 +152,12 @@ def microstrip_thru_problem(
         ports.append(
             EMLumpedPort(
                 name=name,
-                positive=EMTerminalGeom(position=(x, 0.0), z=l1.z_bottom, layer="L1", extent=(0.0, width)),
-                negative=EMTerminalGeom(position=(x, 0.0), z=l2.z_top, layer="L2", extent=(0.0, width)),
+                positive=EMTerminalGeom(
+                    position=(x, 0.0), z=l1.z_bottom, layer="L1", extent=(0.0, width)
+                ),
+                negative=EMTerminalGeom(
+                    position=(x, 0.0), z=l2.z_top, layer="L2", extent=(0.0, width)
+                ),
                 width=width,
                 z0=50.0,
                 excite=True,
@@ -166,8 +176,12 @@ def microstrip_thru_problem(
         structure=structure,
         ports=tuple(ports),
         boundaries=Boundaries(
-            xmin="absorbing", xmax="absorbing", ymin="absorbing", ymax="absorbing",
-            zmin="pec", zmax="absorbing",
+            xmin="absorbing",
+            xmax="absorbing",
+            ymin="absorbing",
+            ymax="absorbing",
+            zmin="pec",
+            zmax="absorbing",
         ),
         frequency=_freq(f_max, n_points),
     )
@@ -189,7 +203,12 @@ def stripline_thru_problem(
     """
     board = bld.stripline_board(length=length, width=width, h1=h1, h2=h2)
     box = Box3(
-        xmin=0.0, xmax=length, ymin=-y_half, ymax=y_half, zmin=0.0, zmax=board.stackup.total_thickness
+        xmin=0.0,
+        xmax=length,
+        ymin=-y_half,
+        ymax=y_half,
+        zmin=0.0,
+        zmax=board.stackup.total_thickness,
     )
     trace = _track_body(board, "trk:SIG:1")
     structure = Structure3D(
@@ -253,9 +272,13 @@ def via_transition_problem(
         is_sig = v.net == "SIG"
         if is_sig:
             sig_xy = v.position
-            antipad_r = max(
-                (getattr(ly.antipad, "diameter", 0.0) for ly in ps[v.padstack].layers), default=0.0
-            ) / 2.0
+            antipad_r = (
+                max(
+                    (getattr(ly.antipad, "diameter", 0.0) for ly in ps[v.padstack].layers),
+                    default=0.0,
+                )
+                / 2.0
+            )
         via_bodies.append(
             ViaBody(
                 id=f"vb:{v.id}",
@@ -287,12 +310,22 @@ def via_transition_problem(
     rect = (box.ymin, box.ymax, box.zmin, box.zmax)
     ports = (
         EMWavePort(
-            name="P1", face="xmin", rect=rect, line_type="microstrip",
-            signal_conductors=(t1.id,), z0=None, excite=True,
+            name="P1",
+            face="xmin",
+            rect=rect,
+            line_type="microstrip",
+            signal_conductors=(t1.id,),
+            z0=None,
+            excite=True,
         ),
         EMWavePort(
-            name="P2", face="xmax", rect=rect, line_type="microstrip",
-            signal_conductors=(t4.id,), z0=None, excite=True,
+            name="P2",
+            face="xmax",
+            rect=rect,
+            line_type="microstrip",
+            signal_conductors=(t4.id,),
+            z0=None,
+            excite=True,
         ),
     )
     return EMProblem(
@@ -300,8 +333,12 @@ def via_transition_problem(
         structure=structure,
         ports=ports,
         boundaries=Boundaries(
-            xmin="absorbing", xmax="absorbing", ymin="absorbing", ymax="absorbing",
-            zmin="absorbing", zmax="absorbing",
+            xmin="absorbing",
+            xmax="absorbing",
+            ymin="absorbing",
+            ymax="absorbing",
+            zmin="absorbing",
+            zmax="absorbing",
         ),
         frequency=_freq(f_max, n_points),
     )

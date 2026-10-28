@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Synthetic ``Board`` builders (board-model.md section 14.5).
 
@@ -16,11 +17,11 @@ import math
 from collections.abc import Sequence
 from typing import Literal
 
+from oa_model.arrays import Points
 from oa_model.board import Board, BoardMeta, BoardOutline, Component
 from oa_model.common import SourceRef
 from oa_model.copper import Track, Zone, ZoneFill
 from oa_model.geometry import LineSeg, Polygon
-from oa_model.arrays import Points
 from oa_model.materials import ConductorMaterial, ConstantDkDf, DielectricMaterial
 from oa_model.nets import DiffPair, Net, NetClass
 from oa_model.pads import Pad
@@ -68,7 +69,9 @@ def circle_ring(
     return pts[::-1] if clockwise else pts
 
 
-def _poly(exterior: Sequence[tuple[float, float]], *holes: Sequence[tuple[float, float]]) -> Polygon:
+def _poly(
+    exterior: Sequence[tuple[float, float]], *holes: Sequence[tuple[float, float]]
+) -> Polygon:
     return Polygon(exterior=Points(exterior), holes=tuple(Points(h) for h in holes))
 
 
@@ -170,9 +173,16 @@ def _smd_padstack(layer: str = "L1", size: float = PAD_SIZE) -> Padstack:
     )
 
 
-def _track(id_: str, net: str, layer: str, width: float, p0: tuple[float, float], p1: tuple[float, float]) -> Track:
+def _track(
+    id_: str, net: str, layer: str, width: float, p0: tuple[float, float], p1: tuple[float, float]
+) -> Track:
     return Track(
-        id=id_, net=net, layer=layer, width=width, path=(LineSeg(start=p0, end=p1),), source=_src("segment")
+        id=id_,
+        net=net,
+        layer=layer,
+        width=width,
+        path=(LineSeg(start=p0, end=p1),),
+        source=_src("segment"),
     )
 
 
@@ -191,7 +201,10 @@ def _pad(refdes: str, number: str, padstack: str, pos: tuple[float, float], net:
 
 
 def _component(
-    refdes: str, pos: tuple[float, float], pads: Sequence[Pad], side: Literal["top", "bottom"] = "top"
+    refdes: str,
+    pos: tuple[float, float],
+    pads: Sequence[Pad],
+    side: Literal["top", "bottom"] = "top",
 ) -> Component:
     return Component(
         refdes=refdes,
@@ -233,7 +246,9 @@ def _via_padstack(
     for lyr in layers:
         if lyr in antipad_layers:
             assert antipad is not None
-            entries.append(PadstackLayer(layer=lyr, pad=None, antipad=CircleShape(diameter=antipad)))
+            entries.append(
+                PadstackLayer(layer=lyr, pad=None, antipad=CircleShape(diameter=antipad))
+            )
         else:
             entries.append(
                 PadstackLayer(
@@ -385,9 +400,13 @@ def diff_pair_board(
             Net(id="GND", kind="ground"),
         ],
         net_classes=[
-            NetClass(name="Z90", dp_width=width, dp_gap=gap, target_z_diff=90.0, target_tolerance=0.1)
+            NetClass(
+                name="Z90", dp_width=width, dp_gap=gap, target_z_diff=90.0, target_tolerance=0.1
+            )
         ],
-        diff_pairs=[DiffPair(id="dp:DP", p_net="DP_P", n_net="DP_N", origin="naming", target_z_diff=90.0)],
+        diff_pairs=[
+            DiffPair(id="dp:DP", p_net="DP_P", n_net="DP_N", origin="naming", target_z_diff=90.0)
+        ],
         padstacks=[ps],
         pads=pads,
         tracks=tracks,
@@ -429,7 +448,9 @@ def cpwg_board(
     n_fence = int(length // via_pitch)
     x_start = (length - (n_fence - 1) * via_pitch) / 2.0
     y_via = y_gap + via_offset
-    ps = _via_padstack("via_gnd", ["L1", "L2"], drill=via_drill, pad=via_pad, connect_layers=["L1", "L2"])
+    ps = _via_padstack(
+        "via_gnd", ["L1", "L2"], drill=via_drill, pad=via_pad, connect_layers=["L1", "L2"]
+    )
     vias = [
         Via(
             id=f"via:GND:{side}{i}",
@@ -499,7 +520,10 @@ def split_plane_board(
         padstacks=[ps],
         pads=[p1, p2],
         tracks=[_track("trk:SIG:1", "SIG", "L1", width, (0.0, 0.0), (length, 0.0))],
-        zones=[_fill_zone("zone:GND:L2", "GND", "L2", left), _fill_zone("zone:VDD:L2", "VDD", "L2", right)],
+        zones=[
+            _fill_zone("zone:GND:L2", "GND", "L2", left),
+            _fill_zone("zone:VDD:L2", "VDD", "L2", right),
+        ],
         components=[_component("J1", (0.0, 0.0), [p1]), _component("J2", (length, 0.0), [p2])],
     )
 
@@ -536,7 +560,12 @@ def via_transition_board(
     ps4 = _smd_padstack("L4")
     all_layers = ["L1", "L2", "L3", "L4"]
     sig_via = _via_padstack(
-        "via_sig", all_layers, drill=via_drill, pad=via_pad, antipad_layers=["L2", "L3"], antipad=antipad
+        "via_sig",
+        all_layers,
+        drill=via_drill,
+        pad=via_pad,
+        antipad_layers=["L2", "L3"],
+        antipad=antipad,
     )
     gnd_via = _via_padstack(
         "via_gnd", all_layers, drill=via_drill, pad=via_pad, connect_layers=["L2", "L3"]
@@ -545,8 +574,14 @@ def via_transition_board(
     p2 = _pad("J2", "1", ps4.id, (length, 0.0), "SIG")
     vias = [
         Via(
-            id="via:SIG:1", padstack=sig_via.id, position=(xv, 0.0), net="SIG", kind="through",
-            start_layer="L1", end_layer="L4", source=_src("via"),
+            id="via:SIG:1",
+            padstack=sig_via.id,
+            position=(xv, 0.0),
+            net="SIG",
+            kind="through",
+            start_layer="L1",
+            end_layer="L4",
+            source=_src("via"),
         )
     ]
     for i in range(n_ground_vias):
@@ -622,8 +657,20 @@ def power_plane_board(
     else:
         n = neck_width / 2.0
         xa, xb = wx / 3.0, 2.0 * wx / 3.0
-        vdd_ring = [(x0, y0), (xa, y0), (xa, -n), (xb, -n), (xb, y0), (x1, y0),
-                    (x1, y1), (xb, y1), (xb, n), (xa, n), (xa, y1), (x0, y1)]
+        vdd_ring = [
+            (x0, y0),
+            (xa, y0),
+            (xa, -n),
+            (xb, -n),
+            (xb, y0),
+            (x1, y0),
+            (x1, y1),
+            (xb, y1),
+            (xb, n),
+            (xa, n),
+            (xa, y1),
+            (x0, y1),
+        ]
     outline = _poly(rect_ring(x0, y0, x1, y1))
     vdd_poly = _poly(vdd_ring)
 
@@ -632,14 +679,23 @@ def power_plane_board(
     parts: list[tuple[str, float]] = [("U1", 0.1 * wx), ("U2", 0.9 * wx)]
     parts += [(f"C{i + 1}", 0.1 * wx + 3e-3 + i * 1.6e-3) for i in range(n_decaps)]
     if parts[-1][1] > wx / 3.0 or (neck_width is not None and neck_width / 2.0 < sp + antipad):
-        raise ValueError("n_decaps too large for the plane width, or neck_width too narrow for the vias")
+        raise ValueError(
+            "n_decaps too large for the plane width, or neck_width too narrow for the vias"
+        )
 
     ps = _smd_padstack(size=0.8e-3)
     layers_l1_l3 = ["L1", "L2", "L3"]
     vdd_via_ps = _via_padstack(
-        "via_vdd", layers_l1_l3, drill=via_drill, pad=via_pad, antipad_layers=["L2"], antipad=antipad
+        "via_vdd",
+        layers_l1_l3,
+        drill=via_drill,
+        pad=via_pad,
+        antipad_layers=["L2"],
+        antipad=antipad,
     )
-    gnd_via_ps = _via_padstack("via_gnd", ["L1", "L2"], drill=via_drill, pad=via_pad, connect_layers=["L2"])
+    gnd_via_ps = _via_padstack(
+        "via_gnd", ["L1", "L2"], drill=via_drill, pad=via_pad, connect_layers=["L2"]
+    )
 
     pads: list[Pad] = []
     comps: list[Component] = []
@@ -652,12 +708,28 @@ def power_plane_board(
         pads += [pv, pg]
         comps.append(_component(refdes, (x, 0.0), [pv, pg]))
         vias.append(
-            Via(id=f"via:VDD:{refdes}", padstack=vdd_via_ps.id, position=(x, yv), net="VDD",
-                kind="blind", start_layer="L1", end_layer="L3", source=_src("via"))
+            Via(
+                id=f"via:VDD:{refdes}",
+                padstack=vdd_via_ps.id,
+                position=(x, yv),
+                net="VDD",
+                kind="blind",
+                start_layer="L1",
+                end_layer="L3",
+                source=_src("via"),
+            )
         )
         vias.append(
-            Via(id=f"via:GND:{refdes}", padstack=gnd_via_ps.id, position=(x, yg), net="GND",
-                kind="blind", start_layer="L1", end_layer="L2", source=_src("via"))
+            Via(
+                id=f"via:GND:{refdes}",
+                padstack=gnd_via_ps.id,
+                position=(x, yg),
+                net="GND",
+                kind="blind",
+                start_layer="L1",
+                end_layer="L2",
+                source=_src("via"),
+            )
         )
         holes.append(circle_ring(x, yv, antipad / 2.0, 24, clockwise=True))
     gnd_fill = _poly(rect_ring(x0, y0, x1, y1), *holes)
