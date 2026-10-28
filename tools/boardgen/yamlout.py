@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Minimal deterministic YAML 1.1/1.2 emitter (stdlib only) for ``expected.yaml``.
 
-Floats always carry a ``.`` so PyYAML parses ``1.0e-05`` as a float; strings are JSON-quoted unless trivially safe.
+Floats always carry a ``.`` so PyYAML parses ``1.0e-05`` as a float; strings are JSON-quoted unless
+trivially safe.
 """
 
 from __future__ import annotations

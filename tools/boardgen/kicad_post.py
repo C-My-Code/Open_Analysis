@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Run with KiCad's bundled Python (``python.exe kicad_post.py IN.kicad_pcb OUT.kicad_pcb STATS.json``).
+"""Run with KiCad's bundled Python (``python.exe kicad_post.py IN.kicad_pcb OUT.kicad_pcb
+STATS.json``).
 
-Loads a generated board with pcbnew, refills all zones (``ZONE_FILLER``), saves it, and writes a JSON
-report: object counts and per-layer, per-net copper area (m^2) of the refilled board.  GPL: this file imports
+Loads a generated board with pcbnew, refills all zones (``ZONE_FILLER``), saves it, and writes a
+JSON
+report: object counts and per-layer, per-net copper area (m^2) of the refilled board.  GPL: this
+file imports
 pcbnew and therefore runs out of process only (see ADR-0006).
 """
 
@@ -28,7 +31,9 @@ def to_shapely(ps):
         holes = []
         for h in range(ps.HoleCount(i)):
             ho = ps.Hole(i, h)
-            holes.append([(ho.CPoint(k).x * NM, ho.CPoint(k).y * NM) for k in range(ho.PointCount())])
+            holes.append(
+                [(ho.CPoint(k).x * NM, ho.CPoint(k).y * NM) for k in range(ho.PointCount())]
+            )
         p = Polygon(shell, holes)
         if not p.is_valid:
             p = p.buffer(0)
@@ -53,11 +58,15 @@ def main(src: str, dst: str, out_json: str) -> None:
     board.Save(dst)
 
     cu = list(board.GetEnabledLayers().CuStack())
-    names = {l: board.GetLayerName(l) for l in cu}
+    names = {lay: board.GetLayerName(lay) for lay in cu}
     maxerr = 1000  # 1 um
 
-    vt = {pcbnew.VIATYPE_THROUGH: "through", pcbnew.VIATYPE_BLIND: "blind", pcbnew.VIATYPE_BURIED: "buried",
-          pcbnew.VIATYPE_MICROVIA: "micro"}
+    vt = {
+        pcbnew.VIATYPE_THROUGH: "through",
+        pcbnew.VIATYPE_BLIND: "blind",
+        pcbnew.VIATYPE_BURIED: "buried",
+        pcbnew.VIATYPE_MICROVIA: "micro",
+    }
     vias = {}
     tracks = arcs = 0
     nets = set()
@@ -89,43 +98,50 @@ def main(src: str, dst: str, out_json: str) -> None:
             continue
         zones += 1
         nets.add(z.GetNetname())
-        for l in z.GetLayerSet().CuStack():
-            fp = z.GetFilledPolysList(l)
-            zone_report.append({"net": z.GetNetname(), "layer": names[l], "priority": z.GetAssignedPriority(),
-                                "filled_area_m2": fp.Area() * NM * NM, "outline_count": fp.OutlineCount()})
+        for lay in z.GetLayerSet().CuStack():
+            fp = z.GetFilledPolysList(lay)
+            zone_report.append(
+                {
+                    "net": z.GetNetname(),
+                    "layer": names[lay],
+                    "priority": z.GetAssignedPriority(),
+                    "filled_area_m2": fp.Area() * NM * NM,
+                    "outline_count": fp.OutlineCount(),
+                }
+            )
 
     # copper area per layer per net
     area: dict[str, dict[str, float]] = {}
     geoms: dict[tuple[str, str], list] = {}
-    for l in cu:
+    for lay in cu:
         per: dict[str, list] = {}
         for t in board.GetTracks():
             if t.GetClass() == "PCB_VIA":
-                if not t.FlashLayer(l):
+                if not t.FlashLayer(lay):
                     continue
-            elif t.GetLayer() != l:
+            elif t.GetLayer() != lay:
                 continue
-            g = item_poly(t, l, maxerr)
+            g = item_poly(t, lay, maxerr)
             if g is not None:
                 per.setdefault(t.GetNetname(), []).append(g)
         for fp in board.GetFootprints():
             for p in fp.Pads():
-                if p.IsOnLayer(l) and p.FlashLayer(l):
-                    g = item_poly(p, l, maxerr)
+                if p.IsOnLayer(lay) and p.FlashLayer(lay):
+                    g = item_poly(p, lay, maxerr)
                     if g is not None:
                         per.setdefault(p.GetNetname(), []).append(g)
         for z in board.Zones():
-            if z.GetIsRuleArea() or not z.IsOnLayer(l):
+            if z.GetIsRuleArea() or not z.IsOnLayer(lay):
                 continue
-            g = to_shapely(z.GetFilledPolysList(l))
+            g = to_shapely(z.GetFilledPolysList(lay))
             if g is not None:
                 per.setdefault(z.GetNetname(), []).append(g)
         a = {}
         for net, gl in per.items():
             u = unary_union(gl)
             a[net or ""] = u.area
-            geoms[(names[l], net)] = u
-        area[names[l]] = {k: a[k] for k in sorted(a)}
+            geoms[(names[lay], net)] = u
+        area[names[lay]] = {k: a[k] for k in sorted(a)}
 
     checks = {}
     ped = geoms.get(("F.Cu", "SIG_PLEDGE"))
@@ -134,10 +150,22 @@ def main(src: str, dst: str, out_json: str) -> None:
         checks["SIG_PLEDGE_to_L2_plane_edge_m"] = ped.distance(gnd2.boundary)
     report = {
         "kicad_version": pcbnew.Version(),
-        "counts": {"nets": len(nets - {""}), "vias": dict(sorted(vias.items())), "pads": pads, "pads_smd": smd,
-                   "pads_tht": tht, "tracks": tracks, "arcs": arcs, "zones": zones, "rule_areas": rule_areas,
-                   "footprints": len(board.GetFootprints()), "copper_layers": len(cu)},
-        "copper_area_m2": area, "zones": zone_report, "checks": checks,
+        "counts": {
+            "nets": len(nets - {""}),
+            "vias": dict(sorted(vias.items())),
+            "pads": pads,
+            "pads_smd": smd,
+            "pads_tht": tht,
+            "tracks": tracks,
+            "arcs": arcs,
+            "zones": zones,
+            "rule_areas": rule_areas,
+            "footprints": len(board.GetFootprints()),
+            "copper_layers": len(cu),
+        },
+        "copper_area_m2": area,
+        "zones": zone_report,
+        "checks": checks,
     }
     with open(out_json, "w", encoding="utf8") as f:
         json.dump(report, f, indent=1, sort_keys=True)
