@@ -5,8 +5,8 @@
  "note": "Closed-form implementations should match to 1e-6; field solvers to ~1 %.",
  "rtol": 0.015,
  "expected": {
-  "z0": 30.911406496810155,
-  "eeff": 3.4868524570948747
+  "z0": 30.9114064968,
+  "eeff": 3.48685245709
  },
  "xsection": {
   "schema": "oa-xsection/1",

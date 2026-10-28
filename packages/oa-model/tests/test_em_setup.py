@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -198,3 +199,17 @@ ports:
         AnalysisSetup.model_validate(
             {"schema": "oa-setup/2", "name": "x", "analysis": "a", "config": {}}
         )
+
+
+def test_manifest_paths_are_portable() -> None:
+    """Manifest paths serialize with '/' on every OS (str(Path) gives '\\' on Windows)."""
+    default = ProjectManifest.model_json_schema()["properties"]["setups_dir"]["default"]
+    assert default == "oa/setups"
+    m = ProjectManifest.model_validate(
+        {"schema": "oa-project/1", "name": "demo", "board": Path("boards") / "demo.kicad_pcb"}
+    )
+    assert isinstance(m.board, Path)
+    doc = json.loads(m.model_dump_json())
+    assert doc["board"] == "boards/demo.kicad_pcb"
+    assert doc["setups_dir"] == "oa/setups"
+    assert ProjectManifest.model_validate(doc) == m

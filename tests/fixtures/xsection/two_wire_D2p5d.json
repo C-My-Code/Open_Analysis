@@ -5,7 +5,7 @@
  "note": "Air, wire diameter 0.5 mm, centre spacing D; Z0 is the line (differential) value.",
  "rtol": 0.0001,
  "expected": {
-  "zdiff": 187.8858378800739,
+  "zdiff": 187.88583788,
   "eeff": 1.0
  },
  "xsection": {

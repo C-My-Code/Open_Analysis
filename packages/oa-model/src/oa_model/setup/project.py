@@ -4,17 +4,25 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import yaml
-from pydantic import Field, JsonValue
+from pydantic import Field, JsonValue, PlainSerializer
 
 from oa_model._base import OAModel
 from oa_model.setup.ports import Port
 
+ProjectPath = Annotated[
+    Path, PlainSerializer(lambda p: p.as_posix(), return_type=str, when_used="json")
+]
+"""A project-relative path. It is written with '/' separators on every OS, because `str(Path)`
+uses '\\' on Windows and the manifest (and its JSON Schema) must be portable. Defaults are
+declared as POSIX strings for the same reason: pydantic renders a `Path` default in the schema
+with `str()`, and `validate_default` turns the string into a `Path` on the instance."""
+
 
 class ReadOptions(OAModel):
-    project_file: Path | None = Field(
+    project_file: ProjectPath | None = Field(
         default=None, description="'.kicad_pro' next to the board; auto-detected if None."
     )
     refill_zones: Literal["never", "if_unfilled", "always"] = Field(
@@ -36,12 +44,12 @@ class Waiver(OAModel):
 class ProjectManifest(OAModel):
     schema: Literal["oa-project/1"] = Field(description="Schema tag.")  # type: ignore[assignment]
     name: str = Field(description="Project name.")
-    board: Path = Field(
+    board: ProjectPath = Field(
         description="Relative path to the board: .kicad_pcb, .xml, .PcbDoc, .oab or .oab.json."
     )
-    physics: Path | None = Field(default=None, description="Physics sidecar path.")
-    intent: Path | None = Field(default=None, description="Design intent path.")
-    setups_dir: Path = Field(default=Path("oa/setups"), description="Directory of setup files.")
+    physics: ProjectPath | None = Field(default=None, description="Physics sidecar path.")
+    intent: ProjectPath | None = Field(default=None, description="Design intent path.")
+    setups_dir: ProjectPath = Field(default="oa/setups", description="Directory of setup files.")
     read_options: ReadOptions = Field(default=ReadOptions(), description="Reader options.")
     tools: dict[str, dict[str, str]] = Field(
         default={}, description="Per-project external tool overrides."

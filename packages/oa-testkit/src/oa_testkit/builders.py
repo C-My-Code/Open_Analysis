@@ -36,6 +36,7 @@ __all__ = [
     "microstrip_board",
     "power_plane_board",
     "rect_ring",
+    "snap_nm",
     "split_plane_board",
     "stripline_board",
     "via_transition_board",
@@ -58,12 +59,27 @@ def rect_ring(x0: float, y0: float, x1: float, y1: float) -> list[tuple[float, f
     return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
+def snap_nm(v: float) -> float:
+    """Round a coordinate to the 1 nm grid (KiCad's internal resolution).
+
+    Used on every coordinate computed with ``math.sin``/``math.cos``. Those are not correctly
+    rounded and differ by an ulp between platform libms (Windows UCRT, glibc, Apple), which would
+    make the builders, their ``content_hash`` and the committed fixtures OS-dependent. Snapping
+    with basic IEEE arithmetic (``*``, ``round``, ``/``) gives the same float everywhere.
+    """
+    return round(v * 1e9) / 1e9
+
+
 def circle_ring(
     cx: float, cy: float, r: float, n: int = 32, *, clockwise: bool = False
 ) -> list[tuple[float, float]]:
-    """Regular n-gon inscribed in the circle; CCW by default, CW for holes."""
+    """Regular n-gon inscribed in the circle, vertices snapped to 1 nm; CCW by default, CW for
+    holes."""
     pts = [
-        (cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n))
+        (
+            snap_nm(cx + r * math.cos(2 * math.pi * i / n)),
+            snap_nm(cy + r * math.sin(2 * math.pi * i / n)),
+        )
         for i in range(n)
     ]
     return pts[::-1] if clockwise else pts
@@ -592,7 +608,10 @@ def via_transition_board(
             Via(
                 id=f"via:GND:{i + 1}",
                 padstack=gnd_via.id,
-                position=(xv + ground_via_radius * math.cos(a), ground_via_radius * math.sin(a)),
+                position=(
+                    snap_nm(xv + ground_via_radius * math.cos(a)),
+                    snap_nm(ground_via_radius * math.sin(a)),
+                ),
                 net="GND",
                 kind="through",
                 start_layer="L1",

@@ -5,7 +5,7 @@
  "note": "Air, r = 0.25 mm; the plane is infinite and zero thickness.",
  "rtol": 0.0001,
  "expected": {
-  "z0": 78.96280904330571,
+  "z0": 78.9628090433,
   "eeff": 1.0
  },
  "xsection": {

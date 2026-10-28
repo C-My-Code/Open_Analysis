@@ -63,6 +63,16 @@ def _json_text(obj: object) -> str:
     return json.dumps(obj, indent=1, sort_keys=False, ensure_ascii=False) + "\n"
 
 
+REF_DIGITS = 12
+"""Significant digits kept for reference values in the committed files. They come from
+``math.log``/``acosh``/... whose last bit differs between platform libms (Windows UCRT, glibc,
+Apple), so the full repr is not reproducible across OSes; 12 digits is far below every ``rtol``."""
+
+
+def _ref(x: float) -> float:
+    return float(f"{x:.{REF_DIGITS}g}")
+
+
 def expected_files() -> Iterator[tuple[str, str]]:
     """Yield ``(relative path, text)`` for every fixture file."""
     for name, fn in BOARDS.items():
@@ -74,7 +84,7 @@ def expected_files() -> Iterator[tuple[str, str]]:
             "source": case.source,
             "note": case.note,
             "rtol": case.rtol,
-            "expected": dict(case.expected),
+            "expected": {k: _ref(v) for k, v in case.expected.items()},
             "xsection": json.loads(case.xs.model_dump_json()),
         }
         yield f"xsection/{case.name}.json", _json_text(doc)

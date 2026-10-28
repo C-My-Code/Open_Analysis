@@ -106,7 +106,7 @@
       "type": "string"
     },
     "setups_dir": {
-      "default": "oa\\setups",
+      "default": "oa/setups",
       "description": "Directory of setup files.",
       "format": "path",
       "title": "Setups Dir",
