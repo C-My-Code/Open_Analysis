@@ -1,0 +1,297 @@
+schema: oa-board-expected/1
+board: split_plane
+description: "4-layer board with deliberate reference-plane defects under L1 traces: 1 mm slot (RP-001), trace 0.1 mm from the plane edge (ED-001), trace 0.3 mm from the board edge (ED-002), trace over a void (RP-007), swiss-cheese antipad cluster (RP-002) and a GND -> +3V3 reference change (RP-003)."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 33
+  vias:
+    buried: 25
+    through: 6
+  pads: 18
+  pads_smd: 18
+  pads_tht: 0
+  tracks: 6
+  arcs: 0
+  zones: 4
+  rule_areas: 3
+  footprints: 18
+  copper_layers: 4
+stackup:
+  board_thickness: 0.0016
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001565
+      z_top: 0.0016
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001365
+      z_top: 0.001565
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00133
+      z_top: 0.001365
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.00106
+      z_bottom: 0.00027
+      z_top: 0.00133
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L4
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      "+3V3": 2.0e-06
+      GND: 4.0e-06
+      SIG_BOARDEDGE: 6.24e-06
+      SIG_NOREF: 6.54e-06
+      SIG_PLEDGE: 6.09e-06
+      SIG_REFCHG: 9.54e-06
+      SIG_SLOT: 1.854e-05
+      SIG_SWISS: 7.74e-06
+    L2:
+      "+3V3": 0.00039998452212
+      GND: 0.006009556329212
+      SC_01: 2.81582085e-07
+      SC_02: 2.81582085e-07
+      SC_03: 2.81582085e-07
+      SC_04: 2.81582085e-07
+      SC_05: 2.81582085e-07
+      SC_06: 2.81582085e-07
+      SC_07: 2.81582085e-07
+      SC_08: 2.81582085e-07
+      SC_09: 2.81582085e-07
+      SC_10: 2.81582085e-07
+      SC_11: 2.81582085e-07
+      SC_12: 2.81582085e-07
+      SC_13: 2.81582085e-07
+      SC_14: 2.81582085e-07
+      SC_15: 2.81582085e-07
+      SC_16: 2.81582085e-07
+      SC_17: 2.81582085e-07
+      SC_18: 2.81582085e-07
+      SC_19: 2.81582085e-07
+      SC_20: 2.81582085e-07
+      SC_21: 2.81582085e-07
+      SC_22: 2.81582085e-07
+      SC_23: 2.81582085e-07
+      SC_24: 2.81582085e-07
+      SC_25: 2.81582085e-07
+    L3:
+      "+3V3": 3.91085582e-07
+      GND: 0.006935455466792
+      SC_01: 2.81582085e-07
+      SC_02: 2.81582085e-07
+      SC_03: 2.81582085e-07
+      SC_04: 2.81582085e-07
+      SC_05: 2.81582085e-07
+      SC_06: 2.81582085e-07
+      SC_07: 2.81582085e-07
+      SC_08: 2.81582085e-07
+      SC_09: 2.81582085e-07
+      SC_10: 2.81582085e-07
+      SC_11: 2.81582085e-07
+      SC_12: 2.81582085e-07
+      SC_13: 2.81582085e-07
+      SC_14: 2.81582085e-07
+      SC_15: 2.81582085e-07
+      SC_16: 2.81582085e-07
+      SC_17: 2.81582085e-07
+      SC_18: 2.81582085e-07
+      SC_19: 2.81582085e-07
+      SC_20: 2.81582085e-07
+      SC_21: 2.81582085e-07
+      SC_22: 2.81582085e-07
+      SC_23: 2.81582085e-07
+      SC_24: 2.81582085e-07
+      SC_25: 2.81582085e-07
+    L4:
+      "+3V3": 3.91085582e-07
+      GND: 0.006963939852023
+nets:
+  - "+3V3"
+  - GND
+  - SC_01
+  - SC_02
+  - SC_03
+  - SC_04
+  - SC_05
+  - SC_06
+  - SC_07
+  - SC_08
+  - SC_09
+  - SC_10
+  - SC_11
+  - SC_12
+  - SC_13
+  - SC_14
+  - SC_15
+  - SC_16
+  - SC_17
+  - SC_18
+  - SC_19
+  - SC_20
+  - SC_21
+  - SC_22
+  - SC_23
+  - SC_24
+  - SC_25
+  - SIG_BOARDEDGE
+  - SIG_NOREF
+  - SIG_PLEDGE
+  - SIG_REFCHG
+  - SIG_SLOT
+  - SIG_SWISS
+net_classes: []
+net_class_patterns: []
+diff_pairs: []
+geometry:
+  split_plane:
+    reference_layer: L2
+    origin_mm: [0.0, 0.0]
+    slot:
+      x_range_mm: [49.5, 50.5]
+      y_range_mm: [5.0, 45.0]
+      width: 0.001
+      crossing_trace: SIG_SLOT
+      implemented_as: "copper-pour keepout rule area on the plane layer"
+    plane_edge_trace:
+      net: SIG_PLEDGE
+      edge_to_edge_gap: 0.0001
+      width: 0.0003
+      void_mm: [15.0, 52.0, 45.0, 60.0]
+    no_reference_void:
+      net: SIG_NOREF
+      void_mm: [60.0, 52.0, 90.0, 60.0]
+    swiss_cheese:
+      via_nets: "SC_01..SC_25 (one net per via)"
+      kind: buried
+      span: [L2, L3]
+      count: 25
+      pitch: 0.0016
+      via_size: 0.0006
+      drill: 0.0003
+      centre_mm: [20.0, 30.0]
+      crossing_trace: SIG_SWISS
+      plane_clearance: 0.0002
+    reference_change:
+      net: SIG_REFCHG
+      from_net: GND
+      to_net: "+3V3"
+      x_mm: 75.0
+      zone_mm: [75.0, 25.0, 95.0, 45.0]
+      zone_clearance: 0.0002
+    board_edge_trace:
+      net: SIG_BOARDEDGE
+      edge_to_edge_gap: 0.0003
+      width: 0.0002
+erc:
+  - rule_id: RP-001
+    nets: [SIG_SLOT]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [50.0, 15.0]
+    tolerance_mm: 1.0
+    generator: boardgen.features.split_plane
+    why: "L1 trace crosses the 1 mm slot in the L2 GND plane"
+  - rule_id: ED-001
+    nets: [SIG_PLEDGE]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [30.0, 51.75]
+    tolerance_mm: 10.0
+    generator: boardgen.features.split_plane
+    why: "trace edge runs 0.1 mm inboard of the L2 plane edge (void boundary y=52 mm) for 20 mm"
+  - rule_id: RP-007
+    nets: [SIG_NOREF]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [75.0, 56.0]
+    tolerance_mm: 10.0
+    generator: boardgen.features.split_plane
+    why: "20 mm trace over a 30 x 8 mm void in L2"
+  - rule_id: RP-002
+    nets: [SIG_SWISS]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [20.0, 30.0]
+    tolerance_mm: 4.0
+    generator: boardgen.features.split_plane
+    why: "25 buried vias (pitch 1.6 mm, antipad 1.0 mm) perforate the L2 reference under the trace"
+  - rule_id: RP-003
+    nets: [SIG_REFCHG]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [75.0, 35.0]
+    tolerance_mm: 1.0
+    generator: boardgen.features.split_plane
+    why: "reference net changes GND -> +3V3 at x=75 mm (the 0.2 mm zone clearance gap may also appear as RP-001)"
+  - rule_id: ED-002
+    nets: [SIG_BOARDEDGE]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [0.4, 25.0]
+    tolerance_mm: 15.0
+    generator: boardgen.features.split_plane
+    why: "trace edge 0.3 mm from the board edge for 30 mm"
+must_not_report: [RP-004, DP-001, DP-002, DP-003, RF-001, PD-001, VI-001]
+negative_cases: []
+unspecified:
+  - rule_id: RP-001
+    nets: [SIG_REFCHG]
+    why: "0.2 mm zone-to-zone clearance gap at the GND/+3V3 boundary"
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 25
+  by_type:
+    warning:
+      via_dangling: 25
+  report: drc.json
+checks:
+  SIG_PLEDGE_to_L2_plane_edge_m: 0.00010000000000000286
+notes: []

@@ -1,0 +1,844 @@
+schema: oa-board-expected/1
+board: combined
+description: "8-layer 2.0 mm board carrying every violation of the other boards in separate regions, plus net classes 50ohm / 90ohm / 100ohm and the USB_D+ / USB_D- pair. L2/L4/L7 GND planes, L5 +1V0 plane (full board)."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 51
+  vias:
+    blind: 5
+    buried: 26
+    micro: 1
+    through: 128
+  pads: 89
+  pads_smd: 87
+  pads_tht: 2
+  tracks: 63
+  arcs: 0
+  zones: 5
+  rule_areas: 3
+  footprints: 51
+  copper_layers: 8
+stackup:
+  board_thickness: 0.002
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001965
+      z_top: 0.002
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001765
+      z_top: 0.001965
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00173
+      z_top: 0.001765
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.00153
+      z_top: 0.00173
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001495
+      z_top: 0.00153
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001295
+      z_top: 0.001495
+    - id: L4
+      source_name: In3.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00126
+      z_top: 0.001295
+    - id: D4
+      source_name: "dielectric 4"
+      kind: dielectric
+      thickness: 0.00042
+      z_bottom: 0.00084
+      z_top: 0.00126
+    - id: L5
+      source_name: In4.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000805
+      z_top: 0.00084
+    - id: D5
+      source_name: "dielectric 5"
+      kind: dielectric
+      thickness: 0.00015
+      z_bottom: 0.000655
+      z_top: 0.000805
+    - id: L6
+      source_name: In5.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00062
+      z_top: 0.000655
+    - id: D6
+      source_name: "dielectric 6"
+      kind: dielectric
+      thickness: 0.00035
+      z_bottom: 0.00027
+      z_top: 0.00062
+    - id: L7
+      source_name: In6.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D7
+      source_name: "dielectric 7"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L8
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      "+1V0": 9.28e-06
+      "+3V3": 2.0e-06
+      BLIND1: 2.81582085e-07
+      CPW_A: 1.254e-05
+      CPW_B: 1.254e-05
+      DP_N: 7.510791293e-06
+      DP_P: 7.455795894e-06
+      GND: 2.2509062341e-05
+      MS_250: 1.425e-05
+      MS_350: 1.915e-05
+      MS_500: 2.65e-05
+      NR: 2.047012625e-06
+      SE1: 2.757200444e-06
+      SE2: 2.757200444e-06
+      SIG_BOARDEDGE: 6.24e-06
+      SIG_NOREF: 6.54e-06
+      SIG_PLEDGE: 6.09e-06
+      SIG_REFCHG: 9.54e-06
+      SIG_SLOT: 1.854e-05
+      SIG_SWISS: 7.74e-06
+      "USB_D+": 4.65285315e-06
+      USB_D-: 4.65285315e-06
+      UVIA1: 7.0232697e-08
+      VD_N: 1.673690403e-06
+      VD_P: 1.673690403e-06
+    L2:
+      "+1V0": 3.521726032e-06
+      "+3V3": 0.00039998452212
+      BLIND1: 2.81582085e-07
+      DP_N: 3.91085582e-07
+      DP_P: 3.91085582e-07
+      GND: 0.032544685899722
+      NR: 1.95542791e-07
+      SC_01: 2.81582085e-07
+      SC_02: 2.81582085e-07
+      SC_03: 2.81582085e-07
+      SC_04: 2.81582085e-07
+      SC_05: 2.81582085e-07
+      SC_06: 2.81582085e-07
+      SC_07: 2.81582085e-07
+      SC_08: 2.81582085e-07
+      SC_09: 2.81582085e-07
+      SC_10: 2.81582085e-07
+      SC_11: 2.81582085e-07
+      SC_12: 2.81582085e-07
+      SC_13: 2.81582085e-07
+      SC_14: 2.81582085e-07
+      SC_15: 2.81582085e-07
+      SC_16: 2.81582085e-07
+      SC_17: 2.81582085e-07
+      SC_18: 2.81582085e-07
+      SC_19: 2.81582085e-07
+      SC_20: 2.81582085e-07
+      SC_21: 2.81582085e-07
+      SC_22: 2.81582085e-07
+      SC_23: 2.81582085e-07
+      SC_24: 2.81582085e-07
+      SC_25: 2.81582085e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      UVIA1: 7.0232697e-08
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L3:
+      "+1V0": 3.521726032e-06
+      "+3V3": 3.91085582e-07
+      BLIND1: 2.81582085e-07
+      BURIED1: 2.81582085e-07
+      DP_N: 4.584753419e-06
+      DP_P: 4.584753419e-06
+      GND: 1.4337416746e-05
+      NR: 1.95542791e-07
+      SC_01: 2.81582085e-07
+      SC_02: 2.81582085e-07
+      SC_03: 2.81582085e-07
+      SC_04: 2.81582085e-07
+      SC_05: 2.81582085e-07
+      SC_06: 2.81582085e-07
+      SC_07: 2.81582085e-07
+      SC_08: 2.81582085e-07
+      SC_09: 2.81582085e-07
+      SC_10: 2.81582085e-07
+      SC_11: 2.81582085e-07
+      SC_12: 2.81582085e-07
+      SC_13: 2.81582085e-07
+      SC_14: 2.81582085e-07
+      SC_15: 2.81582085e-07
+      SC_16: 2.81582085e-07
+      SC_17: 2.81582085e-07
+      SC_18: 2.81582085e-07
+      SC_19: 2.81582085e-07
+      SC_20: 2.81582085e-07
+      SC_21: 2.81582085e-07
+      SC_22: 2.81582085e-07
+      SC_23: 2.81582085e-07
+      SC_24: 2.81582085e-07
+      SC_25: 2.81582085e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L4:
+      "+1V0": 3.521726032e-06
+      "+3V3": 3.91085582e-07
+      BURIED1: 2.81582085e-07
+      GND: 0.033492622355269
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L5:
+      "+1V0": 0.033428859973721
+      "+3V3": 3.91085582e-07
+      BURIED1: 2.81582085e-07
+      GND: 1.4337416746e-05
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L6:
+      "+1V0": 3.521726032e-06
+      "+3V3": 3.91085582e-07
+      BURIED1: 2.81582085e-07
+      GND: 1.4337416746e-05
+      NR: 1.95542791e-07
+      SE1: 2.368069048e-06
+      SE2: 2.368069048e-06
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L7:
+      "+1V0": 3.521726032e-06
+      "+3V3": 3.91085582e-07
+      GND: 0.033493761730678
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L8:
+      "+1V0": 3.521726032e-06
+      "+3V3": 3.91085582e-07
+      GND: 1.4337416746e-05
+      NR: 2.047012625e-06
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.673690403e-06
+      VD_P: 1.673690403e-06
+nets:
+  - "+1V0"
+  - "+3V3"
+  - BLIND1
+  - BURIED1
+  - CPW_A
+  - CPW_B
+  - DP_N
+  - DP_P
+  - GND
+  - MS_250
+  - MS_350
+  - MS_500
+  - NR
+  - SC_01
+  - SC_02
+  - SC_03
+  - SC_04
+  - SC_05
+  - SC_06
+  - SC_07
+  - SC_08
+  - SC_09
+  - SC_10
+  - SC_11
+  - SC_12
+  - SC_13
+  - SC_14
+  - SC_15
+  - SC_16
+  - SC_17
+  - SC_18
+  - SC_19
+  - SC_20
+  - SC_21
+  - SC_22
+  - SC_23
+  - SC_24
+  - SC_25
+  - SE1
+  - SE2
+  - SIG_BOARDEDGE
+  - SIG_NOREF
+  - SIG_PLEDGE
+  - SIG_REFCHG
+  - SIG_SLOT
+  - SIG_SWISS
+  - "USB_D+"
+  - USB_D-
+  - UVIA1
+  - VD_N
+  - VD_P
+net_classes:
+  - name: "50ohm"
+    track_width: 0.35
+    clearance: 0.2
+  - name: "90ohm"
+    track_width: 0.2
+    clearance: 0.1
+    diff_pair_width: 0.2
+    diff_pair_gap: 0.15
+  - name: "100ohm"
+    track_width: 0.15
+    clearance: 0.1
+    diff_pair_width: 0.15
+    diff_pair_gap: 0.2
+net_class_patterns:
+  - net_class: "50ohm"
+    pattern: "MS_*"
+  - net_class: "50ohm"
+    pattern: "CPW_*"
+  - net_class: "90ohm"
+    pattern: "USB_D*"
+  - net_class: "100ohm"
+    pattern: "DP_*"
+diff_pairs:
+  - id: "dp:DP"
+    p_net: DP_P
+    n_net: DP_N
+    origin: naming
+    net_class: "100ohm"
+    target_z_diff: 100.0
+  - id: "dp:USB_D"
+    p_net: "USB_D+"
+    n_net: USB_D-
+    origin: naming
+    net_class: "90ohm"
+    target_z_diff: 90.0
+  - id: "dp:VD"
+    p_net: VD_P
+    n_net: VD_N
+    origin: naming
+    net_class: null
+    target_z_diff: null
+geometry:
+  split_plane:
+    reference_layer: L2
+    origin_mm: [0, 0]
+    slot:
+      x_range_mm: [49.5, 50.5]
+      y_range_mm: [5, 45]
+      width: 0.001
+      crossing_trace: SIG_SLOT
+      implemented_as: "copper-pour keepout rule area on the plane layer"
+    plane_edge_trace:
+      net: SIG_PLEDGE
+      edge_to_edge_gap: 0.0001
+      width: 0.0003
+      void_mm: [15, 52, 45, 60]
+    no_reference_void:
+      net: SIG_NOREF
+      void_mm: [60, 52, 90, 60]
+    swiss_cheese:
+      via_nets: "SC_01..SC_25 (one net per via)"
+      kind: buried
+      span: [L2, L3]
+      count: 25
+      pitch: 0.0016
+      via_size: 0.0006
+      drill: 0.0003
+      centre_mm: [20.0, 30.0]
+      crossing_trace: SIG_SWISS
+      plane_clearance: 0.0002
+    reference_change:
+      net: SIG_REFCHG
+      from_net: GND
+      to_net: "+3V3"
+      x_mm: 75
+      zone_mm: [75, 25, 95, 45]
+      zone_clearance: 0.0002
+    board_edge_trace:
+      net: SIG_BOARDEDGE
+      edge_to_edge_gap: 0.0003
+      width: 0.0002
+  microstrip:
+    layer: L1
+    reference_layer: L2
+    h_to_reference: 0.0002
+    dk: 4.3
+    df: 0.02
+    copper_thickness: 3.5e-05
+    length: 0.05
+    traces:
+      - net: MS_250
+        layer: L1
+        width: 0.00025
+        length: 0.05
+        start_mm: [110, 10.0]
+        end_mm: [160.0, 10.0]
+        z0_ohm_approx: 60.39
+      - net: MS_350
+        layer: L1
+        width: 0.00035
+        length: 0.05
+        start_mm: [110, 20.0]
+        end_mm: [160.0, 20.0]
+        z0_ohm_approx: 50.74
+      - net: MS_500
+        layer: L1
+        width: 0.0005
+        length: 0.05
+        start_mm: [110, 30.0]
+        end_mm: [160.0, 30.0]
+        z0_ohm_approx: 41.16
+    length_definition: "pad centre to pad centre; the single segment is exactly this long"
+    z0_note: "z0_ohm_approx is Hammerstad-Jensen (no mask); BEM/FEM values differ by about 1 ohm"
+  cpwg:
+    signal_width_S: 0.0003
+    gap_G: 0.00015
+    h_to_reference: 0.0002
+    dk: 4.3
+    copper_thickness: 3.5e-05
+    length: 0.04
+    lines:
+      - net: CPW_A
+        layer: L1
+        start_mm: [175, 10.0]
+        end_mm: [215.0, 10.0]
+        fence_pitch: 0.0016
+        fence_offset: 0.001
+        fence_via_count: 46
+        fence_x_mm: [177.4, 212.6]
+      - net: CPW_B
+        layer: L1
+        start_mm: [175, 30.0]
+        end_mm: [215.0, 30.0]
+        fence_pitch: 0.0048
+        fence_offset: 0.001
+        fence_via_count: 14
+        fence_x_mm: [180.6, 209.4]
+    fence_via:
+      size: 0.0004
+      drill: 0.0002
+      net: GND
+    rf_check:
+      f_max: 10000000000.0
+      eeff_nominal: 3.3
+      lambda_over_10: 0.016503032
+      pass_pitch: 0.0016
+      fail_pitch: 0.0048
+      formula: "lambda/10 = c / (f * sqrt(eeff)) / 10 with eeff = 3.3 -> 1.651 mm"
+  usb_pair:
+    p_net: "USB_D+"
+    n_net: USB_D-
+    layer: L1
+    width: 0.0002
+    gap: 0.00015
+    length: 0.02
+    naming: "Altium-style explicit +/- suffix (USB_D+ / USB_D-)"
+    diff_target_ohm: 90.0
+    x_range_mm: [110, 130.0]
+    y_mm: 50
+  via_transition:
+    origin_mm: [0, 75]
+    stack_layers: 8
+    single_ended:
+      net: SE1
+      via_mm: [15, 90]
+      via_size: 0.0006
+      drill: 0.0003
+      span: [L1, L8]
+      signal_layers: [L1, L6]
+      stub_layers: [L7, L8]
+      stub_length: 0.00062
+      stub_definition: "z_bottom(L6) - z_bottom(L8) (bottom of the barrel)"
+      return_via_mm: [15, 91.5]
+    single_ended_backdrilled:
+      net: SE2
+      via_mm: [15, 110]
+      span: [L1, L8]
+      signal_layers: [L1, L6]
+      backdrill:
+        side: bottom
+        size: 0.0006
+        kicad_layers: [B.Cu, In6.Cu]
+        end_layer: L7
+        end_layer_cut: true
+        cut_layers: [L7, L8]
+        kicad_token: tertiary_drill
+        residual_barrel_below_last_used_layer: 0.00035
+        residual_definition: "z_bottom(L6) - z_top(L7): barrel left between the last used layer and the drill-end layer; conductor layers left in the stub: none"
+      return_via_mm: [15, 111.5]
+    differential:
+      p_net: VD_P
+      n_net: VD_N
+      via_mm:
+        - [40, 89.5]
+        - [40, 90.5]
+      span: [L1, L8]
+      signal_layers: [L1, L8]
+      via_pitch: 0.001
+      return_vias_mm:
+        - [38.5, 88.5]
+        - [41.5, 88.5]
+        - [38.5, 91.5]
+        - [41.5, 91.5]
+    no_return_via:
+      net: NR
+      via_mm: [55, 110]
+      signal_layers: [L1, L8]
+      nearest_gnd_via_distance: 0.02
+      nearest_gnd_via_distance_note: "lower bound"
+    other_vias:
+      blind:
+        net: BLIND1
+        span: [L1, L3]
+      buried:
+        net: BURIED1
+        span: [L3, L6]
+      micro:
+        net: UVIA1
+        span: [L1, L2]
+  diff_pair:
+    p_net: DP_P
+    n_net: DP_N
+    origin: "naming (_P/_N suffix)"
+    microstrip:
+      layer: L1
+      width: 0.00015
+      gap: 0.0002
+      x_range_mm: [83.825, 118.575]
+      h_to_reference: 0.0002
+    stripline:
+      layer: L3
+      width: 0.00012
+      gap: 0.00015
+      gap_step: 0.0003
+      h_above: 0.0002
+      h_below: 0.0002
+    breakout:
+      layer: L1
+      uncoupled_length: 0.003
+      pitch: 0.002
+      x_range_mm: [80, 83.0]
+      y_mm: 100
+    gap_variation:
+      layer: L3
+      gap_nominal: 0.00015
+      gap_wide: 0.0003
+      x_range_mm: [140.075, 145.0]
+      y_mm: 100
+    length_p: 0.0759651176
+    length_n: 0.0763651176
+    length_mismatch: 0.0004
+    mismatch_definition: "DP_N minus DP_P: sum of copper segment lengths on L1 and L3 (via barrels excluded); DP_N carries a 0.2/1.0/0.2 mm bump (+0.4 mm), everything else is mirror symmetric"
+    via_pairs_mm:
+      - [120.0, 100]
+      - [155.0, 100]
+    via_kind: blind
+    via_span: [L1, L3]
+    via_pitch: 0.0012
+    return_vias_per_pair: 4
+    diff_target_ohm: 100.0
+  power_plane:
+    plane_layer: L5
+    plane_net: "+1V0"
+    plane_outline_mm: [0, 0, 240, 140]
+    plane_size: [0.24, 0.14]
+    plane_area: 0.0336
+    reference_layer: L2
+    reference_net: GND
+    vrm:
+      ref: U5
+      centre_mm: [185, 100]
+      output_pins: 3
+      net: "+1V0"
+      gnd_pins: 3
+    load:
+      ref: U1
+      centre_mm: [214, 100]
+      power_pins: 16
+      gnd_pins: 16
+      grid_pitch: 0.001
+      power_pin_mm:
+        - [210.5, 98.5]
+        - [210.5, 100.5]
+        - [211.5, 99.5]
+        - [211.5, 101.5]
+        - [212.5, 98.5]
+        - [212.5, 100.5]
+        - [213.5, 99.5]
+        - [213.5, 101.5]
+        - [214.5, 98.5]
+        - [214.5, 100.5]
+        - [215.5, 99.5]
+        - [215.5, 101.5]
+        - [216.5, 98.5]
+        - [216.5, 100.5]
+        - [217.5, 99.5]
+        - [217.5, 101.5]
+      gnd_pin_mm:
+        - [210.5, 99.5]
+        - [210.5, 101.5]
+        - [211.5, 98.5]
+        - [211.5, 100.5]
+        - [212.5, 99.5]
+        - [212.5, 101.5]
+        - [213.5, 98.5]
+        - [213.5, 100.5]
+        - [214.5, 99.5]
+        - [214.5, 101.5]
+        - [215.5, 98.5]
+        - [215.5, 100.5]
+        - [216.5, 99.5]
+        - [216.5, 101.5]
+        - [217.5, 98.5]
+        - [217.5, 100.5]
+    decaps:
+      - ref: C1
+        centre_mm: [209.0, 98.5]
+        distance_to_nearest_power_pin: 0.0015
+      - ref: C2
+        centre_mm: [198.5, 98.5]
+        distance_to_nearest_power_pin: 0.012
+    distance_definition: "decap centre to the nearest U1 +1V0 pad centre"
+    via:
+      size: 0.00045
+      drill: 0.0002
+      span: [L1, L8]
+    note: "plane_outline is the whole board in this variant (L5 is a full plane)"
+erc:
+  - rule_id: RP-001
+    nets: [SIG_SLOT]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [50, 15]
+    tolerance_mm: 1.0
+    generator: boardgen.features.split_plane
+    why: "L1 trace crosses the 1 mm slot in the L2 GND plane"
+  - rule_id: ED-001
+    nets: [SIG_PLEDGE]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [30, 51.75]
+    tolerance_mm: 10.0
+    generator: boardgen.features.split_plane
+    why: "trace edge runs 0.1 mm inboard of the L2 plane edge (void boundary y=52 mm) for 20 mm"
+  - rule_id: RP-007
+    nets: [SIG_NOREF]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [75, 56]
+    tolerance_mm: 10.0
+    generator: boardgen.features.split_plane
+    why: "20 mm trace over a 30 x 8 mm void in L2"
+  - rule_id: RP-002
+    nets: [SIG_SWISS]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [20.0, 30.0]
+    tolerance_mm: 4.0
+    generator: boardgen.features.split_plane
+    why: "25 buried vias (pitch 1.6 mm, antipad 1.0 mm) perforate the L2 reference under the trace"
+  - rule_id: RP-003
+    nets: [SIG_REFCHG]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [75, 35]
+    tolerance_mm: 1.0
+    generator: boardgen.features.split_plane
+    why: "reference net changes GND -> +3V3 at x=75 mm (the 0.2 mm zone clearance gap may also appear as RP-001)"
+  - rule_id: ED-002
+    nets: [SIG_BOARDEDGE]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [0.4, 25]
+    tolerance_mm: 15.0
+    generator: boardgen.features.split_plane
+    why: "trace edge 0.3 mm from the board edge for 30 mm"
+  - rule_id: IM-002
+    nets: [MS_250]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [135.0, 10.0]
+    tolerance_mm: 25.0
+    generator: boardgen.features.microstrip
+    why: "w=0.25 mm, h=0.2 mm, Dk=4.3: Z0 ~ 60.4 ohm vs 50 ohm +-10 %"
+  - rule_id: IM-002
+    nets: [MS_500]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [135.0, 30.0]
+    tolerance_mm: 25.0
+    generator: boardgen.features.microstrip
+    why: "w=0.5 mm, h=0.2 mm, Dk=4.3: Z0 ~ 41.2 ohm vs 50 ohm +-10 %"
+  - rule_id: RF-001
+    nets: [CPW_B]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [195.0, 30.0]
+    tolerance_mm: 20.0
+    generator: boardgen.features.cpwg
+    why: "fence pitch 4.8 mm = 3x the lambda/10 pitch at 10 GHz"
+  - rule_id: VI-001
+    nets: [SE1]
+    layer: L6
+    source_layer: In5.Cu
+    location_mm: [15, 90]
+    tolerance_mm: 0.5
+    generator: boardgen.features.via_transition
+    why: "through via L1-L8 with the signal on L6 leaves a 0.620 mm stub (L6 bottom to B.Cu)"
+    stub_length: 0.00062
+    stub_resonance_hz: 58295468150.0
+  - rule_id: RP-004
+    nets: [NR]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [55, 110]
+    tolerance_mm: 1.0
+    generator: boardgen.features.via_transition
+    why: "L1 -> L8 transition (reference L2 -> L7) with no GND via within 20 mm"
+  - rule_id: DP-001
+    nets: [DP_P, DP_N]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [81.5, 100]
+    tolerance_mm: 2.0
+    generator: boardgen.features.diff_pair
+    why: "pair uncoupled over the 3 mm breakout at the launch end"
+  - rule_id: DP-002
+    nets: [DP_P, DP_N]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: null
+    tolerance_mm: 0.0
+    generator: boardgen.features.diff_pair
+    why: "intra-pair length mismatch 0.400 mm caused by the bump at x=95.0..96.0 mm"
+    cause_location_mm: [95.5, 100.375]
+  - rule_id: DP-003
+    nets: [DP_P, DP_N]
+    layer: L3
+    source_layer: In2.Cu
+    location_mm: [142.5, 100]
+    tolerance_mm: 3.0
+    generator: boardgen.features.diff_pair
+    why: "gap steps 0.15 -> 0.30 mm for 5 mm on the stripline section"
+  - rule_id: PD-001
+    nets: ["+1V0"]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [198.5, 98.5]
+    tolerance_mm: 1.0
+    generator: boardgen.features.power_loads
+    why: "C2 is 12.0 mm from the nearest U1 power pin (limit: C1 at 1.5 mm passes)"
+must_not_report: []
+negative_cases:
+  - rule_id: IM-002
+    nets: [MS_350]
+    layer: L1
+    location_mm: [135.0, 20.0]
+    generator: boardgen.features.microstrip
+    why: "w=0.35 mm, Z0 ~ 50.7 ohm is within 50 ohm +-10 %"
+  - rule_id: RF-001
+    nets: [CPW_A]
+    layer: L1
+    location_mm: [195.0, 10]
+    generator: boardgen.features.cpwg
+    why: "fence pitch 1.6 mm <= lambda/10 at 10 GHz"
+  - rule_id: RP-004
+    nets: [VD_P, VD_N]
+    layer: L1
+    location_mm: [40, 90]
+    generator: boardgen.features.via_transition
+    why: "four GND return vias within 2.2 mm"
+  - rule_id: RP-004
+    nets: [DP_P]
+    layer: L1
+    location_mm: [120.0, 100]
+    generator: boardgen.features.diff_pair
+    why: "layer change has 4 GND return vias"
+  - rule_id: PD-001
+    nets: ["+1V0"]
+    layer: L1
+    location_mm: [209.0, 98.5]
+    generator: boardgen.features.power_loads
+    why: "C1 is 1.5 mm from the nearest U1 power pin"
+unspecified:
+  - rule_id: RP-001
+    nets: [SIG_REFCHG]
+    why: "0.2 mm zone-to-zone clearance gap at the GND/+3V3 boundary"
+  - rule_id: VI-001
+    nets: [SE2]
+    why: "backdrilled variant; residual stub is threshold dependent"
+  - rule_id: DP-001
+    nets: [DP_P, DP_N]
+    why: "the ~1.4 mm fan-outs to the via pairs and the 1 mm stripline fan-outs are also briefly uncoupled; whether they exceed the rule threshold is config dependent"
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 28
+  by_type:
+    warning:
+      via_dangling: 28
+  report: drc.json
+checks:
+  SIG_PLEDGE_to_L2_plane_edge_m: 0.00010000000000000286
+notes:
+  - "KiCad has no explicit diff-pair object: the Altium-style explicit pair is represented by the +/- naming and the 90ohm netclass pattern USB_D*."

@@ -1,0 +1,141 @@
+schema: oa-board-expected/1
+board: power_two_layer_vias
+description: "Analytic DC variant: two 20 x 20 mm squares (L1 and L4, net VX) joined by 9 vias (3 x 3, 2 mm pitch); 6 x 6 mm terminal pads J1 (L1) and J2 (L4) over the array."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 1
+  vias:
+    through: 9
+  pads: 2
+  pads_smd: 2
+  pads_tht: 0
+  tracks: 0
+  arcs: 0
+  zones: 2
+  rule_areas: 0
+  footprints: 2
+  copper_layers: 4
+stackup:
+  board_thickness: 0.0016
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001565
+      z_top: 0.0016
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001365
+      z_top: 0.001565
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00133
+      z_top: 0.001365
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.00106
+      z_bottom: 0.00027
+      z_top: 0.00133
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L4
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      VX: 0.00039998452212
+    L2:
+      VX: 2.534238767e-06
+    L3:
+      VX: 2.534238767e-06
+    L4:
+      VX: 0.00039998452212
+nets: [VX]
+net_classes: []
+net_class_patterns: []
+diff_pairs: []
+geometry:
+  power_two_layer_vias:
+    net: VX
+    layers: [L1, L4]
+    square_size: 0.02
+    squares_mm: [10, 10, 30, 30]
+    via_count: 9
+    via_size: 0.0006
+    via_drill: 0.0003
+    via_pitch: 0.002
+    via_grid_centre_mm: [20, 20]
+    plating_thickness_default: 2.5e-05
+    terminal_pads:
+      - ref: J1
+        layer: L1
+        size_mm: [6.0, 6.0]
+      - ref: J2
+        layer: L4
+        size_mm: [6.0, 6.0]
+    terminal_note: "6 x 6 mm pads cover the whole via array, so no sheet spreading resistance enters R"
+erc: []
+must_not_report: [RP-001, RP-002, RP-003, RP-004, RP-007, ED-001, ED-002, DP-001, DP-002, DP-003, RF-001, PD-001, VI-001]
+negative_cases: []
+unspecified: []
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 0
+  by_type: {}
+  report: drc.json
+checks: {}
+notes: []
+dc:
+  cases:
+    - name: via_array_pad_to_pad
+      terminals:
+        - [J1, "1"]
+        - [J2, "1"]
+      via_barrel_resistance_ohm: 0.001277230891270382
+      resistance_ohm: 0.0001419145434744869
+      tolerance_rel: 0.005
+      barrel_length: 0.0016
+      barrel_area: 2.159844949342984e-08
+      formula: "R_via = L / (sigma * A), A = pi/4 (d^2 - (d - 2 tp)^2), d = drill 0.3 mm (KiCad drill is the hole to be plated), tp = 25 um (model default; KiCad stores no plating thickness), L = z_top(L1) - z_bottom(L4) = 1.6 mm, sigma = 5.8e7 S/m; R = R_via / 9"

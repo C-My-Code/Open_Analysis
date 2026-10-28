@@ -1,0 +1,322 @@
+schema: oa-board-expected/1
+board: via_transition
+description: "8-layer 2.0 mm board. SE1: L1->L6 signal over a through via with a 0.62 mm stub (VI-001). SE2: the same via backdrilled from the bottom to L7. VD_P/VD_N: through-via pair L1->L8 with 4 return vias. NR: an L1->L8 transition without any return via (RP-004). Plus one blind, one buried and one micro via."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 10
+  vias:
+    blind: 1
+    buried: 1
+    micro: 1
+    through: 16
+  pads: 15
+  pads_smd: 13
+  pads_tht: 2
+  tracks: 10
+  arcs: 0
+  zones: 4
+  rule_areas: 0
+  footprints: 15
+  copper_layers: 8
+stackup:
+  board_thickness: 0.002
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001965
+      z_top: 0.002
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001765
+      z_top: 0.001965
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00173
+      z_top: 0.001765
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.00153
+      z_top: 0.00173
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001495
+      z_top: 0.00153
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001295
+      z_top: 0.001495
+    - id: L4
+      source_name: In3.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00126
+      z_top: 0.001295
+    - id: D4
+      source_name: "dielectric 4"
+      kind: dielectric
+      thickness: 0.00042
+      z_bottom: 0.00084
+      z_top: 0.00126
+    - id: L5
+      source_name: In4.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000805
+      z_top: 0.00084
+    - id: D5
+      source_name: "dielectric 5"
+      kind: dielectric
+      thickness: 0.00015
+      z_bottom: 0.000655
+      z_top: 0.000805
+    - id: L6
+      source_name: In5.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00062
+      z_top: 0.000655
+    - id: D6
+      source_name: "dielectric 6"
+      kind: dielectric
+      thickness: 0.00035
+      z_bottom: 0.00027
+      z_top: 0.00062
+    - id: L7
+      source_name: In6.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D7
+      source_name: "dielectric 7"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L8
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      "+1V0": 1.0e-06
+      BLIND1: 2.81582085e-07
+      GND: 5.173256746e-06
+      NR: 2.047012625e-06
+      SE1: 2.757200444e-06
+      SE2: 2.757200444e-06
+      UVIA1: 7.0232697e-08
+      VD_N: 1.673690403e-06
+      VD_P: 1.673690403e-06
+    L2:
+      "+1V0": 1.95542791e-07
+      BLIND1: 2.81582085e-07
+      GND: 0.004162475061987
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      UVIA1: 7.0232697e-08
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L3:
+      "+1V0": 1.95542791e-07
+      BLIND1: 2.81582085e-07
+      BURIED1: 2.81582085e-07
+      GND: 1.95542791e-06
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L4:
+      "+1V0": 1.95542791e-07
+      BURIED1: 2.81582085e-07
+      GND: 0.004163116314601
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L5:
+      "+1V0": 0.004154498494663
+      BURIED1: 2.81582085e-07
+      GND: 1.95542791e-06
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L6:
+      "+1V0": 1.95542791e-07
+      BURIED1: 2.81582085e-07
+      GND: 1.95542791e-06
+      NR: 1.95542791e-07
+      SE1: 2.368069048e-06
+      SE2: 2.368069048e-06
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L7:
+      "+1V0": 1.95542791e-07
+      GND: 0.004164255690011
+      NR: 1.95542791e-07
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.95542791e-07
+      VD_P: 1.95542791e-07
+    L8:
+      "+1V0": 1.95542791e-07
+      GND: 1.95542791e-06
+      NR: 2.047012625e-06
+      SE1: 9.15939942e-07
+      SE2: 9.15939942e-07
+      VD_N: 1.673690403e-06
+      VD_P: 1.673690403e-06
+nets: ["+1V0", BLIND1, BURIED1, GND, NR, SE1, SE2, UVIA1, VD_N, VD_P]
+net_classes: []
+net_class_patterns: []
+diff_pairs:
+  - id: "dp:VD"
+    p_net: VD_P
+    n_net: VD_N
+    origin: naming
+    net_class: null
+    target_z_diff: null
+geometry:
+  via_transition:
+    origin_mm: [0.0, 0.0]
+    stack_layers: 8
+    single_ended:
+      net: SE1
+      via_mm: [15.0, 15.0]
+      via_size: 0.0006
+      drill: 0.0003
+      span: [L1, L8]
+      signal_layers: [L1, L6]
+      stub_layers: [L7, L8]
+      stub_length: 0.00062
+      stub_definition: "z_bottom(L6) - z_bottom(L8) (bottom of the barrel)"
+      return_via_mm: [15.0, 16.5]
+    single_ended_backdrilled:
+      net: SE2
+      via_mm: [15.0, 35.0]
+      span: [L1, L8]
+      signal_layers: [L1, L6]
+      backdrill:
+        side: bottom
+        size: 0.0006
+        kicad_layers: [B.Cu, In6.Cu]
+        end_layer: L7
+        end_layer_cut: true
+        cut_layers: [L7, L8]
+        kicad_token: tertiary_drill
+        residual_barrel_below_last_used_layer: 0.00035
+        residual_definition: "z_bottom(L6) - z_top(L7): barrel left between the last used layer and the drill-end layer; conductor layers left in the stub: none"
+      return_via_mm: [15.0, 36.5]
+    differential:
+      p_net: VD_P
+      n_net: VD_N
+      via_mm:
+        - [40.0, 14.5]
+        - [40.0, 15.5]
+      span: [L1, L8]
+      signal_layers: [L1, L8]
+      via_pitch: 0.001
+      return_vias_mm:
+        - [38.5, 13.5]
+        - [41.5, 13.5]
+        - [38.5, 16.5]
+        - [41.5, 16.5]
+    no_return_via:
+      net: NR
+      via_mm: [55.0, 35.0]
+      signal_layers: [L1, L8]
+      nearest_gnd_via_distance: 0.02
+      nearest_gnd_via_distance_note: "lower bound"
+    other_vias:
+      blind:
+        net: BLIND1
+        span: [L1, L3]
+      buried:
+        net: BURIED1
+        span: [L3, L6]
+      micro:
+        net: UVIA1
+        span: [L1, L2]
+erc:
+  - rule_id: VI-001
+    nets: [SE1]
+    layer: L6
+    source_layer: In5.Cu
+    location_mm: [15.0, 15.0]
+    tolerance_mm: 0.5
+    generator: boardgen.features.via_transition
+    why: "through via L1-L8 with the signal on L6 leaves a 0.620 mm stub (L6 bottom to B.Cu)"
+    stub_length: 0.00062
+    stub_resonance_hz: 58295468150.0
+  - rule_id: RP-004
+    nets: [NR]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [55.0, 35.0]
+    tolerance_mm: 1.0
+    generator: boardgen.features.via_transition
+    why: "L1 -> L8 transition (reference L2 -> L7) with no GND via within 20 mm"
+must_not_report: [RP-001, RP-002, RP-003, RP-007, ED-001, ED-002, DP-001, DP-002, DP-003, RF-001, PD-001]
+negative_cases:
+  - rule_id: RP-004
+    nets: [VD_P, VD_N]
+    layer: L1
+    location_mm: [40.0, 15.0]
+    generator: boardgen.features.via_transition
+    why: "four GND return vias within 2.2 mm"
+unspecified:
+  - rule_id: VI-001
+    nets: [SE2]
+    why: "backdrilled variant; residual stub is threshold dependent"
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 3
+  by_type:
+    warning:
+      via_dangling: 3
+  report: drc.json
+checks: {}
+notes:
+  - "KiCad 10.0.5 exports SE2's backdrill to IPC-2581 as Spec BD_1B: START_LAYER B.Cu, MUST_NOT_CUT_LAYER In5.Cu (= L6, the last used layer), MAX_STUB_LENGTH 0.1925 mm (observed value). pcbnew reports the end layer In6.Cu (L7) as itself cut (IsBackdrilledOrPostMachined true on In6.Cu and B.Cu)."

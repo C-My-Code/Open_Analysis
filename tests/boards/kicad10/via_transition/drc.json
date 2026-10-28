@@ -1,0 +1,110 @@
+{
+  "$schema": "https://schemas.kicad.org/drc.v1.json",
+  "coordinate_units": "mm",
+  "ignored_checks": [
+    {
+      "description": "Footprint has no courtyard defined",
+      "key": "missing_courtyard"
+    },
+    {
+      "description": "Track endpoint not centered on via",
+      "key": "track_not_centered_on_via"
+    },
+    {
+      "description": "Tuning profile track geometries",
+      "key": "tuning_profile_track_geometries"
+    },
+    {
+      "description": "Footprint doesn't match symbol's footprint filters",
+      "key": "footprint_filters_mismatch"
+    },
+    {
+      "description": "Silkscreen clearance",
+      "key": "silk_overlap"
+    },
+    {
+      "description": "Silkscreen clipped by solder mask",
+      "key": "silk_over_copper"
+    },
+    {
+      "description": "Silkscreen clipped by board edge",
+      "key": "silk_edge_clearance"
+    },
+    {
+      "description": "Text height out of range",
+      "key": "text_height"
+    },
+    {
+      "description": "Text thickness out of range",
+      "key": "text_thickness"
+    },
+    {
+      "description": "Footprint component type doesn't match footprint pads",
+      "key": "footprint_type_mismatch"
+    },
+    {
+      "description": "Footprint not found in libraries",
+      "key": "lib_footprint_issues"
+    },
+    {
+      "description": "Footprint doesn't match copy in library",
+      "key": "lib_footprint_mismatch"
+    }
+  ],
+  "included_severities": [
+    "error",
+    "warning",
+    "exclusion"
+  ],
+  "kicad_version": "10.0.5",
+  "schematic_parity": [],
+  "source": "board.kicad_pcb",
+  "unconnected_items": [],
+  "violations": [
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Blind via [BLIND1] on F.Cu - In2.Cu",
+          "pos": {
+            "x": 30.0,
+            "y": 48.0
+          },
+          "uuid": "16cd0762-2c5f-5a5a-92ff-6c2ab8388e70"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [BURIED1] on In2.Cu - In5.Cu",
+          "pos": {
+            "x": 36.0,
+            "y": 48.0
+          },
+          "uuid": "37d1bb74-2e8c-5b43-a0ba-2a3416c2300e"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Micro via [UVIA1] on F.Cu - In1.Cu",
+          "pos": {
+            "x": 42.0,
+            "y": 48.0
+          },
+          "uuid": "51b982e7-a830-558d-93b1-798b222d353d"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    }
+  ]
+}
