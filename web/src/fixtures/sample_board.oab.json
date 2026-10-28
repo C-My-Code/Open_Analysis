@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "name": "sample_board",
+    "source_tool": "synthetic",
+    "reader": "web-fixture 0.1",
+    "arc_tolerance": 1e-6,
+    "created_utc": "2026-10-27T00:00:00Z"
+  },
+  "outline": {
+    "polygon": { "exterior": [0, 0, 0.04, 0, 0.04, 0.03, 0, 0.03] }
+  },
+  "stackup": {
+    "total_thickness": 0.001345,
+    "known": true,
+    "finish": "ENIG",
+    "materials": [
+      { "kind": "conductor", "name": "copper", "conductivity": 5.8e7 },
+      { "kind": "dielectric", "name": "FR4_generic", "model": { "kind": "constant", "dk": 4.2, "df": 0.02, "f_ref": 1e9 } },
+      { "kind": "dielectric", "name": "soldermask", "model": { "kind": "constant", "dk": 3.3, "df": 0.025, "f_ref": 1e9 } }
+    ],
+    "layers": [
+      { "kind": "mask", "id": "MT", "source_name": "F.Mask", "thickness": 2e-5, "z_bottom": 0.001325, "z_top": 0.001345, "material": "soldermask" },
+      { "kind": "conductor", "id": "L1", "index": 1, "source_name": "F.Cu", "role": "signal", "thickness": 3.5e-5, "z_bottom": 0.00129, "z_top": 0.001325, "material": "copper" },
+      { "kind": "dielectric", "id": "D1", "index": 1, "construction": "prepreg", "thickness": 1e-4, "z_bottom": 0.00119, "z_top": 0.00129, "material": "FR4_generic" },
+      { "kind": "conductor", "id": "L2", "index": 2, "source_name": "In1.Cu", "role": "plane", "thickness": 1.75e-5, "z_bottom": 0.0011725, "z_top": 0.00119, "material": "copper" },
+      { "kind": "dielectric", "id": "D2", "index": 2, "construction": "core", "thickness": 1e-3, "z_bottom": 0.0001725, "z_top": 0.0011725, "material": "FR4_generic" },
+      { "kind": "conductor", "id": "L3", "index": 3, "source_name": "In2.Cu", "role": "plane", "thickness": 1.75e-5, "z_bottom": 0.000155, "z_top": 0.0001725, "material": "copper" },
+      { "kind": "dielectric", "id": "D3", "index": 3, "construction": "prepreg", "thickness": 1e-4, "z_bottom": 5.5e-5, "z_top": 0.000155, "material": "FR4_generic" },
+      { "kind": "conductor", "id": "L4", "index": 4, "source_name": "B.Cu", "role": "signal", "thickness": 3.5e-5, "z_bottom": 2e-5, "z_top": 5.5e-5, "material": "copper" },
+      { "kind": "mask", "id": "MB", "source_name": "B.Mask", "thickness": 2e-5, "z_bottom": 0, "z_top": 2e-5, "material": "soldermask" }
+    ]
+  },
+  "nets": [
+    { "id": "USB_DP", "kind": "signal", "net_class": "USB" },
+    { "id": "USB_DN", "kind": "signal", "net_class": "USB" },
+    { "id": "SIG_A", "kind": "signal", "net_class": "Default" },
+    { "id": "+1V0", "kind": "power", "net_class": "Power" },
+    { "id": "GND", "kind": "ground", "net_class": "Power" }
+  ],
+  "net_classes": [
+    { "name": "Default", "track_width": 0.00015, "target_z_se": 50 },
+    { "name": "USB", "track_width": 0.00015, "target_z_diff": 90 },
+    { "name": "Power", "track_width": 0.0003 }
+  ],
+  "diff_pairs": [
+    { "id": "dp:USB", "p_net": "USB_DP", "n_net": "USB_DN", "origin": "naming", "target_z_diff": 90 }
+  ],
+  "padstacks": [
+    {
+      "id": "ps_smd_0p8x0p4",
+      "drill": null,
+      "layers": [{ "layer": "L1", "pad": { "kind": "rect", "width": 0.0008, "height": 0.0004 } }]
+    },
+    {
+      "id": "ps_via_0p2",
+      "drill": { "kind": "plated", "shape": "round", "diameter": 0.0002 },
+      "layers": [
+        { "layer": "L1", "pad": { "kind": "circle", "diameter": 0.00045 } },
+        { "layer": "L2", "pad": { "kind": "circle", "diameter": 0.00045 }, "antipad": { "kind": "circle", "diameter": 0.0008 } },
+        { "layer": "L3", "pad": { "kind": "circle", "diameter": 0.00045 } },
+        { "layer": "L4", "pad": { "kind": "circle", "diameter": 0.00045 } }
+      ]
+    }
+  ],
+  "components": [
+    { "refdes": "J1", "value": "USB", "footprint": "Conn:USB_Pins", "side": "top", "position": [0.004, 0.015], "rotation": 0, "pads": ["pad:J1.1", "pad:J1.2"] },
+    { "refdes": "U1", "value": "PHY", "footprint": "Pkg:QFN_5", "side": "top", "position": [0.02, 0.015], "rotation": 0, "pads": ["pad:U1.1", "pad:U1.2", "pad:U1.3", "pad:U1.4", "pad:U1.5"] },
+    { "refdes": "R1", "value": "49.9", "footprint": "R_0402", "side": "top", "position": [0.031, 0.008], "rotation": 0, "pads": ["pad:R1.1"] }
+  ],
+  "pads": [
+    { "id": "pad:J1.1", "component": "J1", "number": "1", "padstack": "ps_smd_0p8x0p4", "position": [0.004, 0.0153], "rotation": 0, "net": "USB_DP", "kind": "smd" },
+    { "id": "pad:J1.2", "component": "J1", "number": "2", "padstack": "ps_smd_0p8x0p4", "position": [0.004, 0.0147], "rotation": 0, "net": "USB_DN", "kind": "smd" },
+    { "id": "pad:U1.1", "component": "U1", "number": "1", "padstack": "ps_smd_0p8x0p4", "position": [0.0185, 0.0153], "rotation": 0, "net": "USB_DP", "kind": "smd" },
+    { "id": "pad:U1.2", "component": "U1", "number": "2", "padstack": "ps_smd_0p8x0p4", "position": [0.0185, 0.0147], "rotation": 0, "net": "USB_DN", "kind": "smd" },
+    { "id": "pad:U1.3", "component": "U1", "number": "3", "padstack": "ps_smd_0p8x0p4", "position": [0.0215, 0.0153], "rotation": 0, "net": "+1V0", "kind": "smd" },
+    { "id": "pad:U1.4", "component": "U1", "number": "4", "padstack": "ps_smd_0p8x0p4", "position": [0.0215, 0.0147], "rotation": 0, "net": "GND", "kind": "smd" },
+    { "id": "pad:U1.5", "component": "U1", "number": "5", "padstack": "ps_smd_0p8x0p4", "position": [0.02, 0.0125], "rotation": 0, "net": "SIG_A", "kind": "smd" },
+    { "id": "pad:R1.1", "component": "R1", "number": "1", "padstack": "ps_smd_0p8x0p4", "position": [0.031, 0.008], "rotation": 0, "net": "SIG_A", "kind": "smd" }
+  ],
+  "vias": [
+    { "id": "via:1v0_a", "padstack": "ps_via_0p2", "position": [0.0215, 0.019], "net": "+1V0", "kind": "through", "start_layer": "L1", "end_layer": "L4" },
+    { "id": "via:1v0_b", "padstack": "ps_via_0p2", "position": [0.0225, 0.019], "net": "+1V0", "kind": "through", "start_layer": "L1", "end_layer": "L4" },
+    { "id": "via:1v0_c", "padstack": "ps_via_0p2", "position": [0.0235, 0.019], "net": "+1V0", "kind": "through", "start_layer": "L1", "end_layer": "L4" },
+    { "id": "via:gnd_a", "padstack": "ps_via_0p2", "position": [0.0215, 0.0135], "net": "GND", "kind": "through", "start_layer": "L1", "end_layer": "L4" }
+  ],
+  "tracks": [
+    { "id": "trk:usb_dp", "net": "USB_DP", "layer": "L1", "width": 0.00015, "path": [{ "kind": "line", "start": [0.004, 0.0153], "end": [0.0185, 0.0153] }] },
+    { "id": "trk:usb_dn", "net": "USB_DN", "layer": "L1", "width": 0.00015, "path": [{ "kind": "line", "start": [0.004, 0.0147], "end": [0.0185, 0.0147] }] },
+    {
+      "id": "trk:sig_a",
+      "net": "SIG_A",
+      "layer": "L1",
+      "width": 0.00015,
+      "path": [
+        { "kind": "line", "start": [0.02, 0.0125], "end": [0.025, 0.0125] },
+        { "kind": "arc", "start": [0.025, 0.0125], "end": [0.027, 0.0105], "center": [0.025, 0.0105], "ccw": false },
+        { "kind": "line", "start": [0.027, 0.0105], "end": [0.027, 0.008] },
+        { "kind": "line", "start": [0.027, 0.008], "end": [0.031, 0.008] }
+      ]
+    },
+    { "id": "trk:1v0", "net": "+1V0", "layer": "L1", "width": 0.0003, "path": [{ "kind": "line", "start": [0.0215, 0.0153], "end": [0.0215, 0.019] }] },
+    { "id": "trk:1v0_ext", "net": "+1V0", "layer": "L1", "width": 0.0003, "path": [{ "kind": "line", "start": [0.0215, 0.019], "end": [0.0235, 0.019] }] },
+    { "id": "trk:gnd", "net": "GND", "layer": "L1", "width": 0.0003, "path": [{ "kind": "line", "start": [0.0215, 0.0147], "end": [0.0215, 0.0135] }] }
+  ],
+  "zones": [
+    {
+      "id": "zone:gnd_l2",
+      "net": "GND",
+      "layers": ["L2"],
+      "outline": { "exterior": [0.001, 0.001, 0.039, 0.001, 0.039, 0.029, 0.001, 0.029] },
+      "fill_state": "filled",
+      "fills": [
+        {
+          "layer": "L2",
+          "polygons": [
+            {
+              "exterior": [0.001, 0.001, 0.039, 0.001, 0.039, 0.029, 0.001, 0.029],
+              "holes": [[0.0205, 0.0205, 0.0245, 0.0205, 0.0245, 0.0175, 0.0205, 0.0175]]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zone:1v0_l3",
+      "net": "+1V0",
+      "layers": ["L3"],
+      "outline": { "exterior": [0.018, 0.016, 0.038, 0.016, 0.038, 0.027, 0.018, 0.027] },
+      "fill_state": "filled",
+      "fills": [
+        { "layer": "L3", "polygons": [{ "exterior": [0.018, 0.016, 0.038, 0.016, 0.038, 0.027, 0.018, 0.027] }] }
+      ]
+    }
+  ]
+}
