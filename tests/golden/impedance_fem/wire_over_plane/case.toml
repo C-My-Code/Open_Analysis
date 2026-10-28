@@ -1,0 +1,11 @@
+source = "analytic: Z0 = eta0/(2 pi sqrt(er)) acosh(h/r) (method of images; Ramo, Whinnery and Van Duzer)"
+
+[tolerance]
+rtol = 0.003
+atol = 0.0
+
+[inputs]
+h_over_r = [2.0, 5.0]
+
+[expected]
+z0 = [78.96280904330571, 137.4507450777827]

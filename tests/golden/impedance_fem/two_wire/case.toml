@@ -1,0 +1,11 @@
+source = "analytic: Z0 = eta0/(pi sqrt(er)) acosh(D/d) (balanced line; Ramo, Whinnery and Van Duzer)"
+
+[tolerance]
+rtol = 0.003
+atol = 0.0
+
+[inputs]
+d_over_diam = 2.5
+
+[expected]
+zdiff = 187.8858378800739

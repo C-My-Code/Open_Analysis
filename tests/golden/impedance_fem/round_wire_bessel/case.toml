@@ -1,0 +1,14 @@
+source = "analytic: isolated round wire, Z_int = gamma/(2 pi a sigma) I0(gamma a)/I1(gamma a), gamma = sqrt(j w mu0 sigma) (Bessel-function skin-effect solution; Ramo, Whinnery and Van Duzer). a = 0.25 mm copper (5.8e7 S/m); the FEM wire sits 20 radii above a near-ideal return sheet (sigma 5.8e13), so proximity changes R by < 0.3 %"
+
+[tolerance]
+rtol = 0.02
+atol = 0.0
+
+[inputs]
+radius = 0.00025
+height = 0.005
+sigma = 58000000.0
+freqs = [1000.0, 100000.0, 1000000.0, 10000000.0, 100000000.0, 1000000000.0, 10000000000.0]
+
+[expected]
+r_over_rdc = [1.0000042667065634, 1.0412637363296682, 2.166305887021488, 6.23920944722326, 19.167369554850424, 60.06492575934028, 189.3991732021443]
