@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "ErrorInfo": {
+      "additionalProperties": false,
+      "description": "Structured error or warning: stable ``code``, one-sentence ``message``, JSON-Pointer\n``path``,\none actionable ``hint`` and code-specific ``details``.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Code-specific data, documented per code (candidates, estimate, next_offset).",
+          "title": "Details",
+          "type": "object"
+        },
+        "hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hint"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ErrorInfo",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "$id": "oa-envelope/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Stable result wrapper used by the CLI (``--json``), MCP and the assistant.\n\n``ok`` is False iff ``errors`` is non-empty, and then ``data`` is None. ``warnings`` and\n``errors`` are sorted by ``(code, path)``.",
+  "properties": {
+    "data": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The command output; null when ok is false.",
+      "title": "Data"
+    },
+    "errors": {
+      "default": [],
+      "description": "Failures; empty when ok.",
+      "items": {
+        "$ref": "#/$defs/ErrorInfo"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "ok": {
+      "description": "True iff `errors` is empty.",
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "schema": {
+      "description": "Schema id of `data` (see `oa schema ID`), e.g. 'oa.board_summary/1'.",
+      "title": "Schema",
+      "type": "string"
+    },
+    "version": {
+      "description": "Producing Open_Analysis version (PEP 440).",
+      "title": "Version",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "description": "Non-fatal findings: truncation, extrapolation, defaulted stackup.",
+      "items": {
+        "$ref": "#/$defs/ErrorInfo"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "version",
+    "ok",
+    "data"
+  ],
+  "title": "Envelope",
+  "type": "object"
+}

@@ -38,6 +38,17 @@ Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 
 
 8. **Test helper modules need unique names.** Tests run under `--import-mode=importlib`, with each package's `tests/` directory on `sys.path`. A non-test module in `tests/` therefore shares one global namespace with every other package's test helpers. Name helpers with a package prefix, such as `geometry_helpers.py`, and never `from conftest import ...`.
 
+9. **Keep iteration cheap.**
+   - While iterating, run only your own package's tests with `uv run pytest packages/<pkg> -q`, plus `ruff`/`mypy` on your paths.
+   - Run the full CI command set once, before reporting done: `ruff check`, `ruff format --check`, `mypy`, `lint-imports`, and `pytest -m "not external and not kicad"`.
+   - Read only the spec sections your brief names. Look up other sections only when you hit a specific question.
+
+10. **Respect machine limits.** The dev machine has 8 CPUs, and an earlier run of parallel agents froze it.
+    - Thread caps are set by the root `conftest.py`: numerical libraries and openEMS get 2 threads each. Shell commands outside pytest must `export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 OA_NUM_THREADS=2`.
+    - Only the agent the integrator names may run `slow` or `external` tests, such as 3D meshing, openEMS or large solves. Everyone else uses `-m "not external and not kicad and not slow"`.
+    - Use oa_jobs budgets (`max_runtime_s` and `max_memory_gb`, 8 GB by default) for solver runs.
+    - Before reporting done, check that no stray python, openEMS or gmsh processes from your worktree are still running, and end your own if any are.
+
 ---
 
 ## Dependency graph
@@ -786,6 +797,21 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 - **No network.** The whole `tests/agents/` suite runs under pytest-socket (loopback only). Importing `oa_mcp` and `oa_service` does not load `anthropic`, `openai` or `requests`. The `httpx` that the `mcp` SDK depends on may load, but the socket guard proves it never connects off-host.
 - **Docs.** The `llms.txt` links resolve, every tool name in `docs/agents/AGENTS.md` and `llms.txt` exists in the catalog, and `CLAUDE.md` is ≤ 200 lines.
 
+### WP-211 Mesh performance and hole-contact fix. Size: M
+**Owned:** `packages/oa-mesh/**` (starts after WP-206 merges, since WP-206 extends this package).
+**Depends:** 109, 204, 206.
+**Deliverables:**
+1. Fix the hole-mode contact-ring bug (CR WP-204-mesh-hole-contacts).
+2. Per-layer parallel meshing through a process pool. gmsh is global-state, so use one process per layer or region, with deterministic merge and unchanged content_hash semantics.
+3. gmsh tuning: `General.NumThreads`, a 2D algorithm benchmark (Delaunay / Frontal-Delaunay / others) with a quality-vs-speed table, and HXT for 3D.
+4. Size-field coarsening in plane interiors.
+5. Feed WP-204's DC IR timing (3e5 unknowns) back to TASKS: either restore the total <20 s acceptance or record an ADR-backed change.
+
+**Acceptance:**
+- Benchmarks before and after on the power_plane board, plus a synthetic 8-layer board.
+- All existing oa-mesh and pi.dc goldens are unchanged within tolerance.
+- Mesh determinism holds across process counts.
+
 ---
 
 ## Wave 3
@@ -893,6 +919,8 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 | WP-410 | M2 validation (IPC-2152, JEDEC trends, Palace rings, dipole, SI cascade oracles) | `tests/golden/m2/**` | all above |
 | WP-411 | In-app AI assistant (`oa-assistant`): provider protocol, Anthropic reference provider (`claude-opus-5-5` default, keyring BYO key, off by default), server router, web assistant panel, data preview and redaction, user doc on data sent (ai-integration §11) | `packages/oa-assistant/`, `web/src/features/assistant/`, `docs/user/assistant.md` | 207, 209, 210 |
 | WP-412 | **(M3)** Surrogate dataset export (`oa-xsdataset/1`, `oa dataset export`/`sweep`) and impedance surrogate plugin (`oa-impedance-surrogate`, domain-gated, `accuracy_class="surrogate"`) (ai-integration §12) | `packages/oa-impedance-surrogate/`, `packages/oa-service/src/oa_service/dataset/` | 105, 202, 207 |
+| WP-413 | Optional GPU acceleration backend (`oa-accel`): array/sparse backend protocol with a CPU default; CUDA via CuPy first, ROCm via CuPy-ROCm through the same code; GPU paths for BEM dense solves, large sparse solves (DC IR, thermal, AC PDN) and raster solvers; Palace CUDA build in WSL2. Gated on WP-304 benchmarks; CPU fallback mandatory; ADR first | `packages/oa-accel/` | 105, 204, 301, 304 |
+| WP-414 | Compiled core per ADR-0008: `oa-native` Rust crate (PyO3/maturin) for parser, geometry/ReferenceMap, BEM assembly, raster solvers, ERC loops, each with a Python reference oracle; mypyc for typed packages; wheel builds in CI for 3 OSes; native app bundle | `crates/oa-native/`, `packages/oa-native/` | 101, 104, 105, 201, 204, 304 |
 
 ---
 

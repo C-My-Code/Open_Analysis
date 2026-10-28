@@ -1,0 +1,9 @@
+{
+  "$id": "oa.cmd.meta_doctor.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Environment report (no arguments).",
+  "properties": {},
+  "title": "DoctorIn",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+source = "analytic: R = R_barrel / N with R_barrel = rho L / (pi (ro^2 - ri^2)); pads span the array, so no sheet spreading"
+
+[tolerance]
+rtol = 0.005
+atol = 0.0
+
+[inputs]
+n_vias = 9
+drill = 3e-4
+plating = 2.5e-5
+barrel_length = 1.6e-3
+temperature_k = 293.15
+
+[expected]
+resistance_ohm = 0.0001419145434744869

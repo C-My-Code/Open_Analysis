@@ -1,0 +1,171 @@
+{
+  "$defs": {
+    "StackLayerView": {
+      "additionalProperties": false,
+      "description": "One layer of the stackup evaluated at a frequency.",
+      "properties": {
+        "conductivity_s_per_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bulk conductivity of copper layers [S/m].",
+          "title": "Conductivity S Per M"
+        },
+        "df": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Loss tangent at the frequency [1].",
+          "title": "Df"
+        },
+        "dk": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Relative permittivity at the frequency [1].",
+          "title": "Dk"
+        },
+        "id": {
+          "description": "Layer id: L1.. copper, D1.. dielectric, MT/MB mask.",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Layer kind.",
+          "enum": [
+            "conductor",
+            "dielectric",
+            "mask"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "material": {
+          "description": "Material name.",
+          "title": "Material",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source name.",
+          "title": "Name"
+        },
+        "roughness": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Roughness model name of the top face.",
+          "title": "Roughness"
+        },
+        "thickness_m": {
+          "description": "Thickness [m].",
+          "title": "Thickness M",
+          "type": "number"
+        },
+        "z_bottom_m": {
+          "description": "Bottom surface height [m].",
+          "title": "Z Bottom M",
+          "type": "number"
+        },
+        "z_top_m": {
+          "description": "Top surface height [m].",
+          "title": "Z Top M",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "z_bottom_m",
+        "z_top_m",
+        "thickness_m",
+        "material"
+      ],
+      "title": "StackLayerView",
+      "type": "object"
+    }
+  },
+  "$id": "oa.stackup_view/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The physical stackup evaluated at one frequency.",
+  "properties": {
+    "frequency_hz": {
+      "description": "Frequency at which dk and df are evaluated [Hz].",
+      "title": "Frequency Hz",
+      "type": "number"
+    },
+    "layers": {
+      "description": "Layers, top first.",
+      "items": {
+        "$ref": "#/$defs/StackLayerView"
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "physics_source": {
+      "description": "Where the material data came from.",
+      "enum": [
+        "sidecar",
+        "board",
+        "default"
+      ],
+      "title": "Physics Source",
+      "type": "string"
+    },
+    "total_thickness_m": {
+      "description": "Overall stack height [m].",
+      "title": "Total Thickness M",
+      "type": "number"
+    },
+    "warnings": {
+      "description": "Caveats, for example a defaulted stackup.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "layers",
+    "total_thickness_m",
+    "frequency_hz",
+    "physics_source",
+    "warnings"
+  ],
+  "title": "StackupView",
+  "type": "object"
+}

@@ -1,0 +1,12 @@
+source = "tests/boards/kicad10/power_strip/expected.yaml dc.cases[strip_end_to_end] (analytic Rs L / W)"
+
+[tolerance]
+rtol = 0.005
+atol = 0.0
+
+[inputs]
+board = "power_strip"
+terminals = "J1.1 -> J2.1"
+
+[expected]
+resistance_ohm = 0.004926108374384236

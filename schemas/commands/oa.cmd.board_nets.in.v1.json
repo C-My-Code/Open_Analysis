@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "PageRequest": {
+      "additionalProperties": false,
+      "description": "Paging window shared by every list command.",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum items to return [1].",
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Index of the first item to return [1].",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        }
+      },
+      "title": "PageRequest",
+      "type": "object"
+    }
+  },
+  "$id": "oa.cmd.board_nets.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Filters for board.nets; every filter is optional and they are ANDed.",
+  "properties": {
+    "high_speed_only": {
+      "default": false,
+      "description": "Keep only nets flagged high-speed by the design intent.",
+      "title": "High Speed Only",
+      "type": "boolean"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "enum": [
+            "signal",
+            "power",
+            "ground",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Keep only nets of this kind.",
+      "title": "Kind"
+    },
+    "layer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Keep nets with copper on this layer id.",
+      "title": "Layer"
+    },
+    "net_class": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Keep only nets of this class.",
+      "title": "Net Class"
+    },
+    "page": {
+      "$ref": "#/$defs/PageRequest",
+      "description": "Paging window."
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "query": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Case-sensitive fnmatch glob on the net name, for example 'USB_*'.",
+      "title": "Query"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "NetQuery",
+  "type": "object"
+}

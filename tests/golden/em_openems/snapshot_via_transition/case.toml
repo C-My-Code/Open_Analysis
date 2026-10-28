@@ -1,0 +1,18 @@
+source = "regression snapshot of oa_testkit.emproblems fixture; see README (mesh rules)"
+
+[tolerance]
+rtol = 1e-09
+atol = 0.0
+
+[inputs]
+fixture = "via_transition"
+
+[expected]
+nx = 135
+ny = 83
+nz = 49
+cells = 527424
+mesh_hash = "63a8eab7cf882eae"
+min_cell_x = 16.666000000001077
+min_cell_y = 23.333
+min_cell_z = 35.0

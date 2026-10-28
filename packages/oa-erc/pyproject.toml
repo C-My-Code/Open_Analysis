@@ -16,8 +16,14 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-geometry",
+    "oa-physics",
+    "numpy>=1.26",
     "shapely>=2.0",
 ]
+
+[project.optional-dependencies]
+# tests read the WP-102 boards through the native KiCad reader and run the impedance service
+test = ["oa-ingest-kicad", "oa-impedance", "oa-testkit", "pyyaml", "jsonschema"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_erc"]
@@ -27,3 +33,33 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-geometry = { workspace = true }
+oa-physics = { workspace = true }
+oa-ingest-kicad = { workspace = true }
+oa-impedance = { workspace = true }
+oa-testkit = { workspace = true }
+
+[project.entry-points."open_analysis.analyses"]
+erc = "oa_erc.analysis:ErcAnalysis"
+
+[project.entry-points."open_analysis.rules"]
+"RP-001" = "oa_erc.rules.return_path:SplitCrossing"
+"RP-002" = "oa_erc.rules.return_path:VoidCluster"
+"RP-003" = "oa_erc.rules.return_path:ReferenceChange"
+"RP-004" = "oa_erc.rules.return_path:TransitionWithoutReturn"
+"RP-007" = "oa_erc.rules.return_path:Unreferenced"
+"ED-001" = "oa_erc.rules.edge:NearPlaneEdge"
+"ED-002" = "oa_erc.rules.edge:NearBoardEdge"
+"ED-003" = "oa_erc.rules.edge:StitchSpacing"
+"IM-001" = "oa_erc.rules.impedance:WidthMismatch"
+"IM-002" = "oa_erc.rules.impedance:ImpedanceOutOfTolerance"
+"IM-003" = "oa_erc.rules.impedance:Neckdown"
+"IM-005" = "oa_erc.rules.impedance:LongStub"
+"DP-001" = "oa_erc.rules.diff_pair:UncoupledLength"
+"DP-002" = "oa_erc.rules.diff_pair:IntraPairSkew"
+"DP-003" = "oa_erc.rules.diff_pair:GapVariation"
+"VI-001" = "oa_erc.rules.via:ViaStub"
+"VI-002" = "oa_erc.rules.via:ViaCount"
+"XT-001" = "oa_erc.rules.crosstalk:ParallelCoupling"
+"PD-001" = "oa_erc.rules.power:DecapDistance"
+"RF-001" = "oa_erc.rules.rf:FencePitch"
+"EM-011" = "oa_erc.rules.emi:PlaneCavity"

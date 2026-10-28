@@ -232,7 +232,10 @@ class NDArray:
     def from_json_obj(cls, obj: dict[str, Any]) -> NDArray:
         dtype = obj["dtype"]
         shape = tuple(int(s) for s in obj["shape"])
-        data = np.asarray(obj["data"], dtype=np.float64 if dtype != "i8" else np.int64)
+        # NDArray[Any]: float64 or int64 here, complex128 after the c16 branch below
+        data: npt.NDArray[Any] = np.asarray(
+            obj["data"], dtype=np.float64 if dtype != "i8" else np.int64
+        )
         if dtype == "c16":
             data = data.reshape(-1, 2)
             data = data[:, 0] + 1j * data[:, 1]

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from pathlib import Path
 
@@ -26,7 +27,11 @@ def _mkjob(store: JobStore, job_id: str = "J1") -> None:
 
 def test_store_is_wal_and_events_page_without_loss(tmp_path: Path) -> None:
     store = JobStore(tmp_path / "jobs.sqlite")
-    mode = sqlite3.connect(tmp_path / "jobs.sqlite").execute("PRAGMA journal_mode").fetchone()[0]
+    # Close the probe connection explicitly: Python 3.13+ emits ResourceWarning for an unclosed
+    # sqlite3.Connection when it is garbage-collected, which filterwarnings=error turns into a
+    # test failure (and closing it is right on every version).
+    with contextlib.closing(sqlite3.connect(tmp_path / "jobs.sqlite")) as probe:
+        mode = probe.execute("PRAGMA journal_mode").fetchone()[0]
     assert mode == "wal"
     _mkjob(store)
     n = 10_000

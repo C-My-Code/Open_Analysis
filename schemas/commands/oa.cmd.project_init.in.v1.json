@@ -1,0 +1,50 @@
+{
+  "$id": "oa.cmd.project_init.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Scaffold a project directory. A write: needs `confirm`; never overwrites files.",
+  "properties": {
+    "board": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Board file name inside `dir`; default the only board found.",
+      "title": "Board"
+    },
+    "confirm": {
+      "default": false,
+      "description": "Must be true to write files.",
+      "title": "Confirm",
+      "type": "boolean"
+    },
+    "dir": {
+      "description": "Directory to create or use.",
+      "title": "Dir",
+      "type": "string"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Project name; default the directory name.",
+      "title": "Name"
+    }
+  },
+  "required": [
+    "dir"
+  ],
+  "title": "ProjectInitIn",
+  "type": "object"
+}

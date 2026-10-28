@@ -1,0 +1,18 @@
+{
+  "$id": "oa.cmd.jobs_cancel.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Address one job.",
+  "properties": {
+    "job_id": {
+      "description": "Job id (ULID).",
+      "title": "Job Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id"
+  ],
+  "title": "JobIn",
+  "type": "object"
+}

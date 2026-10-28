@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "PageRequest": {
+      "additionalProperties": false,
+      "description": "Paging window shared by every list command.",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum items to return [1].",
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Index of the first item to return [1].",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        }
+      },
+      "title": "PageRequest",
+      "type": "object"
+    }
+  },
+  "$id": "oa.cmd.jobs_list.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "List jobs of a project, newest first.",
+  "properties": {
+    "page": {
+      "$ref": "#/$defs/PageRequest",
+      "description": "Paging window."
+    },
+    "project_id": {
+      "description": "Project id returned by board.open.",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "enum": [
+            "queued",
+            "planning",
+            "running",
+            "reducing",
+            "succeeded",
+            "failed",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Keep only jobs in this state.",
+      "title": "State"
+    }
+  },
+  "required": [
+    "project_id"
+  ],
+  "title": "JobsListIn",
+  "type": "object"
+}

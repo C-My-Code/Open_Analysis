@@ -1,0 +1,13 @@
+source = "analytic: f_mn = c / (2 sqrt(er)) sqrt((m/a)^2 + (n/b)^2); docs/research/07-quasistatic-thermal-emi.md section 3.1 (E11)"
+
+[tolerance]
+rtol = 0.005
+
+[inputs]
+a = 0.040
+b = 0.030
+er = 4.3
+mode = [1, 0]
+
+[expected]
+f_hz = 1.807e9

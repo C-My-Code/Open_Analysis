@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "SetupSummary": {
+      "additionalProperties": false,
+      "description": "A stored setup.",
+      "properties": {
+        "analysis": {
+          "description": "Analysis kind.",
+          "title": "Analysis",
+          "type": "string"
+        },
+        "description": {
+          "description": "Free text.",
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "description": "Setup name (file stem).",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "analysis",
+        "description"
+      ],
+      "title": "SetupSummary",
+      "type": "object"
+    }
+  },
+  "$id": "oa.setup_list/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Stored setups of a project, sorted by name.",
+  "properties": {
+    "setups": {
+      "description": "Setups sorted by name.",
+      "items": {
+        "$ref": "#/$defs/SetupSummary"
+      },
+      "title": "Setups",
+      "type": "array"
+    }
+  },
+  "required": [
+    "setups"
+  ],
+  "title": "SetupList",
+  "type": "object"
+}

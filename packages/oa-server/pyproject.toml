@@ -16,8 +16,15 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-jobs",
+    "oa-service",
+    "oa-geometry",
+    "pyarrow>=15",
+    "numpy>=1.26",
     "fastapi>=0.110",
     "uvicorn>=0.29",
+    "websockets>=12",
+    # fastapi.testclient (used by the endpoint tests) needs httpx at runtime
+    "httpx>=0.27",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -28,3 +35,5 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-jobs = { workspace = true }
+oa-service = { workspace = true }
+oa-geometry = { workspace = true }

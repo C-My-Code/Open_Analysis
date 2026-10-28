@@ -1,0 +1,9 @@
+{
+  "$id": "oa.cmd.project_list.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "List recently opened projects (no arguments).",
+  "properties": {},
+  "title": "ProjectListIn",
+  "type": "object"
+}

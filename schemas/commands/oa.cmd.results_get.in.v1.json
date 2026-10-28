@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "PageRequest": {
+      "additionalProperties": false,
+      "description": "Paging window shared by every list command.",
+      "properties": {
+        "limit": {
+          "default": 50,
+          "description": "Maximum items to return [1].",
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "Index of the first item to return [1].",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        }
+      },
+      "title": "PageRequest",
+      "type": "object"
+    }
+  },
+  "$id": "oa.cmd.results_get.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Fetch a result manifest, or one item rendered compactly.",
+  "properties": {
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Item to render; omit for the manifest.",
+      "title": "Item Id"
+    },
+    "max_points": {
+      "default": 201,
+      "description": "Decimate 1-D series to this many points [1].",
+      "maximum": 1000,
+      "minimum": 2,
+      "title": "Max Points",
+      "type": "integer"
+    },
+    "page": {
+      "$ref": "#/$defs/PageRequest",
+      "description": "Row window for tables."
+    },
+    "result_id": {
+      "description": "Result id (ULID).",
+      "title": "Result Id",
+      "type": "string"
+    },
+    "select": {
+      "default": [],
+      "description": "Array or column names to include; empty selects all.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Select",
+      "type": "array"
+    }
+  },
+  "required": [
+    "result_id"
+  ],
+  "title": "ResultGetIn",
+  "type": "object"
+}

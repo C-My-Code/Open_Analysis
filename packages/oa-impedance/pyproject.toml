@@ -9,6 +9,7 @@ build-backend = "hatchling.build"
 name = "oa-impedance"
 version = "0.1.0"
 description = "Closed-form, BEM and FEM impedance"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 dependencies = [
@@ -20,9 +21,22 @@ dependencies = [
     "oa-mesh",
     "numpy>=1.26",
     "scipy>=1.11",
+    "shapely>=2.0",
+    "threadpoolctl>=3.2",
     "scikit-fem>=9.0",
     "pyamg>=5.0",
 ]
+
+[project.optional-dependencies]
+# test-only cross-check (BSD): scikit-rf media for microstrip / CPW
+test = ["scikit-rf>=1.0"]
+
+[project.entry-points."open_analysis.services"]
+impedance = "oa_impedance.service:ImpedanceServiceImpl"
+
+[project.entry-points."open_analysis.analyses"]
+"impedance.xsection" = "oa_impedance.analysis:ImpedanceXsection"
+"impedance.profile" = "oa_impedance.profile.analysis:ImpedanceProfile"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_impedance"]

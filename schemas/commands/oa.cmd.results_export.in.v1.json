@@ -1,0 +1,65 @@
+{
+  "$id": "oa.cmd.results_export.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Export a result to a file under the project's .oa/exports/.",
+  "properties": {
+    "format": {
+      "description": "Output format.",
+      "enum": [
+        "html",
+        "sarif",
+        "touchstone",
+        "csv",
+        "vtu",
+        "json",
+        "md"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "item_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Item to export; default the first fit.",
+      "title": "Item Id"
+    },
+    "out_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Destination inside an allowed root; default .oa/exports/<rid>/.",
+      "title": "Out Path"
+    },
+    "overwrite": {
+      "default": false,
+      "description": "Replace an existing file.",
+      "title": "Overwrite",
+      "type": "boolean"
+    },
+    "result_id": {
+      "description": "Result id (ULID).",
+      "title": "Result Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result_id",
+    "format"
+  ],
+  "title": "ExportIn",
+  "type": "object"
+}

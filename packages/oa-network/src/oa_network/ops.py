@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, SupportsFloat, cast
 
 import numpy as np
 import skrf
@@ -16,7 +16,10 @@ __all__ = ["renormalize", "shift_reference_plane"]
 def renormalize(net: skrf.Network, z0: float | Sequence[float]) -> skrf.Network:
     """Return ``net`` renormalised to real port impedance(s) ``z0`` [ohm]."""
     out = net.copy()
-    out.renormalize(float(z0) if np.isscalar(z0) else np.asarray(z0, dtype=float))
+    # Not narrowed through np.isscalar: its stubs narrow z0 to numpy's scalar union under
+    # numpy < 2.5 (resolved on Python 3.11) but to float under numpy 2.5.
+    scalar = np.isscalar(z0)
+    out.renormalize(float(cast(SupportsFloat, z0)) if scalar else np.asarray(z0, dtype=float))
     return out
 
 

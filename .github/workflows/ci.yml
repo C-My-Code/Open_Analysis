@@ -21,7 +21,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
-      - run: uv sync --python 3.13
+      - run: uv sync --all-packages --python 3.13
       - run: uv run ruff check
       - run: uv run ruff format --check
       - run: uv run mypy
@@ -40,7 +40,15 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
-      - run: uv sync --python ${{ matrix.python }}
+      # The PyPI gmsh wheel (oa-mesh) links libGLU.so.1 and a few X11 client libraries, which
+      # the wheel does not bundle and the Ubuntu runner image does not guarantee. Windows and
+      # macOS wheels are self-contained.
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
+      - run: uv sync --all-packages --python ${{ matrix.python }}
       # Markers needing external tools (external, kicad) are opt-in.
       - run: uv run pytest -m "not external and not kicad"
 
@@ -57,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.2
-      - run: uv sync --python 3.13
+      - run: uv sync --all-packages --python 3.13
       # Fails on non-OSI or GPL-2.0-only Python dependencies (ADR-0001). Workspace members
       # are GPL-3.0-or-later and are ignored by name.
       - run: >
@@ -75,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.2
-      - run: uv sync --python 3.13
+      - run: uv sync --all-packages --python 3.13
       # oa_model's schema tests (WP-000B) regenerate schemas/*.json and diff against the
       # committed files, and check that older fixtures still load. oa-model has landed, so
       # "no tests collected" (exit 5) is a failure now rather than an accepted placeholder.

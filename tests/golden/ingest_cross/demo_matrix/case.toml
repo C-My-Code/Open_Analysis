@@ -1,0 +1,22 @@
+source = "WP-208 harness on the KiCad 10.0.5 demos pic_programmer, stickhub and cm5_minima, IPC-2581 exported by kicad-cli 10.0.5: passed / whitelisted / failed findings."
+
+[tolerance]
+rtol = 0.0
+atol = 0.0
+
+[inputs]
+
+[expected.cm5_minima.native_vs_ipc2581]
+pass = 2000
+whitelisted = 49
+fail = 0
+
+[expected.pic_programmer.native_vs_ipc2581]
+pass = 534
+whitelisted = 4
+fail = 0
+
+[expected.stickhub.native_vs_ipc2581]
+pass = 629
+whitelisted = 54
+fail = 0

@@ -136,24 +136,25 @@ class ProcessGuard:
         self._create_job()
 
     def _create_job(self) -> None:
-        if sys.platform != "win32":
-            return
-        job = _k32.CreateJobObjectW(None, None)
-        if not job:
-            return
-        info = _ExtendedLimit()
-        flags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        if self._limit:
-            flags |= _JOB_OBJECT_LIMIT_JOB_MEMORY
-            info.JobMemoryLimit = int(self._limit)
-        info.BasicLimitInformation.LimitFlags = flags
-        ok = _k32.SetInformationJobObject(
-            job, _JobObjectExtendedLimitInformation, ctypes.byref(info), ctypes.sizeof(info)
-        )
-        if not ok:
-            _k32.CloseHandle(job)
-            return
-        self._job = job
+        # Positive platform guard (as elsewhere in this module): mypy skips the block on
+        # non-Windows, whereas code after an early `return` would still be checked there.
+        if sys.platform == "win32":
+            job = _k32.CreateJobObjectW(None, None)
+            if not job:
+                return
+            info = _ExtendedLimit()
+            flags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if self._limit:
+                flags |= _JOB_OBJECT_LIMIT_JOB_MEMORY
+                info.JobMemoryLimit = int(self._limit)
+            info.BasicLimitInformation.LimitFlags = flags
+            ok = _k32.SetInformationJobObject(
+                job, _JobObjectExtendedLimitInformation, ctypes.byref(info), ctypes.sizeof(info)
+            )
+            if not ok:
+                _k32.CloseHandle(job)
+                return
+            self._job = job
 
     def assign(self, pid: int) -> None:
         """Put the freshly started process ``pid`` under this guard."""
