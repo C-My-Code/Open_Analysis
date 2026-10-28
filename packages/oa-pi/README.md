@@ -9,11 +9,11 @@ Layer L4 (interfaces.md section 0). Contracts: interfaces.md sections 3.3, 3.4 (
 
 ```python
 from oa_pi import PiDcAnalysis, DcConfig, build_network, solve_fem, PdnService
-from oa_pi.reference import solve_raster       # independent raster FVM cross-check
+from oa_pi.reference import solve_raster  # independent raster FVM cross-check
 
-net = build_network(board, geometry, cfg)      # solver-neutral network (sheets, barrels, pins)
-sol = solve_fem(net)                           # DcSolution: fields, pins, barrels, scalars
-ref = solve_raster(net, h=0.2e-3)              # same problem, different discretization
+net = build_network(board, geometry, cfg)  # solver-neutral network (sheets, barrels, pins)
+sol = solve_fem(net)  # DcSolution: fields, pins, barrels, scalars
+ref = solve_raster(net, h=0.2e-3)  # same problem, different discretization
 ```
 
 Entry points: analysis `pi.dc` (`open_analysis.analyses`), service `pdn`
