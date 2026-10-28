@@ -11,13 +11,13 @@ Layer L4b. It imports L0-L3 and reaches analyses and rules only through the plug
 
 ```python
 from oa_service import Registry, CallContext
-from oa_service.local import LocalService          # real ingest, jobs, results
-from oa_service.testing import FakeService         # in-memory; needs `oa-service[testing]`
+from oa_service.local import LocalService  # real ingest, jobs, results
+from oa_service.testing import FakeService  # in-memory; needs `oa-service[testing]`
 
-svc = LocalService()                                # or FakeService()
-reg = Registry.load(svc)                            # built-ins + `open_analysis.commands` entry points
+svc = LocalService()  # or FakeService()
+reg = Registry.load(svc)  # built-ins + `open_analysis.commands` entry points
 env = reg.dispatch("board.open", {"path": "board.kicad_pcb"}, CallContext(caller="cli"))
-env.ok, env.data, env.warnings, env.errors          # Envelope (never raises)
+env.ok, env.data, env.warnings, env.errors  # Envelope (never raises)
 ```
 
 | Name | What |

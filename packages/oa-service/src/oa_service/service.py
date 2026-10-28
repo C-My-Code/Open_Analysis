@@ -24,6 +24,7 @@ from oa_service.models import (
     ExportIn,
     ExportInfo,
     JobBrief,
+    JobEventView,
     JobHandle,
     JobKind,
     JobStatusOut,
@@ -115,6 +116,8 @@ class OAService(Protocol):
     def job(
         self, job_id: str, *, wait_s: float = 0.0, events_after_seq: int | None = None
     ) -> JobStatusOut: ...
+
+    def events(self, job_id: str, after_seq: int = 0, limit: int = 100) -> list[JobEventView]: ...
 
     def jobs(
         self, project_id: str, *, state: JobKind | None = None, limit: int = 100

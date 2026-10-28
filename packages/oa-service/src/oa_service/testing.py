@@ -397,6 +397,20 @@ class _FakeJobs:
     def export_dir(self, result_id: str) -> Path | None:
         return self.svc.workdir / "exports"
 
+    def manifest(self, result_id: str) -> dict[str, Any]:
+        import json
+
+        from oa_results.io import write_bundle
+        from oa_results.io.bundle_io import MANIFEST
+
+        bundle = self.bundle(result_id)
+        out = self.svc.workdir / "results" / result_id
+        if not (out / MANIFEST).exists():
+            write_bundle(bundle, out)
+        doc = json.loads((out / MANIFEST).read_text("utf-8"))
+        assert isinstance(doc, dict)
+        return doc
+
     def estimate_of(self, job_id: str) -> PlanEstimate:
         est: PlanEstimate = self._get(job_id)["estimate"]
         return est

@@ -16,8 +16,16 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-jobs",
+    "oa-service",
     "typer>=0.12",
 ]
+
+[project.optional-dependencies]
+# `oa serve` starts the REST server; it is imported dynamically (cli and server are siblings).
+serve = ["oa-server"]
+
+[project.scripts]
+oa = "oa_cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_cli"]
@@ -27,3 +35,5 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-jobs = { workspace = true }
+oa-service = { workspace = true }
+oa-server = { workspace = true }

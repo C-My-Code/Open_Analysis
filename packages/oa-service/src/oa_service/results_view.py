@@ -54,6 +54,7 @@ __all__ = [
     "explain_violation",
     "export_bundle",
     "get_result",
+    "item_arrays",
     "item_summary",
     "manifest",
     "violations_page",
@@ -345,6 +346,21 @@ def _walk_arrays(obj: object, prefix: str, out: dict[str, np.ndarray[Any, Any]])
     elif isinstance(obj, tuple | list):
         for i, c in enumerate(obj):
             _walk_arrays(c, f"{prefix}[{i}]" if prefix else f"[{i}]", out)
+
+
+def item_arrays(bundle: ResultBundle, item_id: str) -> dict[str, np.ndarray[Any, Any]]:
+    """All arrays of one item by name (see :func:`get_result` for the naming)."""
+    item = next((i for i in bundle.items if i.id == item_id), None)
+    if item is None:
+        raise ServiceError(
+            "NOT_FOUND",
+            f"No item {item_id!r} in result {bundle.id}.",
+            path="/item_id",
+            hint="Items: " + ", ".join(i.id for i in bundle.items) + ".",
+        )
+    arrays: dict[str, np.ndarray[Any, Any]] = {}
+    _walk_arrays(item.data, "", arrays)
+    return arrays
 
 
 def _decimate(a: np.ndarray[Any, Any], n: int) -> np.ndarray[Any, Any]:

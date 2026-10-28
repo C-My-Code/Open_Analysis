@@ -84,6 +84,8 @@ class JobBackend(Protocol):
 
     def estimate_of(self, job_id: str) -> Any: ...
 
+    def manifest(self, result_id: str) -> dict[str, Any]: ...
+
 
 class ServiceBase:
     """Implements ``OAService`` except project loading and the job backend."""
@@ -265,6 +267,10 @@ class ServiceBase:
             summary=summary,
         )
 
+    def events(self, job_id: str, after_seq: int = 0, limit: int = 100) -> list[JobEventView]:
+        """Job events with ``seq`` greater than ``after_seq``, oldest first."""
+        return self.backend.events(job_id, after_seq, limit)
+
     def jobs(
         self, project_id: str, *, state: JobKind | None = None, limit: int = 100
     ) -> Sequence[JobBrief]:
@@ -279,6 +285,56 @@ class ServiceBase:
 
     def result(self, result_id: str) -> ResultBundle:
         return self.backend.bundle(result_id)
+
+    def result_manifest(self, result_id: str) -> dict[str, Any]:
+        """The stored bundle manifest (arrays as ``$array`` references)."""
+        return self.backend.manifest(result_id)
+
+    def result_array(self, result_id: str, item_id: str, name: str) -> bytes:
+        """One array of a result item as ``.npy`` bytes."""
+        import io
+
+        arrays = results_view.item_arrays(self.backend.bundle(result_id), item_id)
+        if name not in arrays:
+            raise ServiceError(
+                "NOT_FOUND",
+                f"Item {item_id!r} has no array {name!r}.",
+                path="/name",
+                hint="Arrays: " + (", ".join(sorted(arrays)) or "none") + ".",
+                details={"candidates": close_matches(name, arrays)},
+            )
+        buf = io.BytesIO()
+        np.save(buf, arrays[name], allow_pickle=False)
+        return buf.getvalue()
+
+    def result_table(
+        self, result_id: str, item_id: str
+    ) -> tuple[tuple[str, ...], list[tuple[Any, ...]]]:
+        """Column names and all rows of a table item (inline or Parquet)."""
+        from oa_results.io import bundle_artifact_path, read_table_rows
+        from oa_results.tables import TableResult
+
+        bundle = self.backend.bundle(result_id)
+        item = next((i for i in bundle.items if i.id == item_id), None)
+        if item is None or not isinstance(item.data, TableResult):
+            raise ServiceError(
+                "NOT_FOUND",
+                f"Result {result_id} has no table item {item_id!r}.",
+                path="/item_id",
+                hint="Tables: "
+                + (", ".join(i.id for i in bundle.items if i.kind == "table") or "none")
+                + ".",
+            )
+        tbl = item.data
+        cols = tuple(c.name for c in tbl.columns)
+        if tbl.inline is not None:
+            return cols, [tuple(r) for r in tbl.inline]
+        base = self.backend.export_dir(result_id)
+        art = None
+        if base is not None:
+            rdir = base.parent / "results" / bundle.id
+            art = lambda ref: bundle_artifact_path(rdir, ref)  # noqa: E731
+        return cols, list(read_table_rows(tbl, art))
 
     def rule_table(self) -> dict[str, RuleInfo]:
         return {r.id: r for r in self.rules()}

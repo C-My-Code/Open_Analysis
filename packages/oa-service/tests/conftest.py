@@ -1,13 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
+"""Make the sibling ``service_helpers`` module importable under ``--import-mode=importlib``."""
+
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from oa_service import CallContext, Registry
 from oa_service.testing import FakeService
+
+_here = str(Path(__file__).parent)
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 
 
 @pytest.fixture

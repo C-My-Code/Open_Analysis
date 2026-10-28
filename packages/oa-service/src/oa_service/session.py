@@ -94,6 +94,7 @@ class BoardSession:
         physics_hash: str | None = None,
         setups_dir: Path | None = None,
         geometry_factory: Callable[[Board], Any] | None = None,
+        watch_paths: tuple[Path, ...] = (),
     ) -> None:
         self.id = project_id
         self.name = name
@@ -105,6 +106,7 @@ class BoardSession:
         self.ephemeral = ephemeral
         self.physics_hash = physics_hash
         self.setups_dir = setups_dir
+        self.watch_paths = watch_paths
         self._geometry_factory = geometry_factory
         self._geometry: Any = None
         self._memory_setups: dict[str, AnalysisSetup] = {}

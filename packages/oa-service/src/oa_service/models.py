@@ -331,6 +331,13 @@ class JobBrief(OAModel):
     progress: float = Field(description="Weighted progress [1], 0..1.")
     message: str = Field(description="Last status message.")
     result_id: str | None = Field(default=None, description="Result id once succeeded.")
+    tasks_total: int = Field(default=0, description="Tasks in the plan [1].")
+    tasks_done: int = Field(default=0, description="Tasks finished, including cached [1].")
+    tasks_cached: int = Field(default=0, description="Tasks served from the cache [1].")
+    tasks_failed: int = Field(default=0, description="Tasks that failed [1].")
+    error: dict[str, JsonValue] | None = Field(
+        default=None, description="ErrorInfo of a failed job; null otherwise."
+    )
     cancel_reason: str | None = Field(
         default=None, description="'user', 'budget:max_runtime' or 'budget:max_memory'."
     )

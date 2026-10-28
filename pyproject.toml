@@ -168,7 +168,7 @@ module = ["oa_model.*", "oa_results.*", "oa_framework.*"]
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["skrf"]
+module = ["skrf", "pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- import-linter
