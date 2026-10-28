@@ -119,7 +119,7 @@ def test_via_transition_plausible_passive_and_timed(
     tools: dict[str, dict[str, str]], tmp_path: Path, record_property: Any
 ) -> None:
     cfg = {
-        "region": {"nets": ["SIG"]},
+        "region": {"nets": ["SIG"], "bbox": [9e-3, -2e-3, 16e-3, 2e-3]},
         "frequency": {"f_min": 0, "f_max": 40e9, "n_points": 201},
         "fix_quality": True,
     }
