@@ -1,0 +1,13 @@
+source = "analytic: via_transition_board with signal nets and bbox x 5..20 mm: builder has 1 antipad hole on each of L2 and L3 (2 total); SIG on L1 crosses xmin and SIG on L4 crosses xmax (2 crossings); copper nets per layer: L1 SIG+GND(via pads), L2 GND, L3 GND, L4 SIG+GND = 6 bodies"
+
+[tolerance]
+rtol = 0.0
+atol = 0.0
+
+[inputs]
+bbox = [0.005, -0.004, 0.02, 0.004]
+
+[expected]
+antipad_holes = 2
+crossings = 2
+conductors = 6
