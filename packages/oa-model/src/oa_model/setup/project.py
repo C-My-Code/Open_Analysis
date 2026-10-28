@@ -49,7 +49,12 @@ class ProjectManifest(OAModel):
     )
     physics: ProjectPath | None = Field(default=None, description="Physics sidecar path.")
     intent: ProjectPath | None = Field(default=None, description="Design intent path.")
-    setups_dir: ProjectPath = Field(default="oa/setups", description="Directory of setup files.")
+    # A str default keeps the generated schema OS-neutral; validate_default converts it to Path.
+    setups_dir: ProjectPath = Field(
+        default="oa/setups",
+        validate_default=True,
+        description="Directory of setup files.",
+    )
     read_options: ReadOptions = Field(default=ReadOptions(), description="Reader options.")
     tools: dict[str, dict[str, str]] = Field(
         default={}, description="Per-project external tool overrides."

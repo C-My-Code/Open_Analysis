@@ -55,6 +55,7 @@ dev = [
     "reuse>=5.0",
     "charset-normalizer>=3.3",
     "types-PyYAML",
+    "lxml-stubs",
     "oa-assistant",
     "oa-cli",
     "oa-em",

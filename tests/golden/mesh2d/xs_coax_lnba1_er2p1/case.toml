@@ -10,6 +10,6 @@ order = 2
 
 [expected]
 gmsh_version = "4.15.2"
-n_nodes = 147472
-n_triangles = 73160
-hash = "406303fb7a73c83ec17e1fa3ef02605c109ffd52a86e4f92be3f125c5d4f2ce7"
+n_nodes = 147236
+n_triangles = 73042
+hash = "8b4e052baed8596c8c11cc6f35ed3ded4906e968517c11ac7f8afa1c7a2114d6"

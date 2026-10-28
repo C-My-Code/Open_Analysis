@@ -12,13 +12,14 @@ from pathlib import Path
 import pytest
 import yaml
 from board_stats import board_stats
-DATA = Path(__file__).parent / "data"
-SYNTHETIC = Path(__file__).resolve().parents[3] / "tests" / "boards" / "kicad10"
 
 from oa_ingest_ipc2581 import Ipc2581Reader
 from oa_model import validate_board
 from oa_model.errors import IngestError
 from oa_model.setup import ReadOptions
+
+DATA = Path(__file__).parent / "data"
+SYNTHETIC = Path(__file__).resolve().parents[3] / "tests" / "boards" / "kicad10"
 
 MINI = DATA / "mini_revb.xml"
 
