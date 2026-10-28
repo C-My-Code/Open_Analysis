@@ -38,6 +38,11 @@ Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 
 
 8. **Test helper modules need unique names.** Tests run under `--import-mode=importlib`, with each package's `tests/` directory on `sys.path`. A non-test module in `tests/` therefore shares one global namespace with every other package's test helpers. Name helpers with a package prefix, such as `geometry_helpers.py`, and never `from conftest import ...`.
 
+9. **Keep iteration cheap.**
+   - While iterating, run only your own package's tests with `uv run pytest packages/<pkg> -q`, plus `ruff`/`mypy` on your paths.
+   - Run the full CI command set once, before reporting done: `ruff check`, `ruff format --check`, `mypy`, `lint-imports`, and `pytest -m "not external and not kicad"`.
+   - Read only the spec sections your brief names. Look up other sections only when you hit a specific question.
+
 ---
 
 ## Dependency graph
