@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oa-mesh"
+version = "0.1.0"
+description = "gmsh 2D/3D meshing"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    "oa-model",
+    "oa-physics",
+    "numpy>=1.26",
+    "gmsh>=4.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_mesh"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-physics = { workspace = true }

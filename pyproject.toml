@@ -1,0 +1,252 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[project]
+name = "open-analysis"
+version = "0.1.0"
+description = "Open_Analysis workspace root (PCB SI/PI/RF analysis suite)"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+oa-assistant = { workspace = true }
+oa-cli = { workspace = true }
+oa-em = { workspace = true }
+oa-em-openems = { workspace = true }
+oa-em-palace = { workspace = true }
+oa-emi = { workspace = true }
+oa-erc = { workspace = true }
+oa-framework = { workspace = true }
+oa-geometry = { workspace = true }
+oa-impedance = { workspace = true }
+oa-ingest-ipc2581 = { workspace = true }
+oa-ingest-kicad = { workspace = true }
+oa-jobs = { workspace = true }
+oa-kicad-bridge = { workspace = true }
+oa-mcp = { workspace = true }
+oa-mesh = { workspace = true }
+oa-model = { workspace = true }
+oa-network = { workspace = true }
+oa-physics = { workspace = true }
+oa-pi = { workspace = true }
+oa-qs = { workspace = true }
+oa-results = { workspace = true }
+oa-server = { workspace = true }
+oa-si = { workspace = true }
+oa-testkit = { workspace = true }
+oa-thermal = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "import-linter>=2.0",
+    "pip-licenses>=5.0",
+    "reuse>=5.0",
+    "charset-normalizer>=3.3",
+    "types-PyYAML",
+    "oa-assistant",
+    "oa-cli",
+    "oa-em",
+    "oa-em-openems",
+    "oa-em-palace",
+    "oa-emi",
+    "oa-erc",
+    "oa-framework",
+    "oa-geometry",
+    "oa-impedance",
+    "oa-ingest-ipc2581",
+    "oa-ingest-kicad",
+    "oa-jobs",
+    "oa-kicad-bridge",
+    "oa-mcp",
+    "oa-mesh",
+    "oa-model",
+    "oa-network",
+    "oa-physics",
+    "oa-pi",
+    "oa-qs",
+    "oa-results",
+    "oa-server",
+    "oa-si",
+    "oa-testkit",
+    "oa-thermal",
+]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["packages/*/tests"]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+filterwarnings = ["error"]
+markers = [
+    "golden: compares against committed golden data",
+    "external: needs an external tool (openEMS, Palace, ...)",
+    "slow: long-running test",
+    "kicad: needs KiCad installed",
+]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["packages/oa-assistant/src", "packages/oa-cli/src", "packages/oa-em/src", "packages/oa-em-openems/src", "packages/oa-em-palace/src", "packages/oa-emi/src", "packages/oa-erc/src", "packages/oa-framework/src", "packages/oa-geometry/src", "packages/oa-impedance/src", "packages/oa-ingest-ipc2581/src", "packages/oa-ingest-kicad/src", "packages/oa-jobs/src", "packages/oa-kicad-bridge/src", "packages/oa-mcp/src", "packages/oa-mesh/src", "packages/oa-model/src", "packages/oa-network/src", "packages/oa-physics/src", "packages/oa-pi/src", "packages/oa-qs/src", "packages/oa-results/src", "packages/oa-server/src", "packages/oa-si/src", "packages/oa-testkit/src", "packages/oa-thermal/src"]
+extend-exclude = ["schemas", "web", "tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "C4", "PT", "TID"]
+ignore = ["RUF012", "PT018"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "oa_assistant",
+    "oa_cli",
+    "oa_em",
+    "oa_em_openems",
+    "oa_em_palace",
+    "oa_emi",
+    "oa_erc",
+    "oa_framework",
+    "oa_geometry",
+    "oa_impedance",
+    "oa_ingest_ipc2581",
+    "oa_ingest_kicad",
+    "oa_jobs",
+    "oa_kicad_bridge",
+    "oa_mcp",
+    "oa_mesh",
+    "oa_model",
+    "oa_network",
+    "oa_physics",
+    "oa_pi",
+    "oa_qs",
+    "oa_results",
+    "oa_server",
+    "oa_si",
+    "oa_testkit",
+    "oa_thermal",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["B011"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/packages/oa-assistant/src:$MYPY_CONFIG_FILE_DIR/packages/oa-cli/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-openems/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-palace/src:$MYPY_CONFIG_FILE_DIR/packages/oa-emi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-erc/src:$MYPY_CONFIG_FILE_DIR/packages/oa-framework/src:$MYPY_CONFIG_FILE_DIR/packages/oa-geometry/src:$MYPY_CONFIG_FILE_DIR/packages/oa-impedance/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-ipc2581/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-kicad/src:$MYPY_CONFIG_FILE_DIR/packages/oa-jobs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-kicad-bridge/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mcp/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mesh/src:$MYPY_CONFIG_FILE_DIR/packages/oa-model/src:$MYPY_CONFIG_FILE_DIR/packages/oa-network/src:$MYPY_CONFIG_FILE_DIR/packages/oa-physics/src:$MYPY_CONFIG_FILE_DIR/packages/oa-pi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-qs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-results/src:$MYPY_CONFIG_FILE_DIR/packages/oa-server/src:$MYPY_CONFIG_FILE_DIR/packages/oa-si/src:$MYPY_CONFIG_FILE_DIR/packages/oa-testkit/src:$MYPY_CONFIG_FILE_DIR/packages/oa-thermal/src"
+explicit_package_bases = true
+namespace_packages = true
+files = [
+    "packages/oa-results/src",
+    "packages/oa-framework/src",
+    "packages/oa-results/tests",
+    "packages/oa-framework/tests",
+]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# strict where interfaces.md requires it (oa_model is checked from its own package by 000B)
+[[tool.mypy.overrides]]
+module = ["oa_model.*", "oa_results.*", "oa_framework.*"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["skrf"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- import-linter
+[tool.importlinter]
+root_packages = [
+    "oa_assistant",
+    "oa_cli",
+    "oa_em",
+    "oa_em_openems",
+    "oa_em_palace",
+    "oa_emi",
+    "oa_erc",
+    "oa_framework",
+    "oa_geometry",
+    "oa_impedance",
+    "oa_ingest_ipc2581",
+    "oa_ingest_kicad",
+    "oa_jobs",
+    "oa_kicad_bridge",
+    "oa_mcp",
+    "oa_mesh",
+    "oa_model",
+    "oa_network",
+    "oa_physics",
+    "oa_pi",
+    "oa_qs",
+    "oa_results",
+    "oa_server",
+    "oa_si",
+    "oa_testkit",
+    "oa_thermal",
+]
+include_external_packages = true
+
+# interfaces.md section 0, layered. Highest first. `|` separates independent siblings.
+[[tool.importlinter.contracts]]
+name = "Package layers (interfaces.md section 0)"
+type = "layers"
+layers = [
+    "oa_assistant",
+    "oa_cli | oa_server | oa_mcp",
+    "oa_em_openems | oa_em_palace",
+    "oa_impedance | oa_erc | oa_pi | oa_em | oa_thermal | oa_qs | oa_emi | oa_si",
+    "oa_jobs",
+    "oa_framework",
+    "oa_geometry | oa_mesh | oa_network",
+    "oa_kicad_bridge",
+    "oa_ingest_kicad | oa_ingest_ipc2581",
+    "oa_physics | oa_results",
+    "oa_model",
+]
+
+# L4 analyses never import each other. The oa_em_* adapters may import oa_em (spec exception).
+[[tool.importlinter.contracts]]
+name = "L4 analyses are independent"
+type = "independence"
+modules = [
+    "oa_impedance", "oa_erc", "oa_pi", "oa_em", "oa_em_openems", "oa_em_palace",
+    "oa_thermal", "oa_qs", "oa_emi", "oa_si",
+]
+ignore_imports = [
+    "oa_em_openems -> oa_em",
+    "oa_em_palace -> oa_em",
+]
+# The adapters are skeletons until WP-205/301 add the imports.
+unmatched_ignore_imports_alerting = "none"
+
+# The optional AI assistant is the top layer: no core package may import it.
+[[tool.importlinter.contracts]]
+name = "No package imports oa_assistant"
+type = "forbidden"
+source_modules = ["oa_cli", "oa_em", "oa_em_openems", "oa_em_palace", "oa_emi", "oa_erc", "oa_framework", "oa_geometry", "oa_impedance", "oa_ingest_ipc2581", "oa_ingest_kicad", "oa_jobs", "oa_kicad_bridge", "oa_mcp", "oa_mesh", "oa_model", "oa_network", "oa_physics", "oa_pi", "oa_qs", "oa_results", "oa_server", "oa_si", "oa_testkit", "oa_thermal"]
+forbidden_modules = ["oa_assistant"]
+
+# oa_testkit is test-support only: product code never imports it.
+[[tool.importlinter.contracts]]
+name = "Product code does not import oa_testkit"
+type = "forbidden"
+source_modules = ["oa_assistant", "oa_cli", "oa_em", "oa_em_openems", "oa_em_palace", "oa_emi", "oa_erc", "oa_framework", "oa_geometry", "oa_impedance", "oa_ingest_ipc2581", "oa_ingest_kicad", "oa_jobs", "oa_kicad_bridge", "oa_mcp", "oa_mesh", "oa_model", "oa_network", "oa_physics", "oa_pi", "oa_qs", "oa_results", "oa_server", "oa_si", "oa_thermal"]
+forbidden_modules = ["oa_testkit"]
+
+# oa_model stays dependency-light (board-model.md section 1).
+[[tool.importlinter.contracts]]
+name = "oa_model uses only pydantic, numpy, pyyaml"
+type = "forbidden"
+source_modules = ["oa_model"]
+forbidden_modules = ["shapely", "scipy", "skrf", "pyarrow", "gmsh", "networkx", "lxml"]
+allow_indirect_imports = true

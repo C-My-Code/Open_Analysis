@@ -1,0 +1,31 @@
+version = 1
+SPDX-PackageName = "Open_Analysis"
+
+# Default: everything is GPL-3.0-or-later. Source files also carry their own SPDX header, which
+# takes precedence ("closest"); this entry covers docs, data, lock files and config.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 Open_Analysis contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Documents that quote SPDX tags in prose.
+[[annotations]]
+path = "docs/ARCHITECTURE.md"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Open_Analysis contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# ADR-0001: data-like artifacts are dual-licensed so other tools can adopt the board model and
+# fixtures. Recipients may choose either license. Code stays GPL-3.0-or-later.
+# - JSON Schemas, test boards and fixtures, and examples.
+[[annotations]]
+path = [
+    "schemas/**",
+    "tests/fixtures/**",
+    "tests/boards/**",
+    "examples/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Open_Analysis contributors"
+SPDX-License-Identifier = "CC-BY-4.0 OR GPL-3.0-or-later"
