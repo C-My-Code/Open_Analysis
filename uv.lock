@@ -1922,9 +1922,11 @@ dependencies = [
     { name = "oa-model" },
     { name = "oa-physics" },
     { name = "oa-results" },
+    { name = "pyamg" },
     { name = "scikit-fem" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "shapely" },
 ]
 
 [package.metadata]
@@ -1936,8 +1938,10 @@ requires-dist = [
     { name = "oa-model", editable = "packages/oa-model" },
     { name = "oa-physics", editable = "packages/oa-physics" },
     { name = "oa-results", editable = "packages/oa-results" },
+    { name = "pyamg", specifier = ">=5.0" },
     { name = "scikit-fem", specifier = ">=9.0" },
     { name = "scipy", specifier = ">=1.11" },
+    { name = "shapely", specifier = ">=2.0" },
 ]
 
 [[package]]
