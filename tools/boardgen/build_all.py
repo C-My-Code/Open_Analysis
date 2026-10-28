@@ -37,7 +37,9 @@ KICAD_DIR = Path(os.environ.get("OA_KICAD_DIR", r"D:\Program Files\KiCad\10.0"))
 CLI = KICAD_DIR / "bin" / "kicad-cli.exe"
 PY = KICAD_DIR / "bin" / "python.exe"
 SPDX = ("SPDX-FileCopyrightText: 2026 Open_Analysis contributors\n"
+        # REUSE-IgnoreStart
         "SPDX-License-Identifier: CC-BY-4.0\n")
+        # REUSE-IgnoreEnd
 SCHEMA_ID = "oa-board-expected/1"
 
 DRC_WHY = {}  # violation type -> explanation, for intended_drc entries
