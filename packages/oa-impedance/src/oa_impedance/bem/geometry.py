@@ -311,7 +311,7 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
     # ---- noding
     t_min = min(t_thick) if t_thick else h_char
     grid = max(1e-13, 1e-6 * min(t_min, h_char))
-    lines: list[object] = []
+    lines: list[shapely.Geometry] = []
     for zp in zone_polys:
         lines.append(zp.boundary)
     for cp in cond_polys:

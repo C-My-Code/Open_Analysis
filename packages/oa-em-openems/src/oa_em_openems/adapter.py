@@ -56,7 +56,7 @@ def default_assessor() -> Assessor | None:
         from oa_network.quality import assess  # type: ignore[import-not-found,unused-ignore]
     except Exception:
         return None
-    return assess  # type: ignore[no-any-return]
+    return assess
 
 
 def _safe_name(name: str) -> str:
