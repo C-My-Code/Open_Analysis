@@ -1,0 +1,13 @@
+source = "analytic: cpwg_board(width=0.3 mm, gap=0.15 mm): coplanar pours start exactly gap away from the trace edge on both sides"
+
+[tolerance]
+rtol = 0.0
+atol = 1e-9
+
+[inputs]
+width = 0.0003
+gap = 0.00015
+
+[expected]
+gap_left = 0.00015
+hint = "cpwg"

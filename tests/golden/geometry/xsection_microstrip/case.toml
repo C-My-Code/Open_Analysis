@@ -1,0 +1,16 @@
+source = "analytic: microstrip_board(width=0.35 mm, h=0.2 mm, cu_t=35 um) -> trace width/thickness as drawn; height over plane = dielectric thickness h; 1 nm grid"
+
+[tolerance]
+rtol = 0.0
+atol = 1e-9
+
+[inputs]
+width = 0.00035
+h = 0.0002
+cu_t = 0.000035
+
+[expected]
+w_bottom = 0.00035
+thickness = 0.000035
+height_over_plane = 0.0002
+hint = "microstrip"

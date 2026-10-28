@@ -1,0 +1,17 @@
+source = "analytic: stripline_board dielectric thicknesses h1 (above) and h2 (below); symmetric case h1=h2=0.2 mm, offset case h1=0.2 mm h2=0.3 mm; distances exact to 1 nm"
+
+[tolerance]
+rtol = 0.0
+atol = 1e-9
+
+[inputs]
+h1_sym = 0.0002
+h2_sym = 0.0002
+h1_off = 0.0002
+h2_off = 0.0003
+
+[expected]
+h_sym_below = 0.0002
+h_sym_above = 0.0002
+h_off_below = 0.0003
+h_off_above = 0.0002
