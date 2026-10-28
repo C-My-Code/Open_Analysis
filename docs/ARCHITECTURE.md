@@ -1,6 +1,6 @@
 # Open_Analysis Architecture
 
-Status: v1, 2026-10-27. Normative for every implementation work package. The detailed contracts are in [specs/board-model.md](specs/board-model.md) and [specs/interfaces.md](specs/interfaces.md). Decisions are recorded in [adr/](adr/).
+Status: v1, 2026-10-27. Normative for every implementation work package. The detailed contracts are in [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md) and [specs/ai-integration.md](specs/ai-integration.md). Decisions are recorded in [adr/](adr/).
 
 Open_Analysis is a GPL-3.0-or-later PCB analysis suite. It reads KiCad boards (and Altium and others through kicad-cli and IPC-2581), and it provides:
 - trace impedance;
@@ -17,7 +17,7 @@ The long-term target is feature parity with SIwave, HFSS, Q3D and HyperLynx.
 ## 1. Principles
 
 1. **One neutral board model.** Every reader produces `oa_model.Board`, and every analysis consumes it. Nothing downstream knows about KiCad tokens.
-2. **Headless core, many clients.** The CLI (`oa`), the local web UI, CI and agents/MCP all use the same Python API. The REST server is a thin layer over it. The core never imports UI code.
+2. **Headless core, many clients.** The CLI (`oa`), the local web UI, CI and AI agents (MCP) all use the same Python API through one command catalog (`oa_service`). The REST server, the CLI and the MCP server are thin adapters over it. The core never imports UI code, and it makes no network or LLM calls (ADR-0007).
 3. **Contracts first.** Packages talk through frozen, versioned pydantic types. Parallel teams implement against the specs, not against each other's code.
 4. **Validation is a feature.** Every solver ships with golden-reference tests (analytic, published, cross-solver). Every S-parameter result passes a quality gate. Every quasi-static or model-based result states its valid frequency range.
 5. **Solvers are jobs.** Anything heavier than a millisecond runs as a cacheable task in the job system. External solvers run as subprocesses in self-contained job directories, using pluggable runners (local, WSL, Docker, and later SSH/Slurm and cloud).
@@ -33,6 +33,11 @@ flowchart TB
     SRV[oa-server<br/>FastAPI + WS]
     WEB[web/ React+TS<br/>deck.gl, three.js, Plotly]
     PLG[oa-kicad-plugin M2<br/>thin IPC client]
+    MCP[oa-mcp<br/>MCP server, stdio + HTTP]
+    AST[oa-assistant M2, optional<br/>LLM provider, off by default]
+  end
+  subgraph L4b[App services]
+    SVC[oa-service<br/>command catalog, sessions,<br/>paging, envelope, budgets]
   end
   subgraph L4[Analyses - mutually independent]
     IMP[oa-impedance<br/>closed form, BEM, FEM]
@@ -66,8 +71,11 @@ flowchart TB
   subgraph L0[Data]
     MOD[oa-model<br/>Board, Stackup, CrossSection,<br/>EMProblem, setup schemas]
   end
-  CLI --> FW & JOBS
-  SRV --> FW & JOBS
+  CLI & SRV & MCP --> SVC
+  AST --> SVC
+  SRV -. entry point router .-> AST
+  AGT[AI agents<br/>Claude Code etc.] -. MCP .-> MCP
+  SVC --> FW & JOBS
   WEB -. REST/WS .-> SRV
   PLG -. REST .-> SRV
   L4 --> FW
@@ -87,6 +95,8 @@ flowchart TB
 Layering is enforced by import-linter (interfaces.md §0):
 - An analysis package never imports another analysis package. Cross-analysis needs, such as ERC asking for impedance or thermal asking for the DC Joule heat, go through `oa_framework.services`, which the registry resolves at runtime. This keeps the Wave 1/2 work packages independent.
 - `oa_em_openems` and `oa_em_palace` are the only allowed intra-L4 imports (adapters on top of `oa_em`).
+- **App services (L4b).** `oa_service` defines every user-level command once (typed input, typed output, side-effect class). It reaches analyses only through the registry. `oa_cli`, `oa_server`, `oa_mcp` and `oa_assistant` are adapters over it and contain no analysis logic.
+- **AI boundary.** `oa_assistant` is the only package that may import an LLM SDK (`anthropic`) or open outbound connections. Nothing imports it. `oa_server` mounts its router through the `open_analysis.server_routers` entry point. See ADR-0007 and [specs/ai-integration.md](specs/ai-integration.md).
 
 ### Repository layout
 
@@ -104,7 +114,9 @@ Open_Analysis/
     golden/<suite>/<case>/  case.toml + reference data
     integration/            cross-package tests (WP-208, WP-302)
   tools/                    dev scripts (board generators, schema export, golden regeneration)
-  docs/                     ARCHITECTURE, ROADMAP, TASKS, specs/, adr/, research/, validation/
+  docs/                     ARCHITECTURE, ROADMAP, TASKS, specs/, adr/, research/, validation/, agents/
+  llms.txt                  agent-facing index (WP-210); docs/agents/AGENTS.md is the agent user guide
+  CLAUDE.md                 instructions for contributors' coding agents (WP-210)
 ```
 
 ## 3. Data flow
@@ -285,6 +297,13 @@ A CI job (`license-audit`, WP-000) runs `reuse lint` and `pip-licenses` against 
 - State is held in TanStack Query for server data and Zustand for view state.
 - Tests are Vitest and Playwright smoke tests against a mock server (MSW) driven by fixture JSON. The UI never computes physics.
 - The same components build a **static HTML report** (`oa results export --format html`) with the data inlined. That is the CI artifact.
+
+### 7.1 AI integration (ADR-0007, [specs/ai-integration.md](specs/ai-integration.md))
+
+- **Agents (priority).** `oa-mcp` exposes the catalog as MCP tools, resources (schemas, board model JSON, docs) and prompts over stdio or loopback streamable HTTP. The CLI's `--json` mode uses the same envelope and error model. Every result carries a size-bounded `summary`, provenance and an `Accuracy` record. Every violation carries a structured `remediation`.
+- **Safety.** Read-only by default. KiCad project edits (`.kicad_dru`, net classes) go through a dry-run diff and explicit confirmation. Agent-started jobs run under a compute budget with pre-flight estimates and cancellation.
+- **In-app assistant (M2).** `oa-assistant` is optional and off by default, with a bring-your-own key in the OS keyring. Its Claude reference provider runs client-side tool use over the same catalog tools. The web UI reserves an assistant panel, and its typed command layer uses the catalog command names.
+- **Surrogates (M3).** Solver outputs can be exported as `oa-xsdataset/1`. An optional impedance surrogate plugs in behind the impedance service and always reports `accuracy_class="surrogate"`.
 
 ## 8. Cross-cutting conventions
 
