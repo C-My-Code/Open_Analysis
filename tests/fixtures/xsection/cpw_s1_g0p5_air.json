@@ -5,7 +5,7 @@
  "note": "S = 1 mm, G = 0.5 mm. Side grounds are half-planes (u_min/u_max = None).",
  "rtol": 0.01,
  "expected": {
-  "z0": 120.56756262031709,
+  "z0": 120.56756262,
   "eeff": 1.0
  },
  "xsection": {

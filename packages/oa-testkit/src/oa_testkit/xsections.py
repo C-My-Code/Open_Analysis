@@ -53,6 +53,7 @@ from oa_model.xsection import (
 )
 
 from . import analytic as an
+from .builders import snap_nm
 
 __all__ = ["THIN", "XsCase", "all_cases", "get_case"]
 
@@ -112,9 +113,13 @@ def _slab(z0: float, z1: float, er: float) -> XsDielectric:
 
 
 def _ring(cx: float, cy: float, r: float, n: int = _N_RING) -> list[tuple[float, float]]:
-    """CCW n-gon with vertices on the circle of radius r."""
+    """CCW n-gon with vertices on the circle of radius r, snapped to 1 nm so the section is
+    identical on every platform (see :func:`oa_testkit.builders.snap_nm`)."""
     return [
-        (cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n))
+        (
+            snap_nm(cx + r * math.cos(2 * math.pi * i / n)),
+            snap_nm(cy + r * math.sin(2 * math.pi * i / n)),
+        )
         for i in range(n)
     ]
 
