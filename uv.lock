@@ -1551,11 +1551,14 @@ dependencies = [
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "oa-framework" },
     { name = "oa-geometry" },
+    { name = "oa-jobs" },
     { name = "oa-mesh" },
     { name = "oa-model" },
     { name = "oa-network" },
     { name = "oa-physics" },
     { name = "oa-results" },
+    { name = "scikit-rf" },
+    { name = "shapely" },
 ]
 
 [package.metadata]
@@ -1563,11 +1566,14 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "oa-framework", editable = "packages/oa-framework" },
     { name = "oa-geometry", editable = "packages/oa-geometry" },
+    { name = "oa-jobs", editable = "packages/oa-jobs" },
     { name = "oa-mesh", editable = "packages/oa-mesh" },
     { name = "oa-model", editable = "packages/oa-model" },
     { name = "oa-network", editable = "packages/oa-network" },
     { name = "oa-physics", editable = "packages/oa-physics" },
     { name = "oa-results", editable = "packages/oa-results" },
+    { name = "scikit-rf", specifier = ">=1.0" },
+    { name = "shapely", specifier = ">=2.0" },
 ]
 
 [[package]]

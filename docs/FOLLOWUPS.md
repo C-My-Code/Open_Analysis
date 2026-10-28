@@ -98,3 +98,11 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] No element-wise adaptivity (it re-meshes globally). Zero-thickness conductors have no DC R. Quasi-static only.
 - [ ] PERF: 1-20 s per static solve; 5-25 s per eddy frequency (a target for ADR-0008).
 - [ ] Timing assertions in the default suite are flaky under load (test_bem_median_under_50ms and similar). Move them to the `slow`/benchmark marker or make them relative.
+
+## EM flow (WP-205)
+- [ ] PORTABILITY: the agent says its test files don't run on Linux/macOS. Make them skip cleanly or become portable; CI must stay green.
+- [ ] TOOLING: the openEMS install lives only in the finished WP-108 worktree (`.claude/worktrees/agent-a42ff817b09dd0eb5/.oa/tools/openems`). Move or install it into the main checkout's `.oa/tools/` before that worktree is cleaned up.
+- [ ] Workarounds in oa_em/problem.py: MUR instead of PML for wave ports (PML plateaus at -31 dB); the sweep starts at 0.2*f_max; the gate runs with `require_dc="none"`; `est_time_s` is scaled by 0.1.
+- [ ] Validated only 1-10 GHz (microstrip) and 4-20 GHz (via); the full 0-40 GHz band is not validated. The stripline wave-port stall is unresolved. The differential path has no solve.
+- [ ] Z0 matches the BEM thin-strip value within 0.4%, because openEMS uses sheet copper; it is 3.8% off the 35 um BEM value. Add thick-copper modelling or document this.
+- [ ] CRs: WP-205-setup-ports-and-adapter-entry-point, WP-205-openems-adapter-findings.
