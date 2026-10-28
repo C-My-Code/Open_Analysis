@@ -1,0 +1,821 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IPC-2581 revision="C" xmlns="http://webstds.ipc.org/2581" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xsi:schemaLocation="http://webstds.ipc.org/2581 http://webstds.ipc.org/2581/IPC-2581C.xsd">
+  <Content roleRef="Owner">
+    <FunctionMode mode="ASSEMBLY"/>
+    <StepRef name="board"/>
+    <LayerRef name="F.Silkscreen"/>
+    <LayerRef name="F.Paste"/>
+    <LayerRef name="F.Mask"/>
+    <LayerRef name="F.Cu"/>
+    <LayerRef name="DIELECTRIC_1"/>
+    <LayerRef name="In1.Cu"/>
+    <LayerRef name="DIELECTRIC_2"/>
+    <LayerRef name="In2.Cu"/>
+    <LayerRef name="DIELECTRIC_3"/>
+    <LayerRef name="B.Cu"/>
+    <LayerRef name="B.Mask"/>
+    <LayerRef name="B.Paste"/>
+    <LayerRef name="B.Silkscreen"/>
+    <BomRef name="board_1"/>
+    <AvlRef name="Primary_Vendor_List"/>
+    <DictionaryColor/>
+    <DictionaryLineDesc units="MILLIMETER">
+      <EntryLineDesc id="LINE_1">
+        <LineDesc lineWidth="0.0" lineEnd="ROUND"/>
+      </EntryLineDesc>
+    </DictionaryLineDesc>
+    <DictionaryFillDesc units="MILLIMETER"/>
+    <DictionaryStandard units="MILLIMETER">
+      <EntryStandard id="RECT_1">
+        <RectCenter width="1.0" height="1.0"/>
+      </EntryStandard>
+      <EntryStandard id="CIRCLE_2">
+        <Circle diameter="0.50"/>
+      </EntryStandard>
+    </DictionaryStandard>
+    <DictionaryUser units="MILLIMETER">
+      <EntryUser id="UCIRCLE_1">
+        <UserSpecial>
+          <Circle diameter="0.50">
+            <LineDesc lineWidth="0.10" lineEnd="ROUND"/>
+            <FillDesc fillProperty="HOLLOW"/>
+          </Circle>
+        </UserSpecial>
+      </EntryUser>
+      <EntryUser id="URECT_2">
+        <UserSpecial>
+          <RectRound upperRight="false" upperLeft="false" lowerRight="false" lowerLeft="false" width="70.0" height="40.0" radius="0.0">
+            <LineDesc lineWidth="0.10" lineEnd="ROUND"/>
+            <FillDesc fillProperty="HOLLOW"/>
+          </RectRound>
+        </UserSpecial>
+      </EntryUser>
+    </DictionaryUser>
+  </Content>
+  <LogisticHeader>
+    <Role id="Owner" roleFunction="SENDER"/>
+    <Enterprise id="UNKNOWN" code="NONE"/>
+    <Person name="UNKNOWN" enterpriseRef="UNKNOWN" roleRef="Owner"/>
+  </LogisticHeader>
+  <HistoryRecord number="1" origination="2000-01-01T00:00:00" software="KiCad EDA" lastChange="2000-01-01T00:00:00">
+    <FileRevision fileRevisionId="1" comment="NO COMMENT" label="NO LABEL">
+      <SoftwarePackage name="KiCad" revision="10.0.5" vendor="KiCad EDA">
+        <Certification certificationStatus="SELFTEST"/>
+      </SoftwarePackage>
+    </FileRevision>
+  </HistoryRecord>
+  <Bom name="board_1">
+    <BomHeader revision="1.0" assembly="board_2">
+      <StepRef name="board"/>
+    </BomHeader>
+    <BomItem OEMDesignNumberRef="OA_Test_Pad_OA_Test_Pad" quantity="10" pinCount="1" category="ELECTRICAL">
+      <RefDes name="TP1" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP2" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP3" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP4" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP5" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP6" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP7" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP8" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP9" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <RefDes name="TP10" packageRef="Pad" populate="true" layerRef="F.Cu"/>
+      <Characteristics category="ELECTRICAL">
+        <Textual definitionSource="KICAD" textualCharacteristicName="Value" textualCharacteristicValue="OA_Test:Pad"/>
+      </Characteristics>
+    </BomItem>
+  </Bom>
+  <Ecad name="Design">
+    <CadHeader units="MILLIMETER">
+      <Spec name="F.Silkscreen_1">
+        <General type="MATERIAL">
+          <Property text="Top Silk Screen"/>
+          <Property text="Color : Not specified"/>
+          <Property text="Type : Top Silk Screen"/>
+        </General>
+      </Spec>
+      <Spec name="F.Paste_1">
+        <General type="MATERIAL">
+          <Property/>
+        </General>
+      </Spec>
+      <Spec name="F.Mask_1">
+        <General type="MATERIAL">
+          <Property text="SOLDERMASK"/>
+          <Property text="Color : Not specified"/>
+          <Property text="Type : Top Solder Mask"/>
+        </General>
+        <Dielectric type="DIELECTRIC_CONSTANT">
+          <Property value="3.30"/>
+        </Dielectric>
+      </Spec>
+      <Spec name="F.Cu_1">
+        <General type="MATERIAL">
+          <Property text="COPPER"/>
+        </General>
+        <Conductor type="CONDUCTIVITY">
+          <Property unit="SIEMENS/M" value="5.959E7"/>
+        </Conductor>
+      </Spec>
+      <Spec name="DIELECTRIC_1_1">
+        <General type="MATERIAL">
+          <Property text="FR4"/>
+          <Property text="Type : prepreg"/>
+        </General>
+        <Dielectric type="DIELECTRIC_CONSTANT">
+          <Property value="4.30"/>
+        </Dielectric>
+        <Dielectric type="LOSS_TANGENT">
+          <Property value="0.020"/>
+        </Dielectric>
+      </Spec>
+      <Spec name="In1.Cu_1">
+        <General type="MATERIAL">
+          <Property text="COPPER"/>
+        </General>
+        <Conductor type="CONDUCTIVITY">
+          <Property unit="SIEMENS/M" value="5.959E7"/>
+        </Conductor>
+      </Spec>
+      <Spec name="DIELECTRIC_2_1">
+        <General type="MATERIAL">
+          <Property text="FR4"/>
+          <Property text="Type : core"/>
+        </General>
+        <Dielectric type="DIELECTRIC_CONSTANT">
+          <Property value="4.30"/>
+        </Dielectric>
+        <Dielectric type="LOSS_TANGENT">
+          <Property value="0.020"/>
+        </Dielectric>
+      </Spec>
+      <Spec name="In2.Cu_1">
+        <General type="MATERIAL">
+          <Property text="COPPER"/>
+        </General>
+        <Conductor type="CONDUCTIVITY">
+          <Property unit="SIEMENS/M" value="5.959E7"/>
+        </Conductor>
+      </Spec>
+      <Spec name="DIELECTRIC_3_1">
+        <General type="MATERIAL">
+          <Property text="FR4"/>
+          <Property text="Type : prepreg"/>
+        </General>
+        <Dielectric type="DIELECTRIC_CONSTANT">
+          <Property value="4.30"/>
+        </Dielectric>
+        <Dielectric type="LOSS_TANGENT">
+          <Property value="0.020"/>
+        </Dielectric>
+      </Spec>
+      <Spec name="B.Cu_1">
+        <General type="MATERIAL">
+          <Property text="COPPER"/>
+        </General>
+        <Conductor type="CONDUCTIVITY">
+          <Property unit="SIEMENS/M" value="5.959E7"/>
+        </Conductor>
+      </Spec>
+      <Spec name="B.Mask_1">
+        <General type="MATERIAL">
+          <Property text="SOLDERMASK"/>
+          <Property text="Color : Not specified"/>
+          <Property text="Type : Bottom Solder Mask"/>
+        </General>
+        <Dielectric type="DIELECTRIC_CONSTANT">
+          <Property value="3.30"/>
+        </Dielectric>
+      </Spec>
+      <Spec name="B.Paste_1">
+        <General type="MATERIAL">
+          <Property/>
+        </General>
+      </Spec>
+      <Spec name="B.Silkscreen_1">
+        <General type="MATERIAL">
+          <Property text="Bottom Silk Screen"/>
+          <Property text="Color : Not specified"/>
+          <Property text="Type : Bottom Silk Screen"/>
+        </General>
+      </Spec>
+    </CadHeader>
+    <CadData>
+      <Layer name="F.Silkscreen" layerFunction="SILKSCREEN" polarity="POSITIVE" side="TOP"/>
+      <Layer name="F.Paste" layerFunction="SOLDERPASTE" polarity="POSITIVE" side="TOP"/>
+      <Layer name="F.Mask" layerFunction="SOLDERMASK" polarity="POSITIVE" side="TOP"/>
+      <Layer name="F.Cu" layerFunction="CONDUCTOR" polarity="POSITIVE" side="TOP"/>
+      <Layer name="DIELECTRIC_1" layerFunction="DIELPREG" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="In1.Cu" layerFunction="CONDUCTOR" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="DIELECTRIC_2" layerFunction="DIELCORE" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="In2.Cu" layerFunction="CONDUCTOR" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="DIELECTRIC_3" layerFunction="DIELPREG" polarity="POSITIVE" side="INTERNAL"/>
+      <Layer name="B.Cu" layerFunction="CONDUCTOR" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="B.Mask" layerFunction="SOLDERMASK" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="B.Paste" layerFunction="SOLDERPASTE" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="B.Silkscreen" layerFunction="SILKSCREEN" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="F.Adhesive" layerFunction="GLUE" polarity="POSITIVE" side="TOP"/>
+      <Layer name="B.Adhesive" layerFunction="GLUE" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="User.Drawings" layerFunction="DOCUMENT" polarity="POSITIVE" side="NONE"/>
+      <Layer name="User.Comments" layerFunction="DOCUMENT" polarity="POSITIVE" side="NONE"/>
+      <Layer name="User.Eco1" layerFunction="DOCUMENT" polarity="POSITIVE" side="NONE"/>
+      <Layer name="User.Eco2" layerFunction="DOCUMENT" polarity="POSITIVE" side="NONE"/>
+      <Layer name="Edge.Cuts" layerFunction="BOARD_OUTLINE" polarity="POSITIVE" side="ALL"/>
+      <Layer name="Margin" layerFunction="DOCUMENT" polarity="POSITIVE" side="NONE"/>
+      <Layer name="B.Courtyard" layerFunction="COURTYARD" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="F.Courtyard" layerFunction="COURTYARD" polarity="POSITIVE" side="TOP"/>
+      <Layer name="B.Fab" layerFunction="ASSEMBLY" polarity="POSITIVE" side="BOTTOM"/>
+      <Layer name="F.Fab" layerFunction="ASSEMBLY" polarity="POSITIVE" side="TOP"/>
+      <Layer name="F.Cu_B.Cu" layerFunction="DRILL" polarity="POSITIVE" side="ALL">
+        <Span fromLayer="F.Cu" toLayer="B.Cu"/>
+      </Layer>
+      <Stackup name="Primary_Stackup" overallThickness="1.620" tolPlus="0.0" tolMinus="0.0" whereMeasured="MASK" stackupStatus="PROPOSED">
+        <StackupGroup name="Primary_Stackup_Group" thickness="1.620" tolPlus="0.0" tolMinus="0.0">
+          <StackupLayer layerOrGroupRef="F.Silkscreen" thickness="0.0" tolPlus="0.0" tolMinus="0.0" sequence="0">
+            <SpecRef id="F.Silkscreen_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="F.Paste" thickness="0.0" tolPlus="0.0" tolMinus="0.0" sequence="1">
+            <SpecRef id="F.Paste_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="F.Mask" thickness="0.010" tolPlus="0.0" tolMinus="0.0" sequence="2">
+            <SpecRef id="F.Mask_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="F.Cu" thickness="0.0350" tolPlus="0.0" tolMinus="0.0" sequence="3">
+            <SpecRef id="F.Cu_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="DIELECTRIC_1" thickness="0.20" tolPlus="0.0" tolMinus="0.0" sequence="4">
+            <SpecRef id="DIELECTRIC_1_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="In1.Cu" thickness="0.0350" tolPlus="0.0" tolMinus="0.0" sequence="5">
+            <SpecRef id="In1.Cu_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="DIELECTRIC_2" thickness="1.060" tolPlus="0.0" tolMinus="0.0" sequence="6">
+            <SpecRef id="DIELECTRIC_2_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="In2.Cu" thickness="0.0350" tolPlus="0.0" tolMinus="0.0" sequence="7">
+            <SpecRef id="In2.Cu_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="DIELECTRIC_3" thickness="0.20" tolPlus="0.0" tolMinus="0.0" sequence="8">
+            <SpecRef id="DIELECTRIC_3_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="B.Cu" thickness="0.0350" tolPlus="0.0" tolMinus="0.0" sequence="9">
+            <SpecRef id="B.Cu_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="B.Mask" thickness="0.010" tolPlus="0.0" tolMinus="0.0" sequence="10">
+            <SpecRef id="B.Mask_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="B.Paste" thickness="0.0" tolPlus="0.0" tolMinus="0.0" sequence="11">
+            <SpecRef id="B.Paste_1"/>
+          </StackupLayer>
+          <StackupLayer layerOrGroupRef="B.Silkscreen" thickness="0.0" tolPlus="0.0" tolMinus="0.0" sequence="12">
+            <SpecRef id="B.Silkscreen_1"/>
+          </StackupLayer>
+        </StackupGroup>
+      </Stackup>
+      <Step name="board" type="BOARD">
+        <NonstandardAttribute name="FOOTPRINT_COUNT" type="INTEGER" value="10"/>
+        <PadStackDef name="PADSTACK_2">
+          <PadstackHoleDef name="PH250000" diameter="0.250" platingStatus="VIA" plusTol="0.0" minusTol="0.0" x="0.0" y="0.0"/>
+          <PadstackPadDef layerRef="F.Cu" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <UserPrimitiveRef id="UCIRCLE_1"/>
+          </PadstackPadDef>
+          <PadstackPadDef layerRef="B.Cu" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <UserPrimitiveRef id="UCIRCLE_1"/>
+          </PadstackPadDef>
+          <PadstackPadDef layerRef="In1.Cu" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <UserPrimitiveRef id="UCIRCLE_1"/>
+          </PadstackPadDef>
+          <PadstackPadDef layerRef="In2.Cu" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <UserPrimitiveRef id="UCIRCLE_1"/>
+          </PadstackPadDef>
+        </PadStackDef>
+        <PadStackDef name="PADSTACK_1">
+          <PadstackPadDef layerRef="F.Cu" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <StandardPrimitiveRef id="RECT_1"/>
+          </PadstackPadDef>
+          <PadstackPadDef layerRef="F.Mask" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <StandardPrimitiveRef id="RECT_1"/>
+          </PadstackPadDef>
+          <PadstackPadDef layerRef="F.Paste" padUse="REGULAR">
+            <Location x="0.0" y="0.0"/>
+            <StandardPrimitiveRef id="RECT_1"/>
+          </PadstackPadDef>
+        </PadStackDef>
+        <Datum x="0.0" y="0.0"/>
+        <Profile>
+          <Polygon>
+            <PolyBegin x="70.0" y="-40.0"/>
+            <PolyStepSegment x="0.0" y="-40.0"/>
+            <PolyStepSegment x="0.0" y="0.0"/>
+            <PolyStepSegment x="70.0" y="0.0"/>
+            <PolyStepSegment x="70.0" y="-40.0"/>
+          </Polygon>
+        </Profile>
+        <Package name="Pad_1" type="OTHER" pinOne="1" pinOneOrientation="OTHER" comment="Pin 1 orientation could not be determined">
+          <Outline>
+            <Polygon>
+              <PolyBegin x="-0.50" y="0.50"/>
+              <PolyStepSegment x="0.50" y="0.50"/>
+              <PolyStepSegment x="0.50" y="-0.50"/>
+              <PolyStepSegment x="-0.50" y="-0.50"/>
+              <PolyStepSegment x="-0.50" y="0.50"/>
+            </Polygon>
+            <LineDescRef id="LINE_1"/>
+          </Outline>
+          <PickupPoint x="0.0" y="0.0"/>
+          <Pin number="1" electricalType="ELECTRICAL" type="SURFACE">
+            <Location x="0.0" y="0.0"/>
+            <StandardPrimitiveRef id="RECT_1"/>
+          </Pin>
+        </Package>
+        <Component refDes="TP1" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="3.0" y="-3.0"/>
+        </Component>
+        <Component refDes="TP2" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="67.0" y="-3.0"/>
+        </Component>
+        <Component refDes="TP3" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="3.0" y="-37.0"/>
+        </Component>
+        <Component refDes="TP4" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="67.0" y="-37.0"/>
+        </Component>
+        <Component refDes="TP5" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="10.0" y="-10.0"/>
+        </Component>
+        <Component refDes="TP6" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="60.0" y="-10.0"/>
+        </Component>
+        <Component refDes="TP7" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="10.0" y="-20.0"/>
+        </Component>
+        <Component refDes="TP8" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="60.0" y="-20.0"/>
+        </Component>
+        <Component refDes="TP9" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="10.0" y="-30.0"/>
+        </Component>
+        <Component refDes="TP10" packageRef="Pad_1" part="OA_Test_Pad_OA_Test_Pad" layerRef="F.Cu" mountType="SMT">
+          <Location x="60.0" y="-30.0"/>
+        </Component>
+        <LayerFeature layerRef="F.Cu">
+          <Set net="GND" padUsage="VIA">
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+          </Set>
+          <Set net="GND">
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP1" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP2" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP3" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP4" pin="1"/>
+            </Pad>
+          </Set>
+          <Set net="MS_250">
+            <Features>
+              <UserSpecial>
+                <Line startX="10.0" startY="-10.0" endX="60.0" endY="-10.0">
+                  <LineDesc lineWidth="0.250" lineEnd="ROUND"/>
+                </Line>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP5" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP6" pin="1"/>
+            </Pad>
+          </Set>
+          <Set net="MS_350">
+            <Features>
+              <UserSpecial>
+                <Line startX="10.0" startY="-20.0" endX="60.0" endY="-20.0">
+                  <LineDesc lineWidth="0.350" lineEnd="ROUND"/>
+                </Line>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP7" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP8" pin="1"/>
+            </Pad>
+          </Set>
+          <Set net="MS_500">
+            <Features>
+              <UserSpecial>
+                <Line startX="10.0" startY="-30.0" endX="60.0" endY="-30.0">
+                  <LineDesc lineWidth="0.50" lineEnd="ROUND"/>
+                </Line>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP9" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP10" pin="1"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="F.Mask">
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP1" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP2" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP3" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP4" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP5" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP6" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP7" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP8" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP9" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP10" pin="1"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="B.Cu">
+          <Set net="GND" padUsage="VIA">
+            <Features>
+              <UserSpecial>
+                <Contour>
+                  <Polygon>
+                    <PolyBegin x="69.411218" y="-0.380064"/>
+                    <PolyStepSegment x="69.478257" y="-0.399749"/>
+                    <PolyStepSegment x="69.521473" y="-0.422355"/>
+                    <PolyStepSegment x="69.537508" y="-0.437827"/>
+                    <PolyStepSegment x="69.583263" y="-0.490631"/>
+                    <PolyStepSegment x="69.607397" y="-0.533014"/>
+                    <PolyStepSegment x="69.610937" y="-0.545917"/>
+                    <PolyStepSegment x="69.622143" y="-0.597428"/>
+                    <PolyStepSegment x="69.6250" y="-0.6240"/>
+                    <PolyStepSegment x="69.6250" y="-39.3760"/>
+                    <PolyStepSegment x="69.619936" y="-39.411218"/>
+                    <PolyStepSegment x="69.600251" y="-39.478257"/>
+                    <PolyStepSegment x="69.577645" y="-39.521473"/>
+                    <PolyStepSegment x="69.562173" y="-39.537508"/>
+                    <PolyStepSegment x="69.509369" y="-39.583263"/>
+                    <PolyStepSegment x="69.466986" y="-39.607397"/>
+                    <PolyStepSegment x="69.454083" y="-39.610937"/>
+                    <PolyStepSegment x="69.402572" y="-39.622143"/>
+                    <PolyStepSegment x="69.3760" y="-39.6250"/>
+                    <PolyStepSegment x="0.6240" y="-39.6250"/>
+                    <PolyStepSegment x="0.588782" y="-39.619936"/>
+                    <PolyStepSegment x="0.521743" y="-39.600251"/>
+                    <PolyStepSegment x="0.478527" y="-39.577645"/>
+                    <PolyStepSegment x="0.462492" y="-39.562173"/>
+                    <PolyStepSegment x="0.416737" y="-39.509369"/>
+                    <PolyStepSegment x="0.392603" y="-39.466986"/>
+                    <PolyStepSegment x="0.389063" y="-39.454083"/>
+                    <PolyStepSegment x="0.377857" y="-39.402572"/>
+                    <PolyStepSegment x="0.3750" y="-39.3760"/>
+                    <PolyStepSegment x="0.3750" y="-0.6240"/>
+                    <PolyStepSegment x="0.380064" y="-0.588782"/>
+                    <PolyStepSegment x="0.399749" y="-0.521743"/>
+                    <PolyStepSegment x="0.422355" y="-0.478527"/>
+                    <PolyStepSegment x="0.437827" y="-0.462492"/>
+                    <PolyStepSegment x="0.490631" y="-0.416737"/>
+                    <PolyStepSegment x="0.533014" y="-0.392603"/>
+                    <PolyStepSegment x="0.545917" y="-0.389063"/>
+                    <PolyStepSegment x="0.597428" y="-0.377857"/>
+                    <PolyStepSegment x="0.6240" y="-0.3750"/>
+                    <PolyStepSegment x="69.3760" y="-0.3750"/>
+                    <PolyStepSegment x="69.411218" y="-0.380064"/>
+                  </Polygon>
+                </Contour>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="In1.Cu">
+          <Set net="GND" padUsage="VIA">
+            <Features>
+              <UserSpecial>
+                <Contour>
+                  <Polygon>
+                    <PolyBegin x="69.411218" y="-0.380064"/>
+                    <PolyStepSegment x="69.478257" y="-0.399749"/>
+                    <PolyStepSegment x="69.521473" y="-0.422355"/>
+                    <PolyStepSegment x="69.537508" y="-0.437827"/>
+                    <PolyStepSegment x="69.583263" y="-0.490631"/>
+                    <PolyStepSegment x="69.607397" y="-0.533014"/>
+                    <PolyStepSegment x="69.610937" y="-0.545917"/>
+                    <PolyStepSegment x="69.622143" y="-0.597428"/>
+                    <PolyStepSegment x="69.6250" y="-0.6240"/>
+                    <PolyStepSegment x="69.6250" y="-39.3760"/>
+                    <PolyStepSegment x="69.619936" y="-39.411218"/>
+                    <PolyStepSegment x="69.600251" y="-39.478257"/>
+                    <PolyStepSegment x="69.577645" y="-39.521473"/>
+                    <PolyStepSegment x="69.562173" y="-39.537508"/>
+                    <PolyStepSegment x="69.509369" y="-39.583263"/>
+                    <PolyStepSegment x="69.466986" y="-39.607397"/>
+                    <PolyStepSegment x="69.454083" y="-39.610937"/>
+                    <PolyStepSegment x="69.402572" y="-39.622143"/>
+                    <PolyStepSegment x="69.3760" y="-39.6250"/>
+                    <PolyStepSegment x="0.6240" y="-39.6250"/>
+                    <PolyStepSegment x="0.588782" y="-39.619936"/>
+                    <PolyStepSegment x="0.521743" y="-39.600251"/>
+                    <PolyStepSegment x="0.478527" y="-39.577645"/>
+                    <PolyStepSegment x="0.462492" y="-39.562173"/>
+                    <PolyStepSegment x="0.416737" y="-39.509369"/>
+                    <PolyStepSegment x="0.392603" y="-39.466986"/>
+                    <PolyStepSegment x="0.389063" y="-39.454083"/>
+                    <PolyStepSegment x="0.377857" y="-39.402572"/>
+                    <PolyStepSegment x="0.3750" y="-39.3760"/>
+                    <PolyStepSegment x="0.3750" y="-0.6240"/>
+                    <PolyStepSegment x="0.380064" y="-0.588782"/>
+                    <PolyStepSegment x="0.399749" y="-0.521743"/>
+                    <PolyStepSegment x="0.422355" y="-0.478527"/>
+                    <PolyStepSegment x="0.437827" y="-0.462492"/>
+                    <PolyStepSegment x="0.490631" y="-0.416737"/>
+                    <PolyStepSegment x="0.533014" y="-0.392603"/>
+                    <PolyStepSegment x="0.545917" y="-0.389063"/>
+                    <PolyStepSegment x="0.597428" y="-0.377857"/>
+                    <PolyStepSegment x="0.6240" y="-0.3750"/>
+                    <PolyStepSegment x="69.3760" y="-0.3750"/>
+                    <PolyStepSegment x="69.411218" y="-0.380064"/>
+                  </Polygon>
+                </Contour>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="In2.Cu">
+          <Set net="GND" padUsage="VIA">
+            <Features>
+              <UserSpecial>
+                <Contour>
+                  <Polygon>
+                    <PolyBegin x="69.411218" y="-0.380064"/>
+                    <PolyStepSegment x="69.478257" y="-0.399749"/>
+                    <PolyStepSegment x="69.521473" y="-0.422355"/>
+                    <PolyStepSegment x="69.537508" y="-0.437827"/>
+                    <PolyStepSegment x="69.583263" y="-0.490631"/>
+                    <PolyStepSegment x="69.607397" y="-0.533014"/>
+                    <PolyStepSegment x="69.610937" y="-0.545917"/>
+                    <PolyStepSegment x="69.622143" y="-0.597428"/>
+                    <PolyStepSegment x="69.6250" y="-0.6240"/>
+                    <PolyStepSegment x="69.6250" y="-39.3760"/>
+                    <PolyStepSegment x="69.619936" y="-39.411218"/>
+                    <PolyStepSegment x="69.600251" y="-39.478257"/>
+                    <PolyStepSegment x="69.577645" y="-39.521473"/>
+                    <PolyStepSegment x="69.562173" y="-39.537508"/>
+                    <PolyStepSegment x="69.509369" y="-39.583263"/>
+                    <PolyStepSegment x="69.466986" y="-39.607397"/>
+                    <PolyStepSegment x="69.454083" y="-39.610937"/>
+                    <PolyStepSegment x="69.402572" y="-39.622143"/>
+                    <PolyStepSegment x="69.3760" y="-39.6250"/>
+                    <PolyStepSegment x="0.6240" y="-39.6250"/>
+                    <PolyStepSegment x="0.588782" y="-39.619936"/>
+                    <PolyStepSegment x="0.521743" y="-39.600251"/>
+                    <PolyStepSegment x="0.478527" y="-39.577645"/>
+                    <PolyStepSegment x="0.462492" y="-39.562173"/>
+                    <PolyStepSegment x="0.416737" y="-39.509369"/>
+                    <PolyStepSegment x="0.392603" y="-39.466986"/>
+                    <PolyStepSegment x="0.389063" y="-39.454083"/>
+                    <PolyStepSegment x="0.377857" y="-39.402572"/>
+                    <PolyStepSegment x="0.3750" y="-39.3760"/>
+                    <PolyStepSegment x="0.3750" y="-0.6240"/>
+                    <PolyStepSegment x="0.380064" y="-0.588782"/>
+                    <PolyStepSegment x="0.399749" y="-0.521743"/>
+                    <PolyStepSegment x="0.422355" y="-0.478527"/>
+                    <PolyStepSegment x="0.437827" y="-0.462492"/>
+                    <PolyStepSegment x="0.490631" y="-0.416737"/>
+                    <PolyStepSegment x="0.533014" y="-0.392603"/>
+                    <PolyStepSegment x="0.545917" y="-0.389063"/>
+                    <PolyStepSegment x="0.597428" y="-0.377857"/>
+                    <PolyStepSegment x="0.6240" y="-0.3750"/>
+                    <PolyStepSegment x="69.3760" y="-0.3750"/>
+                    <PolyStepSegment x="69.411218" y="-0.380064"/>
+                  </Polygon>
+                </Contour>
+              </UserSpecial>
+            </Features>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_2">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="CIRCLE_2"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="F.Paste">
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP1" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-3.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP2" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="3.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP3" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="67.0" y="-37.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP4" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP5" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-10.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP6" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP7" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-20.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP8" pin="1"/>
+            </Pad>
+          </Set>
+          <Set>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="10.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP9" pin="1"/>
+            </Pad>
+            <Pad padstackDefRef="PADSTACK_1">
+              <Location x="60.0" y="-30.0"/>
+              <StandardPrimitiveRef id="RECT_1"/>
+              <PinRef componentRef="TP10" pin="1"/>
+            </Pad>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="Edge.Cuts">
+          <Set>
+            <Features>
+              <Location x="35.0" y="-20.0"/>
+              <UserPrimitiveRef id="URECT_2"/>
+            </Features>
+          </Set>
+        </LayerFeature>
+        <LayerFeature layerRef="F.Cu_B.Cu">
+          <Set geometry="PADSTACK_2" net="GND">
+            <Hole name="H1" diameter="0.250" platingStatus="VIA" plusTol="0.0" minusTol="0.0" x="3.0" y="-3.0"/>
+          </Set>
+          <Set geometry="PADSTACK_2" net="GND">
+            <Hole name="H2" diameter="0.250" platingStatus="VIA" plusTol="0.0" minusTol="0.0" x="67.0" y="-3.0"/>
+          </Set>
+          <Set geometry="PADSTACK_2" net="GND">
+            <Hole name="H3" diameter="0.250" platingStatus="VIA" plusTol="0.0" minusTol="0.0" x="3.0" y="-37.0"/>
+          </Set>
+          <Set geometry="PADSTACK_2" net="GND">
+            <Hole name="H4" diameter="0.250" platingStatus="VIA" plusTol="0.0" minusTol="0.0" x="67.0" y="-37.0"/>
+          </Set>
+        </LayerFeature>
+      </Step>
+    </CadData>
+  </Ecad>
+  <Avl name="Primary_Vendor_List">
+    <AvlHeader title="BOM" source="KiCad" author="OWNER" datetime="2000-01-01T00:00:00" version="1"/>
+    <AvlItem OEMDesignNumber="OA_Test_Pad_OA_Test_Pad"/>
+  </Avl>
+</IPC-2581>

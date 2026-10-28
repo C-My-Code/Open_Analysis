@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-analysis.org/schemas/oa-board-expected-1.json",
+  "title": "oa-board-expected/1",
+  "description": "Ground truth for a WP-102 synthetic KiCad test board (expected.yaml). SI units except location_mm / tolerance_mm / *_mm fields (millimetres, KiCad file frame, Y down).",
+  "type": "object",
+  "required": ["schema", "board", "description", "kicad", "units", "materials", "counts", "stackup", "copper_area",
+               "nets", "geometry", "erc", "must_not_report", "negative_cases", "unspecified", "intended_drc", "drc"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "oa-board-expected/1"},
+    "board": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+    "description": {"type": "string", "minLength": 1},
+    "kicad": {
+      "type": "object",
+      "required": ["flavour", "file_version", "generator_version", "net_table"],
+      "properties": {
+        "flavour": {"enum": [9, 10]},
+        "file_version": {"type": "integer"},
+        "generator_version": {"type": "string"},
+        "net_table": {"type": "boolean", "description": "true = KiCad 9 syntax with a top-level (net N \"name\") table"},
+        "generated_with": {"type": "string"}
+      }
+    },
+    "units": {"type": "object"},
+    "materials": {
+      "type": "object",
+      "required": ["dk", "df", "copper_thickness", "copper_conductivity"],
+      "properties": {"dk": {"type": "number"}, "df": {"type": "number"},
+                     "copper_thickness": {"type": "number", "exclusiveMinimum": 0},
+                     "copper_conductivity": {"type": "number", "exclusiveMinimum": 0}}
+    },
+    "counts": {
+      "type": "object",
+      "required": ["nets", "vias", "pads", "tracks", "zones", "footprints", "copper_layers"],
+      "properties": {
+        "nets": {"type": "integer", "minimum": 0},
+        "vias": {"type": "object", "propertyNames": {"enum": ["through", "blind", "buried", "micro"]},
+                 "additionalProperties": {"type": "integer", "minimum": 0}},
+        "pads": {"type": "integer", "minimum": 0}, "pads_smd": {"type": "integer", "minimum": 0},
+        "pads_tht": {"type": "integer", "minimum": 0}, "tracks": {"type": "integer", "minimum": 0},
+        "arcs": {"type": "integer", "minimum": 0}, "zones": {"type": "integer", "minimum": 0},
+        "rule_areas": {"type": "integer", "minimum": 0}, "footprints": {"type": "integer", "minimum": 0},
+        "copper_layers": {"type": "integer", "minimum": 2}
+      }
+    },
+    "stackup": {
+      "type": "object",
+      "required": ["board_thickness", "layers"],
+      "properties": {
+        "board_thickness": {"type": "number", "exclusiveMinimum": 0},
+        "layers": {
+          "type": "array", "minItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["id", "source_name", "kind", "thickness", "z_bottom", "z_top"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[LD][0-9]+$"},
+              "source_name": {"type": "string"},
+              "kind": {"enum": ["conductor", "dielectric"]},
+              "thickness": {"type": "number", "exclusiveMinimum": 0},
+              "z_bottom": {"type": "number", "minimum": 0},
+              "z_top": {"type": "number", "exclusiveMinimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "copper_area": {
+      "type": "object",
+      "required": ["unit", "layers", "tolerance_rel"],
+      "properties": {
+        "unit": {"const": "m^2"},
+        "tolerance_rel": {"type": "number", "exclusiveMinimum": 0},
+        "layers": {"type": "object", "patternProperties": {"^L[0-9]+$": {
+          "type": "object", "additionalProperties": {"type": "number", "minimum": 0}}}, "additionalProperties": false}
+      }
+    },
+    "nets": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "net_classes": {"type": "array", "items": {"type": "object", "required": ["name"]}},
+    "net_class_patterns": {"type": "array", "items": {"type": "object", "required": ["net_class", "pattern"]}},
+    "diff_pairs": {
+      "type": "array",
+      "items": {"type": "object", "required": ["id", "p_net", "n_net", "origin"],
+                "properties": {"origin": {"enum": ["naming", "netclass", "source_explicit", "user"]}}}
+    },
+    "geometry": {"type": "object"},
+    "erc": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "nets", "layer", "location_mm", "tolerance_mm", "generator", "why"],
+        "properties": {
+          "rule_id": {"type": "string", "pattern": "^[A-Z]{2}-[0-9]{3}$"},
+          "nets": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "layer": {"type": "string", "pattern": "^L[0-9]+$"},
+          "source_layer": {"type": "string"},
+          "location_mm": {"oneOf": [{"type": "null"}, {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}]},
+          "tolerance_mm": {"type": "number", "minimum": 0},
+          "generator": {"type": "string", "pattern": "^boardgen\\.features\\.[a-z_]+$", "description": "Generator function that created the violating feature"},
+          "why": {"type": "string"}
+        }
+      }
+    },
+    "must_not_report": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{2}-[0-9]{3}$"}, "uniqueItems": true},
+    "negative_cases": {
+      "type": "array",
+      "items": {"type": "object", "required": ["rule_id", "nets", "layer", "location_mm", "generator", "why"]}
+    },
+    "unspecified": {"type": "array", "items": {"type": "object", "required": ["rule_id", "why"]}},
+    "intended_drc": {
+      "type": "array",
+      "items": {"type": "object", "required": ["type", "count", "why"],
+                "properties": {"type": {"type": "string"}, "count": {"type": "integer", "minimum": 1}, "why": {"type": "string"}}}
+    },
+    "drc": {
+      "type": "object",
+      "required": ["errors", "warnings", "by_type", "report"],
+      "properties": {"errors": {"type": "integer", "minimum": 0}, "warnings": {"type": "integer", "minimum": 0},
+                     "by_type": {"type": "object"}, "report": {"type": "string"}}
+    },
+    "dc": {
+      "type": "object",
+      "required": ["cases"],
+      "properties": {"cases": {"type": "array", "minItems": 1, "items": {
+        "type": "object", "required": ["name", "terminals", "resistance_ohm", "tolerance_rel", "formula"],
+        "properties": {"resistance_ohm": {"type": "number", "exclusiveMinimum": 0},
+                       "tolerance_rel": {"type": "number", "exclusiveMinimum": 0}}}}}
+    },
+    "em": {"type": "object"},
+    "checks": {"type": "object"},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}

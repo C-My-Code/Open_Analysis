@@ -1,0 +1,131 @@
+schema: oa-board-expected/1
+board: power_strip
+description: "Analytic DC resistance variant: a single 50 x 5 mm L1 copper strip with full-width end pads J1/J2 on a 4-layer board; R = Rs L / W = 4.926 mOhm."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 1
+  vias: {}
+  pads: 2
+  pads_smd: 2
+  pads_tht: 0
+  tracks: 0
+  arcs: 0
+  zones: 1
+  rule_areas: 0
+  footprints: 2
+  copper_layers: 4
+stackup:
+  board_thickness: 0.0016
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001565
+      z_top: 0.0016
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001365
+      z_top: 0.001565
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00133
+      z_top: 0.001365
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.00106
+      z_bottom: 0.00027
+      z_top: 0.00133
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L4
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      STRIP: 0.00025998452212
+    L2: {}
+    L3: {}
+    L4: {}
+nets: [STRIP]
+net_classes: []
+net_class_patterns: []
+diff_pairs: []
+geometry:
+  power_strip:
+    net: STRIP
+    layer: L1
+    length: 0.05
+    width: 0.005
+    copper_thickness: 3.5000000000000004e-05
+    strip_mm: [10, 7.5, 60.0, 12.5]
+    end_pads:
+      - ref: J1
+        pin: "1"
+        size_mm: [1.0, 5.0]
+      - ref: J2
+        pin: "1"
+        size_mm: [1.0, 5.0]
+    pad_placement: "full-width pads abut the strip ends; L is the strip between the pads' inner edges"
+erc: []
+must_not_report: [RP-001, RP-002, RP-003, RP-004, RP-007, ED-001, ED-002, DP-001, DP-002, DP-003, RF-001, PD-001, VI-001]
+negative_cases: []
+unspecified: []
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 0
+  by_type: {}
+  report: drc.json
+checks: {}
+notes: []
+dc:
+  cases:
+    - name: strip_end_to_end
+      terminals:
+        - [J1, "1"]
+        - [J2, "1"]
+      sheet_resistance_ohm_sq: 0.0004926108374384236
+      resistance_ohm: 0.004926108374384236
+      tolerance_rel: 0.005
+      formula: "R = Rs * L / W, Rs = 1 / (sigma * t), sigma = 5.8e7 S/m, t = 35 um, L = 50 mm, W = 5 mm"

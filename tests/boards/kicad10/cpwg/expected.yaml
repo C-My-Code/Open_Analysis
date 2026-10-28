@@ -1,0 +1,161 @@
+schema: oa-board-expected/1
+board: cpwg
+description: "4-layer board. Two 40 mm L1 CPWG lines (S=0.3 mm, G=0.15 mm, h=0.2 mm) in an L1 GND pour (zone clearance 0.15 mm) with via fences at 1.6 mm pitch (CPW_A, passes) and 4.8 mm pitch (CPW_B, RF-001)."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 3
+  vias:
+    through: 64
+  pads: 8
+  pads_smd: 8
+  pads_tht: 0
+  tracks: 2
+  arcs: 0
+  zones: 3
+  rule_areas: 0
+  footprints: 8
+  copper_layers: 4
+stackup:
+  board_thickness: 0.0016
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001565
+      z_top: 0.0016
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001365
+      z_top: 0.001565
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00133
+      z_top: 0.001365
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.00106
+      z_bottom: 0.00027
+      z_top: 0.00133
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000235
+      z_top: 0.00027
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 3.5e-05
+      z_top: 0.000235
+    - id: L4
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      CPW_A: 1.254e-05
+      CPW_B: 1.254e-05
+      GND: 0.002329741002843
+    L2:
+      GND: 0.00237992492312
+    L3:
+      GND: 8.273634431e-06
+    L4:
+      GND: 0.00237992492312
+nets: [CPW_A, CPW_B, GND]
+net_classes: []
+net_class_patterns: []
+diff_pairs: []
+geometry:
+  cpwg:
+    signal_width_S: 0.0003
+    gap_G: 0.00015
+    h_to_reference: 0.0002
+    dk: 4.3
+    copper_thickness: 3.5e-05
+    length: 0.04
+    lines:
+      - net: CPW_A
+        layer: L1
+        start_mm: [10, 10.0]
+        end_mm: [50.0, 10.0]
+        fence_pitch: 0.0016
+        fence_offset: 0.001
+        fence_via_count: 46
+        fence_x_mm: [12.399999999999999, 47.6]
+      - net: CPW_B
+        layer: L1
+        start_mm: [10, 30.0]
+        end_mm: [50.0, 30.0]
+        fence_pitch: 0.0048
+        fence_offset: 0.001
+        fence_via_count: 14
+        fence_x_mm: [15.600000000000001, 44.4]
+    fence_via:
+      size: 0.0004
+      drill: 0.0002
+      net: GND
+    rf_check:
+      f_max: 10000000000.0
+      eeff_nominal: 3.3
+      lambda_over_10: 0.016503032
+      pass_pitch: 0.0016
+      fail_pitch: 0.0048
+      formula: "lambda/10 = c / (f * sqrt(eeff)) / 10 with eeff = 3.3 -> 1.651 mm"
+erc:
+  - rule_id: RF-001
+    nets: [CPW_B]
+    layer: L1
+    source_layer: F.Cu
+    location_mm: [30.0, 30.0]
+    tolerance_mm: 20.0
+    generator: boardgen.features.cpwg
+    why: "fence pitch 4.8 mm = 3x the lambda/10 pitch at 10 GHz"
+must_not_report: [RP-001, RP-002, RP-003, RP-004, RP-007, ED-001, ED-002, DP-001, DP-002, DP-003, PD-001, VI-001]
+negative_cases:
+  - rule_id: RF-001
+    nets: [CPW_A]
+    layer: L1
+    location_mm: [30.0, 10]
+    generator: boardgen.features.cpwg
+    why: "fence pitch 1.6 mm <= lambda/10 at 10 GHz"
+unspecified: []
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 0
+  by_type: {}
+  report: drc.json
+checks: {}
+notes: []

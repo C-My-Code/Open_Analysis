@@ -1,0 +1,440 @@
+{
+  "$schema": "https://schemas.kicad.org/drc.v1.json",
+  "coordinate_units": "mm",
+  "ignored_checks": [
+    {
+      "description": "Footprint has no courtyard defined",
+      "key": "missing_courtyard"
+    },
+    {
+      "description": "Track endpoint not centered on via",
+      "key": "track_not_centered_on_via"
+    },
+    {
+      "description": "Tuning profile track geometries",
+      "key": "tuning_profile_track_geometries"
+    },
+    {
+      "description": "Footprint doesn't match symbol's footprint filters",
+      "key": "footprint_filters_mismatch"
+    },
+    {
+      "description": "Silkscreen clearance",
+      "key": "silk_overlap"
+    },
+    {
+      "description": "Silkscreen clipped by solder mask",
+      "key": "silk_over_copper"
+    },
+    {
+      "description": "Silkscreen clipped by board edge",
+      "key": "silk_edge_clearance"
+    },
+    {
+      "description": "Text height out of range",
+      "key": "text_height"
+    },
+    {
+      "description": "Text thickness out of range",
+      "key": "text_thickness"
+    },
+    {
+      "description": "Footprint component type doesn't match footprint pads",
+      "key": "footprint_type_mismatch"
+    },
+    {
+      "description": "Footprint not found in libraries",
+      "key": "lib_footprint_issues"
+    },
+    {
+      "description": "Footprint doesn't match copy in library",
+      "key": "lib_footprint_mismatch"
+    }
+  ],
+  "included_severities": [
+    "error",
+    "warning",
+    "exclusion"
+  ],
+  "kicad_version": "10.0.5",
+  "schematic_parity": [],
+  "source": "board.kicad_pcb",
+  "unconnected_items": [],
+  "violations": [
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_01] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 16.8,
+            "y": 26.8
+          },
+          "uuid": "2a194c34-1c3c-52c2-9b05-0a69eed678ad"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_02] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 16.8,
+            "y": 28.4
+          },
+          "uuid": "a6deb266-4a2e-5650-9aa3-8801ae029858"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_03] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 16.8,
+            "y": 30.0
+          },
+          "uuid": "31fc4f19-f14c-5ffe-a171-fe883d07823b"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_04] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 16.8,
+            "y": 31.6
+          },
+          "uuid": "347d94b0-93fa-5b5c-8fcb-db46b3f866a4"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_05] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 16.8,
+            "y": 33.2
+          },
+          "uuid": "ef88b716-f5e7-50f2-801a-39d4e6562d56"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_06] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 18.4,
+            "y": 26.8
+          },
+          "uuid": "f6572e68-6a91-5583-b78f-dcbb249e89ed"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_07] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 18.4,
+            "y": 28.4
+          },
+          "uuid": "b51a948e-2224-554b-abd9-7c3a5307c394"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_08] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 18.4,
+            "y": 30.0
+          },
+          "uuid": "3e4a00b2-cf77-5d83-85f7-da5b6570225b"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_09] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 18.4,
+            "y": 31.6
+          },
+          "uuid": "69a6c35a-7b66-5c8f-acb8-1e1b1ee73267"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_10] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 18.4,
+            "y": 33.2
+          },
+          "uuid": "f637805d-f073-5bee-b093-1228d516c977"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_11] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 20.0,
+            "y": 26.8
+          },
+          "uuid": "c41ba131-4ff4-5119-b66b-61c06b3d6781"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_12] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 20.0,
+            "y": 28.4
+          },
+          "uuid": "bae0c13a-0624-5894-97f2-09c19ee9496b"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_13] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 20.0,
+            "y": 30.0
+          },
+          "uuid": "c02f5ed5-6a45-5ec0-8e91-f9d858ca4fba"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_14] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 20.0,
+            "y": 31.6
+          },
+          "uuid": "2fa65104-1fce-53eb-8998-d734d2fc6051"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_15] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 20.0,
+            "y": 33.2
+          },
+          "uuid": "eb6c3bcd-5884-557b-84f6-31911b6000ab"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_16] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 21.6,
+            "y": 26.8
+          },
+          "uuid": "eaaad0f4-6267-55fb-af2d-c44cd19f4cd1"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_17] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 21.6,
+            "y": 28.4
+          },
+          "uuid": "84e79e32-55ac-535b-ba9d-385b157b8464"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_18] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 21.6,
+            "y": 30.0
+          },
+          "uuid": "6285737b-cabd-5798-ae45-268f9772fa5f"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_19] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 21.6,
+            "y": 31.6
+          },
+          "uuid": "1ab1f65f-c04d-5daf-a906-84cba48f834c"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_20] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 21.6,
+            "y": 33.2
+          },
+          "uuid": "cb24d272-fb80-5d07-86cf-26ea11ecd6f8"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_21] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 23.2,
+            "y": 26.8
+          },
+          "uuid": "a945329a-e7ff-5063-b6ac-9da3a4c92c95"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_22] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 23.2,
+            "y": 28.4
+          },
+          "uuid": "bc51237a-8b9d-5b3a-a62f-5ff1e3d6fc00"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_23] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 23.2,
+            "y": 30.0
+          },
+          "uuid": "7ba20127-a6cd-5931-a964-45a2385b37a9"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_24] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 23.2,
+            "y": 31.6
+          },
+          "uuid": "d3a1ba23-2ffa-5ebb-a983-e3565fe1ee3a"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    },
+    {
+      "description": "Via is not connected or connected on only one layer",
+      "items": [
+        {
+          "description": "Buried via [SC_25] on In1.Cu - In2.Cu",
+          "pos": {
+            "x": 23.2,
+            "y": 33.2
+          },
+          "uuid": "a92e38a3-31b5-5d24-a2a2-7c7f85d6f407"
+        }
+      ],
+      "severity": "warning",
+      "type": "via_dangling"
+    }
+  ]
+}

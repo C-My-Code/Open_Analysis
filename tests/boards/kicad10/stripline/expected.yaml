@@ -1,0 +1,171 @@
+schema: oa-board-expected/1
+board: stripline
+description: "6-layer 1.6 mm board. SL_SYM: symmetric stripline on L3 between L2 and L4 GND (0.2 mm each side). SL_OFF: offset stripline on L4 at y=30 mm where L3 is empty above and L5 GND is 0.2 mm below (L4 plane exists only for y<20 mm)."
+kicad:
+  flavour: 10
+  file_version: 20260206
+  generator_version: "10.0"
+  net_table: false
+  generated_with: "KiCad 10.0.5"
+units:
+  quantities: "SI (m, m^2, Hz, S/m, ohm)"
+  location_mm: "KiCad file frame, mm, Y down (reader Y-up model: y_model = -y_file)"
+  tolerance_mm: mm
+materials:
+  dielectric: FR4
+  dk: 4.3
+  df: 0.02
+  copper_thickness: 3.5e-05
+  copper_conductivity: 58000000.0
+  solder_mask: none
+counts:
+  nets: 3
+  vias:
+    blind: 4
+    through: 4
+  pads: 8
+  pads_smd: 8
+  pads_tht: 0
+  tracks: 2
+  arcs: 0
+  zones: 3
+  rule_areas: 0
+  footprints: 8
+  copper_layers: 6
+stackup:
+  board_thickness: 0.0016
+  z_origin: "bottom face of the lowest copper layer"
+  layers:
+    - id: L1
+      source_name: F.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001565
+      z_top: 0.0016
+    - id: D1
+      source_name: "dielectric 1"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.001365
+      z_top: 0.001565
+    - id: L2
+      source_name: In1.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00133
+      z_top: 0.001365
+    - id: D2
+      source_name: "dielectric 2"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.00113
+      z_top: 0.00133
+    - id: L3
+      source_name: In2.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.001095
+      z_top: 0.00113
+    - id: D3
+      source_name: "dielectric 3"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.000895
+      z_top: 0.001095
+    - id: L4
+      source_name: In3.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.00086
+      z_top: 0.000895
+    - id: D4
+      source_name: "dielectric 4"
+      kind: dielectric
+      thickness: 0.0002
+      z_bottom: 0.00066
+      z_top: 0.00086
+    - id: L5
+      source_name: In4.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.000625
+      z_top: 0.00066
+    - id: D5
+      source_name: "dielectric 5"
+      kind: dielectric
+      thickness: 0.00059
+      z_bottom: 3.5e-05
+      z_top: 0.000625
+    - id: L6
+      source_name: B.Cu
+      kind: conductor
+      thickness: 3.5e-05
+      z_bottom: 0.0
+      z_top: 3.5e-05
+copper_area:
+  unit: "m^2"
+  method: "pcbnew after ZONE_FILLER: union of zone fills, tracks, pads and via pads per net per layer; circles and arcs discretised at 1 um"
+  tolerance_rel: 0.001
+  layers:
+    L1:
+      GND: 4.0e-06
+      SL_OFF: 1.28e-06
+      SL_SYM: 1.28e-06
+    L2:
+      GND: 0.003172074780926
+      SL_OFF: 3.91085582e-07
+      SL_SYM: 3.91085582e-07
+    L3:
+      GND: 7.82171164e-07
+      SL_OFF: 3.91085582e-07
+      SL_SYM: 7.817380806e-06
+    L4:
+      GND: 0.001588335808202
+      SL_OFF: 7.817380806e-06
+    L5:
+      GND: 0.00317590492312
+    L6:
+      GND: 7.82171164e-07
+nets: [GND, SL_OFF, SL_SYM]
+net_classes: []
+net_class_patterns: []
+diff_pairs: []
+geometry:
+  stripline:
+    width: 0.00015
+    length: 0.05
+    dk: 4.3
+    copper_thickness: 3.5e-05
+    symmetric:
+      net: SL_SYM
+      layer: L3
+      plane_above: L2
+      plane_below: L4
+      h_above: 0.0002
+      h_below: 0.0002
+      start_mm: [15, 10]
+      end_mm: [65.0, 10]
+    offset:
+      net: SL_OFF
+      layer: L4
+      plane_above: L2
+      plane_below: L5
+      h_above: 0.000435
+      h_below: 0.0002
+      empty_layer_above: L3
+      start_mm: [15, 30]
+      end_mm: [65.0, 30]
+    end_vias: "blind vias 0.5/0.25 mm from L1 to the trace layer with a 0.8 mm top pad at each trace end"
+erc: []
+must_not_report: [RP-001, RP-002, RP-003, RP-004, RP-007, ED-001, ED-002, DP-001, DP-002, DP-003, RF-001, PD-001, VI-001]
+negative_cases: []
+unspecified: []
+intended_drc: []
+drc:
+  kicad_cli: "pcb drc --format json --severity-all"
+  errors: 0
+  warnings: 0
+  by_type: {}
+  report: drc.json
+checks: {}
+notes: []
