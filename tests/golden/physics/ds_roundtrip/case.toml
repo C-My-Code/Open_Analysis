@@ -1,0 +1,14 @@
+source = "analytic: eps(f_ref) = Dk (1 - j Df) (Djordjevic et al., IEEE TEMC 43(4) 2001)"
+
+[tolerance]
+rtol = 1e-09
+atol = 0.0
+
+[inputs]
+dk = 4.2
+df = 0.02
+f_ref_hz = 1.0e9
+
+[expected]
+eps_re = 4.2
+eps_im = -0.084

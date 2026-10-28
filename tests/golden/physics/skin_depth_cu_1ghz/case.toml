@@ -1,0 +1,12 @@
+source = "analytic: delta = 1/sqrt(pi f mu0 sigma), sigma = 5.8e7 S/m (research 02 sec 2.2)"
+
+[tolerance]
+rtol = 0.005
+atol = 0.0
+
+[inputs]
+f_hz = 1.0e9
+sigma = 5.8e7
+
+[expected]
+delta_m = 2.09e-6

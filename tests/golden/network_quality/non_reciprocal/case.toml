@@ -1,0 +1,12 @@
+source = "analytic: passive_line with S12 scaled by 0.8"
+
+[tolerance]
+rtol = 1e-9
+atol = 0.0
+
+[inputs]
+file = "line.s2p"
+
+[expected]
+verdict = "fail"
+dc = "present"

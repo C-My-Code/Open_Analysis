@@ -1,0 +1,12 @@
+source = "analytic: same line with constant Dk 4 Df 0.2 (non-causal dielectric)"
+
+[tolerance]
+rtol = 1e-9
+atol = 0.0
+
+[inputs]
+file = "line.s2p"
+
+[expected]
+verdict = "warn"
+dc = "present"
