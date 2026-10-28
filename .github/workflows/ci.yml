@@ -16,8 +16,9 @@ jobs:
     name: lint, types, import contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      # setup-uv publishes no floating major tag since v8, so it is pinned to a release.
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
       - run: uv sync --python 3.13
@@ -35,8 +36,8 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.11", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
       - run: uv sync --python ${{ matrix.python }}
@@ -47,15 +48,15 @@ jobs:
     name: reuse lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: fsfe/reuse-action@v5
 
   license-audit:
     name: pip-licenses allow-list
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uv sync --python 3.13
       # Fails on non-OSI or GPL-2.0-only Python dependencies (ADR-0001). Workspace members
       # are GPL-3.0-or-later and are ignored by name.
@@ -72,11 +73,10 @@ jobs:
     name: schema compatibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uv sync --python 3.13
       # oa_model's schema tests (WP-000B) regenerate schemas/*.json and diff against the
-      # committed files, and check that older fixtures still load. Exit code 5 = no tests
-      # collected yet, which is accepted until oa-model lands.
-      - run: uv run pytest packages/oa-model -k schema || [ $? -eq 5 ]
-        shell: bash
+      # committed files, and check that older fixtures still load. oa-model has landed, so
+      # "no tests collected" (exit 5) is a failure now rather than an accepted placeholder.
+      - run: uv run pytest packages/oa-model -k schema
