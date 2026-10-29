@@ -65,7 +65,7 @@ def cache_dir(tmp_path: Path) -> Path:
 def boards(tmp_path: Path) -> Path:
     """A writable copy of the synthetic boards the agent tests use."""
     out = tmp_path / "boards"
-    for name in ("microstrip", "power_plane", "combined"):
+    for name in ("microstrip", "power_strip", "combined"):
         shutil.copytree(
             BOARDS / name,
             out / name,

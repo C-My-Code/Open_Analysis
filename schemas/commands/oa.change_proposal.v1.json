@@ -1,0 +1,456 @@
+{
+  "$defs": {
+    "AssignNetclassChange": {
+      "additionalProperties": false,
+      "description": "Assign nets (glob patterns) to a net class in the `.kicad_pro`.",
+      "properties": {
+        "kind": {
+          "const": "assign_netclass",
+          "description": "Discriminator.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "netclass": {
+          "description": "Existing net class name.",
+          "title": "Netclass",
+          "type": "string"
+        },
+        "nets": {
+          "description": "Net name glob patterns.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Nets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "nets",
+        "netclass"
+      ],
+      "title": "AssignNetclassChange",
+      "type": "object"
+    },
+    "ChangeRationale": {
+      "additionalProperties": false,
+      "description": "Why a change exists.",
+      "properties": {
+        "change_index": {
+          "description": "Index into `changes` [1].",
+          "minimum": 0,
+          "title": "Change Index",
+          "type": "integer"
+        },
+        "explanation": {
+          "description": "One sentence.",
+          "title": "Explanation",
+          "type": "string"
+        },
+        "fingerprints": {
+          "description": "Violations that motivated the change.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Fingerprints",
+          "type": "array"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rule id of the violations, if any.",
+          "title": "Rule Id"
+        }
+      },
+      "required": [
+        "change_index",
+        "fingerprints",
+        "rule_id",
+        "explanation"
+      ],
+      "title": "ChangeRationale",
+      "type": "object"
+    },
+    "CustomRuleChange": {
+      "additionalProperties": false,
+      "description": "Add a custom rule to the `.kicad_dru` (an existing rule of the same name is replaced).",
+      "properties": {
+        "condition": {
+          "description": "KiCad rule condition, e.g. \"A.NetClass == 'HS'\".",
+          "title": "Condition",
+          "type": "string"
+        },
+        "constraint": {
+          "description": "KiCad constraint type.",
+          "enum": [
+            "clearance",
+            "track_width",
+            "length",
+            "skew",
+            "via_count",
+            "diff_pair_gap",
+            "diff_pair_uncoupled",
+            "edge_clearance",
+            "hole_clearance",
+            "courtyard_clearance"
+          ],
+          "title": "Constraint",
+          "type": "string"
+        },
+        "kind": {
+          "const": "custom_rule",
+          "description": "Discriminator.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Restrict the rule to one layer name.",
+          "title": "Layer"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum: SI float [m or s] or string.",
+          "title": "Max"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum: SI float [m or s] or string.",
+          "title": "Min"
+        },
+        "name": {
+          "description": "Rule name, unique in the file.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "opt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optimum: SI float [m or s] or string.",
+          "title": "Opt"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "error",
+                "warning",
+                "ignore"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Severity of violations of this rule.",
+          "title": "Severity"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "condition",
+        "constraint"
+      ],
+      "title": "CustomRuleChange",
+      "type": "object"
+    },
+    "FileChange": {
+      "additionalProperties": false,
+      "description": "One file touched by the proposal.",
+      "properties": {
+        "new_size": {
+          "description": "Size of the new content [B].",
+          "minimum": 0,
+          "title": "New Size",
+          "type": "integer"
+        },
+        "path": {
+          "description": "Absolute path of the file.",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256_base": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "sha256 of the current file; null if absent.",
+          "title": "Sha256 Base"
+        },
+        "unified_diff": {
+          "description": "Unified diff against the current content.",
+          "title": "Unified Diff",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256_base",
+        "unified_diff",
+        "new_size"
+      ],
+      "title": "FileChange",
+      "type": "object"
+    },
+    "NetclassParamChange": {
+      "additionalProperties": false,
+      "description": "Set one parameter of a net class in the `.kicad_pro`.",
+      "properties": {
+        "kind": {
+          "const": "netclass_param",
+          "description": "Discriminator.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "netclass": {
+          "description": "Existing net class name.",
+          "title": "Netclass",
+          "type": "string"
+        },
+        "param": {
+          "description": "Which net class parameter to set.",
+          "enum": [
+            "clearance",
+            "track_width",
+            "diff_pair_width",
+            "diff_pair_gap",
+            "via_diameter",
+            "via_drill"
+          ],
+          "title": "Param",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "New value: SI float [m] or a string such as '0.2mm'.",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "netclass",
+        "param",
+        "value"
+      ],
+      "title": "NetclassParamChange",
+      "type": "object"
+    },
+    "NotApplicable": {
+      "additionalProperties": false,
+      "description": "A remediation action that needs a human (board edit).",
+      "properties": {
+        "applies_via": {
+          "description": "How the action would be applied.",
+          "title": "Applies Via",
+          "type": "string"
+        },
+        "description": {
+          "description": "What a human has to do.",
+          "title": "Description",
+          "type": "string"
+        },
+        "fingerprint": {
+          "description": "Violation fingerprint.",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "rule_id": {
+          "description": "Rule id.",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fingerprint",
+        "rule_id",
+        "description",
+        "applies_via"
+      ],
+      "title": "NotApplicable",
+      "type": "object"
+    },
+    "RemoveCustomRuleChange": {
+      "additionalProperties": false,
+      "description": "Remove a custom rule from the `.kicad_dru`.",
+      "properties": {
+        "kind": {
+          "const": "remove_custom_rule",
+          "description": "Discriminator.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the rule to remove.",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "RemoveCustomRuleChange",
+      "type": "object"
+    }
+  },
+  "$id": "oa.change_proposal/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A dry-run proposal. Apply it with `propose.apply` and the confirm token.",
+  "properties": {
+    "changes": {
+      "description": "Structured form of what the diff does.",
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "assign_netclass": "#/$defs/AssignNetclassChange",
+            "custom_rule": "#/$defs/CustomRuleChange",
+            "netclass_param": "#/$defs/NetclassParamChange",
+            "remove_custom_rule": "#/$defs/RemoveCustomRuleChange"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/NetclassParamChange"
+          },
+          {
+            "$ref": "#/$defs/AssignNetclassChange"
+          },
+          {
+            "$ref": "#/$defs/CustomRuleChange"
+          },
+          {
+            "$ref": "#/$defs/RemoveCustomRuleChange"
+          }
+        ]
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "confirm_token": {
+      "description": "Single-use token needed by propose.apply.",
+      "title": "Confirm Token",
+      "type": "string"
+    },
+    "expires_utc": {
+      "description": "Expiry (24 h after creation), ISO 8601 UTC.",
+      "title": "Expires Utc",
+      "type": "string"
+    },
+    "files": {
+      "description": "Files that would change, with diffs.",
+      "items": {
+        "$ref": "#/$defs/FileChange"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "not_applicable": {
+      "description": "Board edits that need a human.",
+      "items": {
+        "$ref": "#/$defs/NotApplicable"
+      },
+      "title": "Not Applicable",
+      "type": "array"
+    },
+    "project_id": {
+      "description": "Project id.",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "proposal_id": {
+      "description": "Proposal id; stored under .oa/proposals/.",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "rationale": {
+      "description": "Why each change exists.",
+      "items": {
+        "$ref": "#/$defs/ChangeRationale"
+      },
+      "title": "Rationale",
+      "type": "array"
+    },
+    "text": {
+      "description": "One-paragraph digest of the proposal.",
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "project_id",
+    "files",
+    "changes",
+    "rationale",
+    "not_applicable",
+    "confirm_token",
+    "expires_utc",
+    "text"
+  ],
+  "title": "ChangeProposal",
+  "type": "object"
+}
