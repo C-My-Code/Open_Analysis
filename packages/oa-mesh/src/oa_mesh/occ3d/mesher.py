@@ -130,6 +130,7 @@ def _apply_sizes(
     )
     grading = sizes.max_grading
     min_cell = (sizes.min_cell or 0.0) * MM
+    aspect = float(sizes.expert.get("gmsh.copper_layer_aspect", 4.0))  # type: ignore[arg-type]
     h_cap = float(sizes.expert.get("gmsh.h_max", 0.0)) * MM  # type: ignore[arg-type]
     pt: dict[int, float] = {}
     h_vol_max = 0.0
@@ -139,8 +140,13 @@ def _apply_sizes(
         if h_cap > 0:
             h = min(h, h_cap)
         dz = bb[5] - bb[2]
-        if cls == CLS_SLAB and 0 < dz < 2.0 * h and not _is_copper_layer(model, dz / MM):
-            h = min(h, dz / opts.thin_elements)
+        if 0 < dz < 2.0 * h:
+            if _is_copper_layer(model, dz / MM):
+                # resin/air filling a copper layer: lateral size at most ``aspect`` x thickness,
+                # else the tets between the layer faces degenerate into slivers (min SICN 0.017)
+                h = min(h, aspect * dz)
+            elif cls == CLS_SLAB:
+                h = min(h, dz / opts.thin_elements)
         h = max(h, min_cell)
         h_vol_max = max(h_vol_max, h)
         for _, p in gm.model.getBoundary([(3, v)], False, False, True):
@@ -217,13 +223,22 @@ def write_msh(
     grading ``sizes.max_grading``. Writes ``path`` (gmsh .msh, metres, physical tag = attribute)
     and ``path`` with suffix ``.groups.json`` (group name -> model id, tag, BC). Deterministic for
     a fixed gmsh version.
+
+    ``sizes.expert`` keys (all optional): ``gmsh.algorithm3d`` (gmsh ``Mesh.Algorithm3D``, default
+    10 = HXT; 1 = Delaunay), ``gmsh.optimize`` (comma-separated ``gmsh.model.mesh.optimize``
+    methods run after meshing, e.g. ``"Netgen"``), ``gmsh.num_threads`` (default 1; > 1 gives up
+    bit-reproducibility).
     """
     t0 = time.perf_counter()
     sizes = sizes or MeshSettings()
     fmax = f_max if f_max is not None else model.options.f_max
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with gmsh_session() as gm:
+    ex = sizes.expert
+    alg3 = int(ex.get("gmsh.algorithm3d", 10))  # type: ignore[arg-type]
+    threads = int(ex.get("gmsh.num_threads", 1))  # type: ignore[arg-type]
+    optimize = [m for m in str(ex.get("gmsh.optimize", "")).split(",") if m]
+    with gmsh_session(threads=threads, algorithm3d=alg3) as gm:
         _configure_geometry(gm)
         try:
             built = construct(gm, model)
@@ -234,6 +249,8 @@ def write_msh(
                 gm.model.mesh.clear()
                 gm.option.setNumber("Mesh.Algorithm3D", 1)
                 gm.model.mesh.generate(3)
+            for method in optimize:
+                gm.model.mesh.optimize(method, False, 1)
         except MeshError:
             raise
         except Exception as exc:

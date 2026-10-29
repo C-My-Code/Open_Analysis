@@ -18,6 +18,9 @@ gmsh keeps one global model/option state per process, so:
 
 Determinism: single thread, fixed ``Mesh.RandomSeed``, Frontal-Delaunay 2D (``Mesh.Algorithm=6``)
 and HXT 3D (``Mesh.Algorithm3D=10``). Outputs are reproducible for a given gmsh version.
+``threads > 1`` (opt-in) lets gmsh's own threads (OpenMP in HXT, 2D/1D loops) share one mesh; the
+result is then no longer bit-reproducible, so the default stays 1 and the content hash is only
+guaranteed for ``threads=1``. Prefer ``mesh_copper_sheets(workers=N)`` (process pool) for speed.
 """
 
 from __future__ import annotations
@@ -45,8 +48,16 @@ def gmsh_version() -> str:
 
 
 @contextmanager
-def gmsh_session(*, verbose: bool = False) -> Iterator[Any]:
-    """Initialize gmsh with deterministic options, yield the ``gmsh`` module, finalize on exit."""
+def gmsh_session(
+    *, verbose: bool = False, threads: int = 1, algorithm2d: int = 6, algorithm3d: int = 10
+) -> Iterator[Any]:
+    """Initialize gmsh with deterministic options, yield the ``gmsh`` module, finalize on exit.
+
+    ``threads`` is gmsh's own thread count (``General.NumThreads`` and the per-dimension limits);
+    ``algorithm2d`` / ``algorithm3d`` are the ``Mesh.Algorithm`` / ``Mesh.Algorithm3D`` numbers.
+    """
+    if threads < 1:
+        raise MeshError("threads must be >= 1", code="MESH_SETUP", path="threads")
     if getattr(_STATE, "active", False):
         raise MeshError(
             "gmsh session is not re-entrant",
@@ -67,14 +78,14 @@ def gmsh_session(*, verbose: bool = False) -> Iterator[Any]:
             gmsh.initialize([], readConfigFiles=False, run=False, interruptible=False)
             gmsh.option.setNumber("General.Terminal", 1 if verbose else 0)
             gmsh.option.setNumber("General.Verbosity", 5 if verbose else 0)
-            gmsh.option.setNumber("General.NumThreads", 1)
+            gmsh.option.setNumber("General.NumThreads", threads)
             # interfaces.md names General.RandomSeed; gmsh >= 4.12 calls the option Mesh.RandomSeed.
             gmsh.option.setNumber("Mesh.RandomSeed", RANDOM_SEED)
-            gmsh.option.setNumber("Mesh.MaxNumThreads1D", 1)
-            gmsh.option.setNumber("Mesh.MaxNumThreads2D", 1)
-            gmsh.option.setNumber("Mesh.MaxNumThreads3D", 1)
-            gmsh.option.setNumber("Mesh.Algorithm", 6)
-            gmsh.option.setNumber("Mesh.Algorithm3D", 10)
+            gmsh.option.setNumber("Mesh.MaxNumThreads1D", threads)
+            gmsh.option.setNumber("Mesh.MaxNumThreads2D", threads)
+            gmsh.option.setNumber("Mesh.MaxNumThreads3D", threads)
+            gmsh.option.setNumber("Mesh.Algorithm", algorithm2d)
+            gmsh.option.setNumber("Mesh.Algorithm3D", algorithm3d)
             gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
             gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
             gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 1)

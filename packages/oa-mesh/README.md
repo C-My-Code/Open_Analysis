@@ -43,7 +43,7 @@ P1/P2 triangle mesh of a `CrossSection` in its own (u, z) frame.
   shortest incident edge)`, so a 20 nm thick trace keeps angles >= 25 degrees.
 - Physical groups: `dielectric:<i>`, `air`, `conductor:<id>`, `conductor_interior:<id>`, `outer`.
 
-### `mesh_copper_sheets(pieces, *, h_default, size_fields=(), clean=None, grading=1.3) -> tuple[SheetMesh, ...]`
+### `mesh_copper_sheets(pieces, *, h_default, size_fields=(), clean=None, grading=1.3, h_far=None, workers=None, algorithm=None, threads=1) -> tuple[SheetMesh, ...]`
 
 `SheetMesh` is a `TriMesh2D` (nodes, triangles, layer, z) plus `piece_id`, `net`, `contacts`
 (contact id -> node indices, ring order), `groups`, `quality` and the `cleaning` report.
@@ -59,6 +59,45 @@ P1/P2 triangle mesh of a `CrossSection` in its own (u, z) frame.
   also get graded fields automatically, and narrow copper (traces) is capped at 1/3 of its
   inscribed-circle diameter.
 - Errors are `MeshError` with `code`, `message`, `path`, `hint` (`to_dict()` matches `ErrorInfo`).
+
+WP-211 options (all opt-in; defaults reproduce the WP-109 meshes exactly):
+
+- `workers=N` (or env `OA_MESH_WORKERS`): one gmsh process per piece through `oa_mesh._pool`, which
+  launches `python -I -m oa_mesh._worker` and speaks pickle over pipes. It never re-imports
+  `__main__`, so scripts need no `if __name__ == "__main__"` guard (unlike `multiprocessing`
+  spawn). Each piece is meshed in a fresh gmsh session in every mode, so `content_hash` is identical
+  for any worker count. Use at most 4 workers on the dev machine.
+- `h_far`: interior coarsening. Size stays `h_default` within 3 x `h_default` of boundaries and
+  contacts, then grows by `grading` to `h_far`. Pays off on sparse planes (power_plane: -18 %
+  triangles); dense boards are dominated by feature refinement (8-layer synthetic: -0.01 %).
+- `algorithm`: `frontal_delaunay` (default), `delaunay`, `meshadapt`. gmsh 2D packing crashes with
+  embedded curves and is not offered.
+- `threads`: gmsh's own threads (`General.NumThreads`); opt-in, not bit-reproducible. 2D meshing is
+  single-threaded in gmsh, so it gave no speed-up (plate: 8.9 s at 2 threads, 10.7 s at 4).
+
+### 2D algorithm benchmark (gmsh 4.15.2, Windows, 1 thread)
+
+| case | algorithm | time [s] | triangles | min angle [deg] | max aspect |
+|---|---|---|---|---|---|
+| 100x80 mm, 600 holes + 300 rings, h=2 mm | frontal_delaunay | 14.5 | 415935 | 25.5 | 2.23 |
+| | delaunay | 14.0 | 427931 | 28.1 | 2.06 |
+| | meshadapt | 85.2 | 407441 | 22.0 | 2.33 |
+| 100x100 mm plate, h=0.2 mm | frontal_delaunay | 9.3 | 578280 | 40.9 | 1.23 |
+| | delaunay | 8.3 | 659516 | 30.6 | 1.87 |
+| | meshadapt | 38.0 | 623358 | 26.2 | 1.84 |
+
+Delaunay is at most 11 % faster and clearly worse on the plate, so Frontal-Delaunay stays the
+default. Reproduce with `benchmarks/bench_wp211.py algos [plate=1]`.
+
+### Before/after (benchmarks/bench_wp211.py)
+
+| case | before | after |
+|---|---|---|
+| 8-layer synthetic (1.47 M triangles), 1 / 2 / 4 workers | 47.0 s | 39.5 / 22.2 / 13.2 s (peak 0.3 / 0.6 / 1.0 GB), hashes identical |
+| power_plane via pi.dc (3 pieces, 72 k triangles) | mesh 1.29 s | 1.28 s; `h_far=4mm`: 59 k triangles |
+| pi.dc 3e5-unknown plate | total 10.5 s (mesh 8.8, solve 1.4) | unchanged (single piece, uniform h) |
+| 3D solid copper, via region, medium | 38.4 s, min SICN 0.0167 | 22.1 s, min SICN 0.333 |
+| 3D sheet copper | 11.3 s, min SICN 0.336 | unchanged |
 
 ### Export
 
@@ -78,6 +117,16 @@ gmsh keeps one global state per process.
 - Determinism: one thread, `Mesh.RandomSeed=1`, Frontal-Delaunay (`Mesh.Algorithm=6`). Same input
   gives the same mesh for a fixed gmsh version; `content_hash()` is the cache-friendly digest of
   coordinates (rounded to 1e-12 x size) and connectivity. Do not mix gmsh versions in one cache.
+
+## 3D notes (WP-211)
+
+HXT (`Mesh.Algorithm3D=10`) is the default; `MeshSettings.expert["gmsh.algorithm3d"]=1` selects
+Delaunay (slightly faster, same quality), `gmsh.optimize="Netgen"` runs Netgen after meshing (did
+not help: min SICN 0.012 and 64 s), `gmsh.num_threads` is opt-in. The 0.017 min-SICN tets were the
+35 um air/resin layers that fill copper layers: their lateral size followed lambda/N. They are now
+capped at `gmsh.copper_layer_aspect` (default 4) x layer thickness. `mesh_problem` already defaults
+to sheet copper whenever copper is thinner than half the thinnest dielectric, which stays the
+recommended Palace input; solid copper is now also well conditioned.
 
 ## Tests
 
