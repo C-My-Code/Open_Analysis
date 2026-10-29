@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Generates src/api/generated/schema.d.ts from src/api/openapi.json (the WP-207 contract).
 //   npm run gen:api            write the file
