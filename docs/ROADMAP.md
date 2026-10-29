@@ -32,6 +32,8 @@ Validation gates:
 
 ## M1: MVP, "SI9000 + HyperLynx DRC + DC IR + openEMS/Palace for KiCad"
 
+M1 is delivered in two steps. **M1 features** (Waves 1-3, below) build the functionality. The **M1 release** (WP-303) ships it, and only after **M1P** (the next section) has passed its benchmark gates. The project owner decided this on 2026-10-29.
+
 Scope:
 1. **Ingest.**
    - Own `.kicad_pcb` + `.kicad_pro` reader (KiCad 7 to 10 formats).
@@ -127,6 +129,46 @@ Validation gates:
 
 ---
 
+## M1P: Performance and accuracy (between M1 features and the M1 release)
+
+Goal: results as good as or better than the commercial incumbents (HFSS/SIwave/Q3D, HyperLynx, Polar SI9000, Sonnet), with openEMS and Palace as the open baselines, on the user's own hardware, using an NVIDIA or AMD GPU when present. The benchmark targets in [BENCHMARKS.md](BENCHMARKS.md) gate everything, including the M1 release. Design: [ADR-0009](adr/0009-gpu-acceleration.md) (GPU backend `oa-accel`), [ADR-0010](adr/0010-gpu-fdtd-engine.md) (own GPU FDTD engine `oa-fdtd`), [ADR-0008](adr/0008-compiled-core.md) (compiled core, pulled forward into M1P). Work packages: WP-304 and WP-501 to WP-511 in [TASKS.md](TASKS.md).
+
+Scope:
+1. **Benchmark harness** (WP-304): runs the BENCHMARKS.md cases and records accuracy, time and memory per backend. It publishes them on the validation page with history and regression alerts.
+2. **Palace production** (WP-501, WP-502):
+   - converged p2/p3 + AMR configuration and iterative solvers;
+   - adaptive fast sweep and per-band dielectrics;
+   - surface-impedance copper with roughness;
+   - root cause and fix of the 0.5 dB openEMS-vs-Palace microstrip discrepancy;
+   - a CUDA build in WSL2, and a documented HIP path.
+3. **Own GPU FDTD engine** `oa-fdtd` (WP-505, WP-506, WP-507):
+   - graded Yee grid, thick-copper SIBC, conformal vias, CPML, multi-pole ADE dielectrics;
+   - lumped and quasi-TEM mode ports, multi-port batching;
+   - CuPy kernels with a NumPy oracle;
+   - registered as the `fdtd` adapter.
+4. **GPU backend** `oa-accel` (WP-503, WP-504): CuPy single source with a CPU fallback, covering BEM dense solves, DC IR/thermal sparse solves and raster solvers. It replaces the WP-413 sketch.
+5. **Compiled core** `oa-native` (WP-508, WP-509): Rust/PyO3 for the KiCad parser, ReferenceMap, ERC loops and BEM assembly, each with its Python oracle. This is WP-414, pulled forward.
+6. **Accuracy closure** (WP-510):
+   - the BEM dielectric-interface εeff gap and CPW truncation;
+   - openEMS adapter multi-pole Debye, thick copper and the stripline stall;
+   - published-reference slots filled from checked sources.
+7. **Gate run** (WP-511): the full benchmark run on the reference machine and a signed-off report.
+
+Exit criteria:
+- Every **gating** case in BENCHMARKS.md §2 has status `pass` on the reference machine under the `bench` profile: B-IMP-01…04, B-DC-01…02, B-ERC-01, B-ING-01, B-EM-01…06, B-PERF-01. Cases whose only reference is `[verify]` do not gate. A case may gate on its converged reference alone.
+- For each B-EM case, at least two solvers meet the accuracy gate against the reference: oa-fdtd plus Palace, or plus openEMS. oa-fdtd meets the GPU runtime gate on B-EM-01…05.
+- The GPU and CPU backends agree within the ADR-0009 §5 tolerance classes on every case they both run. Each case passes with `OA_DEVICE=cpu` on a machine without a GPU (accuracy gates; runtime is reported only).
+- No benchmark run exceeds its memory ceiling, and the harness's host cap is never hit. There is no machine freeze during the gate run.
+- The benchmark page is generated from `tests/benchmarks/results/*.json` and published with `docs/validation/`. History shows no regression above 20 % against the M1P baseline.
+- The native (Rust) paths produce results identical to their Python oracles (B-ERC-01, B-ING-01). Prebuilt wheels build in CI for Windows, Linux and macOS.
+
+Validation gates: the accuracy columns of BENCHMARKS.md §2 are the gates. They tighten the M1 gates where they overlap:
+- EM thru IL: 0.2 dB becomes 0.05 dB;
+- BEM vs exact: 0.1-0.5 % becomes 0.05 %;
+- the openEMS-vs-Palace via transition: 0.5 dB becomes 0.1 dB to 20 GHz against the converged reference.
+
+---
+
 ## M2: Signal integrity (linear), AC PDN (lumped), thermal, Q3D-lite, EMI estimates, KiCad live link
 
 Scope:
@@ -204,7 +246,7 @@ Scope:
 - **EMI field-based:** TL-current dipole sum with images; cavity edge radiation from PDN plane voltages; per-net emission reports at 3 m/10 m.
 - **Thermal:** Elmer 3D reference mode (`fem3d`), heatsink and fixed-T regions.
 - **Solvers:** EMerge adapter (optional Windows-native FEM), Palace eigenmode, AMR-driven convergence studies, automatic convergence reports.
-- **Scale:** `ssh-slurm` and cloud-batch runners; farming openEMS excitations and sweeps across nodes; Rust (PyO3) acceleration for the parser and BEM kernels *if profiling demands it* (ADR-0002).
+- **Scale:** `ssh-slurm` and cloud-batch runners; farming openEMS and oa-fdtd excitations and sweeps across nodes; multi-GPU oa-fdtd. The Rust (PyO3) core and GPU backend themselves moved into M1P (ADR-0008, ADR-0009).
 - Remaining P3 rules: IM-007, VI-003, VI-004, PD-004.
 - **ML surrogate (WP-412):** `oa-xsdataset/1` export of cross-section → RLGC pairs, and an optional domain-gated impedance surrogate behind the impedance service that always reports `accuracy_class="surrogate"`.
 
@@ -282,8 +324,9 @@ Validation gates:
 
 ```mermaid
 flowchart LR
-  M0 --> M1 --> M2 --> M3 --> M4 --> M5
-  M1 -. ReferenceMap, via_model, RLGC .-> M2
+  M0 --> M1F["M1 features"] --> M1P["M1P performance + accuracy"] --> M1R["M1 release"] --> M2 --> M3 --> M4 --> M5
+  M1F -. ReferenceMap, via_model, RLGC .-> M2
+  M1P -. oa-accel, oa-fdtd, oa-native .-> M2
   M2 -. SI currents, PDN plane V .-> M3
   M3 -. Z-matrix, via models .-> M4
 ```

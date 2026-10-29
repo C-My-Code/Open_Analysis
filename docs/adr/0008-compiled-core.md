@@ -16,6 +16,8 @@ Hybrid compilation:
 ## Timing
 Work starts after the M1 features are complete and is driven by WP-304 benchmarks. The user chose this. The Rust toolchain is not yet installed.
 
+Amendment (2026-10-29): the project owner placed milestone M1P between the M1 features and the M1 release. This ADR's work therefore runs inside M1P, as WP-508 (crate, parser, ReferenceMap) and WP-509 (ERC loops, BEM assembly, profile sampling), gated by [BENCHMARKS.md](../BENCHMARKS.md) B-ING-01 and B-ERC-01. Raster/FVM solvers go to the GPU backend instead (ADR-0009, WP-504). mypyc and the native app bundle stay after M1P.
+
 ## Consequences
 - CI builds the wheels for all three OSes.
 - Golden tests compare the native path against the Python reference.
