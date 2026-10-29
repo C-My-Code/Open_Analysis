@@ -8,8 +8,9 @@ export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'src/types/generated/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  { files: ['scripts/**/*.mjs', 'playwright.config.ts', 'tests/e2e/**/*.ts'], languageOptions: { globals: globals.node } },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'tests/features/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
     rules: {

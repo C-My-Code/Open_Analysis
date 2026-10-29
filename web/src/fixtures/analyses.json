@@ -1,0 +1,1709 @@
+[
+ {
+  "config_schema": {
+   "$defs": {
+    "JsonValue": {},
+    "Waiver": {
+     "additionalProperties": false,
+     "properties": {
+      "author": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Who waived it.",
+       "title": "Author"
+      },
+      "expires": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "ISO date after which it lapses.",
+       "title": "Expires"
+      },
+      "fingerprint": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Exact violation fingerprint.",
+       "title": "Fingerprint"
+      },
+      "nets": {
+       "default": [],
+       "description": "Net name globs.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Nets",
+       "type": "array"
+      },
+      "reason": {
+       "description": "Why this is waived (required).",
+       "title": "Reason",
+       "type": "string"
+      },
+      "rule_id": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Rule id, optionally with `nets`.",
+       "title": "Rule Id"
+      }
+     },
+     "required": [
+      "reason"
+     ],
+     "title": "Waiver",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "as_of": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "ISO date used to judge waiver expiry; None = today (the only non-deterministic input; set it for reproducible output).",
+     "title": "As Of"
+    },
+    "exclude": {
+     "default": [],
+     "description": "Rule ids or aliases to skip.",
+     "items": {
+      "type": "string"
+     },
+     "title": "Exclude",
+     "type": "array"
+    },
+    "rule_config": {
+     "additionalProperties": {
+      "additionalProperties": {
+       "$ref": "#/$defs/JsonValue"
+      },
+      "type": "object"
+     },
+     "default": {},
+     "description": "Per-rule threshold overrides, keyed by rule id; validated against the rule's Config (see `oa describe` / the rule catalogue).",
+     "title": "Rule Config",
+     "type": "object"
+    },
+    "rules": {
+     "default": [],
+     "description": "Rule ids or aliases to run; empty = every registered rule.",
+     "items": {
+      "type": "string"
+     },
+     "title": "Rules",
+     "type": "array"
+    },
+    "severity": {
+     "additionalProperties": {
+      "enum": [
+       "info",
+       "warning",
+       "error"
+      ],
+      "type": "string"
+     },
+     "default": {},
+     "description": "Severity override per rule id or alias.",
+     "title": "Severity",
+     "type": "object"
+    },
+    "waivers": {
+     "default": [],
+     "description": "Waivers: by fingerprint or rule id / net globs, with expiry.",
+     "items": {
+      "$ref": "#/$defs/Waiver"
+     },
+     "title": "Waivers",
+     "type": "array"
+    }
+   },
+   "title": "ErcConfig",
+   "type": "object"
+  },
+  "kind": "erc",
+  "title": "Electrical/EMI rule check",
+  "version": "1"
+ },
+ {
+  "config_schema": {
+   "$defs": {
+    "NetSelector": {
+     "additionalProperties": false,
+     "description": "Selects nets by name glob, regex, net class or diff pair: the union of all criteria\nminus `exclude`. An empty selector selects nothing.",
+     "properties": {
+      "diff_pairs": {
+       "default": [],
+       "description": "Diff pair ids.",
+       "items": {
+        "description": "Stable unique item id: 'k:<uuid>' (KiCad), 'i:<id>' (IPC-2581), 'h:<hash>'.",
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       "title": "Diff Pairs",
+       "type": "array"
+      },
+      "exclude": {
+       "default": [],
+       "description": "Net name globs to remove.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Exclude",
+       "type": "array"
+      },
+      "kinds": {
+       "default": [],
+       "description": "Net kinds.",
+       "items": {
+        "enum": [
+         "signal",
+         "power",
+         "ground"
+        ],
+        "type": "string"
+       },
+       "title": "Kinds",
+       "type": "array"
+      },
+      "names": {
+       "default": [],
+       "description": "Net name globs: 'USB_*'.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Names",
+       "type": "array"
+      },
+      "net_classes": {
+       "default": [],
+       "description": "Net class names.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Net Classes",
+       "type": "array"
+      },
+      "regex": {
+       "default": [],
+       "description": "Regexes matched against the whole name.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Regex",
+       "type": "array"
+      }
+     },
+     "title": "NetSelector",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "batch_size": {
+     "default": 8,
+     "description": "Unique cross-sections per solve task [count].",
+     "minimum": 1,
+     "title": "Batch Size",
+     "type": "integer"
+    },
+    "ds": {
+     "anyOf": [
+      {
+       "exclusiveMinimum": 0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Sampling step along the net [m]; None = min(0.5 mm, 2 h) per segment.",
+     "title": "Ds"
+    },
+    "freqs": {
+     "default": [
+      0.0
+     ],
+     "description": "Frequencies [Hz], ascending; the first one fills the plain quantities, others add 'name@f' quantities. 0 = static (lossless).",
+     "items": {
+      "type": "number"
+     },
+     "title": "Freqs",
+     "type": "array"
+    },
+    "method": {
+     "default": "auto",
+     "description": "Solver: auto = closed form where valid, else BEM.",
+     "enum": [
+      "auto",
+      "closed_form",
+      "bem",
+      "fem"
+     ],
+     "title": "Method",
+     "type": "string"
+    },
+    "nets": {
+     "$ref": "#/$defs/NetSelector",
+     "description": "Nets to profile. Empty = every signal net with a target impedance or in a differential pair. Nets of a pair are profiled together as one pair."
+    },
+    "refine_tol": {
+     "default": 2.5e-05,
+     "description": "Accuracy of the located transition positions [m].",
+     "exclusiveMinimum": 0,
+     "title": "Refine Tol",
+     "type": "number"
+    },
+    "tolerance": {
+     "anyOf": [
+      {
+       "exclusiveMaximum": 1,
+       "exclusiveMinimum": 0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Impedance tolerance [fraction]; None = from the design intent (default 0.1).",
+     "title": "Tolerance"
+    }
+   },
+   "title": "ProfileConfig",
+   "type": "object"
+  },
+  "kind": "impedance.profile",
+  "title": "Impedance and delay profile along nets",
+  "version": "1"
+ },
+ {
+  "config_schema": {
+   "$defs": {
+    "CannonballHuray": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "cannonball_huray",
+       "default": "cannonball_huray",
+       "description": "Discriminator tag; always 'cannonball_huray'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "rz": {
+       "description": "Datasheet Rz (10-point height), metres.",
+       "minimum": 0.0,
+       "title": "Rz",
+       "type": "number"
+      }
+     },
+     "required": [
+      "rz"
+     ],
+     "title": "CannonballHuray",
+     "type": "object"
+    },
+    "ConstantDkDf": {
+     "additionalProperties": false,
+     "description": "Constant Dk/Df at f_ref. NOT causal; physics converts it to Djordjevic-Sarkar.",
+     "properties": {
+      "df": {
+       "description": "Loss tangent (dimensionless).",
+       "exclusiveMaximum": 1.0,
+       "minimum": 0.0,
+       "title": "Df",
+       "type": "number"
+      },
+      "dk": {
+       "description": "Relative permittivity (dimensionless), >= 1.",
+       "minimum": 1.0,
+       "title": "Dk",
+       "type": "number"
+      },
+      "f_ref": {
+       "default": 1000000000.0,
+       "description": "Frequency (Hz) at which dk/df were measured.",
+       "exclusiveMinimum": 0.0,
+       "title": "F Ref",
+       "type": "number"
+      },
+      "kind": {
+       "const": "constant",
+       "default": "constant",
+       "description": "Discriminator tag; always 'constant'.",
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     "required": [
+      "dk",
+      "df"
+     ],
+     "title": "ConstantDkDf",
+     "type": "object"
+    },
+    "CrossSection": {
+     "additionalProperties": false,
+     "description": "2D transmission-line cross-section. Canonical form: u=0 at the midpoint of the signal\nconductors' bounding box and z=0 at the lowest material boundary.",
+     "properties": {
+      "background_dk": {
+       "default": 1.0,
+       "description": "Relative permittivity outside every dielectric (air).",
+       "minimum": 1.0,
+       "title": "Background Dk",
+       "type": "number"
+      },
+      "conductors": {
+       "description": "Conductors; the ORDER of signal conductors defines matrix index order.",
+       "items": {
+        "$ref": "#/$defs/XsConductor"
+       },
+       "title": "Conductors",
+       "type": "array"
+      },
+      "dielectrics": {
+       "description": "Dielectric regions.",
+       "items": {
+        "$ref": "#/$defs/XsDielectric"
+       },
+       "title": "Dielectrics",
+       "type": "array"
+      },
+      "provenance": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/XsProvenance"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Where the section came from; NOT part of the key."
+      },
+      "schema": {
+       "const": "oa-xsection/1",
+       "default": "oa-xsection/1",
+       "description": "Schema tag; always 'oa-xsection/1'.",
+       "title": "Schema",
+       "type": "string"
+      },
+      "symmetric_about_u0": {
+       "default": false,
+       "description": "Geometry is mirror symmetric about u=0 (checked).",
+       "title": "Symmetric About U0",
+       "type": "boolean"
+      },
+      "topology_hint": {
+       "default": "general",
+       "description": "Solver hint for fast analytic paths.",
+       "enum": [
+        "microstrip",
+        "embedded_microstrip",
+        "stripline",
+        "offset_stripline",
+        "cpw",
+        "cpwg",
+        "edge_coupled_microstrip",
+        "edge_coupled_stripline",
+        "broadside_coupled",
+        "coax",
+        "wire_over_plane",
+        "general"
+       ],
+       "title": "Topology Hint",
+       "type": "string"
+      }
+     },
+     "required": [
+      "conductors",
+      "dielectrics"
+     ],
+     "title": "CrossSection",
+     "type": "object"
+    },
+    "DjordjevicSarkar": {
+     "additionalProperties": false,
+     "description": "Wideband causal Debye model defined by a single datasheet point.",
+     "properties": {
+      "df": {
+       "description": "Loss tangent at f_ref (dimensionless).",
+       "exclusiveMaximum": 1.0,
+       "minimum": 0.0,
+       "title": "Df",
+       "type": "number"
+      },
+      "dk": {
+       "description": "Relative permittivity at f_ref (dimensionless).",
+       "minimum": 1.0,
+       "title": "Dk",
+       "type": "number"
+      },
+      "f_high": {
+       "default": 159154943091.89536,
+       "description": "Upper model corner (Hz); m2 = log10(2*pi*f_high).",
+       "exclusiveMinimum": 0.0,
+       "title": "F High",
+       "type": "number"
+      },
+      "f_low": {
+       "default": 1591.5494309189535,
+       "description": "Lower model corner (Hz); m1 = log10(2*pi*f_low).",
+       "exclusiveMinimum": 0.0,
+       "title": "F Low",
+       "type": "number"
+      },
+      "f_ref": {
+       "default": 1000000000.0,
+       "description": "Datasheet reference frequency, Hz.",
+       "exclusiveMinimum": 0.0,
+       "title": "F Ref",
+       "type": "number"
+      },
+      "kind": {
+       "const": "djordjevic_sarkar",
+       "default": "djordjevic_sarkar",
+       "description": "Discriminator tag; always 'djordjevic_sarkar'.",
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     "required": [
+      "dk",
+      "df"
+     ],
+     "title": "DjordjevicSarkar",
+     "type": "object"
+    },
+    "Groisse": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "groisse",
+       "default": "groisse",
+       "description": "Discriminator tag; always 'groisse'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "rq": {
+       "description": "RMS roughness, metres.",
+       "minimum": 0.0,
+       "title": "Rq",
+       "type": "number"
+      }
+     },
+     "required": [
+      "rq"
+     ],
+     "title": "Groisse",
+     "type": "object"
+    },
+    "Hammerstad": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "hammerstad",
+       "default": "hammerstad",
+       "description": "Discriminator tag; always 'hammerstad'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "rq": {
+       "description": "RMS roughness, metres.",
+       "minimum": 0.0,
+       "title": "Rq",
+       "type": "number"
+      }
+     },
+     "required": [
+      "rq"
+     ],
+     "title": "Hammerstad",
+     "type": "object"
+    },
+    "Huray": {
+     "additionalProperties": false,
+     "properties": {
+      "flat_ratio": {
+       "default": 1.0,
+       "description": "A_matte / A_flat (dimensionless).",
+       "exclusiveMinimum": 0.0,
+       "title": "Flat Ratio",
+       "type": "number"
+      },
+      "kind": {
+       "const": "huray",
+       "default": "huray",
+       "description": "Discriminator tag; always 'huray'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "sphere_radius": {
+       "description": "Nodule sphere radius a, metres.",
+       "minimum": 0.0,
+       "title": "Sphere Radius",
+       "type": "number"
+      },
+      "surface_ratio": {
+       "description": "N*4*pi*a^2 / A_flat summed over one size class (dimensionless).",
+       "exclusiveMinimum": 0.0,
+       "title": "Surface Ratio",
+       "type": "number"
+      }
+     },
+     "required": [
+      "sphere_radius",
+      "surface_ratio"
+     ],
+     "title": "Huray",
+     "type": "object"
+    },
+    "MultiPoleDebye": {
+     "additionalProperties": false,
+     "properties": {
+      "eps_inf": {
+       "description": "High-frequency permittivity (dimensionless).",
+       "minimum": 1.0,
+       "title": "Eps Inf",
+       "type": "number"
+      },
+      "kind": {
+       "const": "multipole_debye",
+       "default": "multipole_debye",
+       "description": "Discriminator tag; always 'multipole_debye'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "poles": {
+       "description": "Pairs (delta_eps_k, f_relax_k in Hz), one per Debye pole.",
+       "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+         {
+          "type": "number"
+         },
+         {
+          "description": "Frequency in hertz, > 0. Strings such as '1GHz' parse.",
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+         }
+        ],
+        "type": "array"
+       },
+       "title": "Poles",
+       "type": "array"
+      },
+      "sigma_dc": {
+       "default": 0.0,
+       "description": "DC conductivity, S/m.",
+       "minimum": 0.0,
+       "title": "Sigma Dc",
+       "type": "number"
+      }
+     },
+     "required": [
+      "eps_inf",
+      "poles"
+     ],
+     "title": "MultiPoleDebye",
+     "type": "object"
+    },
+    "NoRoughness": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "none",
+       "default": "none",
+       "description": "Discriminator tag; always 'none'.",
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     "title": "NoRoughness",
+     "type": "object"
+    },
+    "Polygon": {
+     "additionalProperties": false,
+     "description": "Simple polygon with holes. Discretized (no analytic arcs). Exterior CCW, holes CW.",
+     "properties": {
+      "exterior": {
+       "description": "Exterior ring, counter-clockwise, not closed (first point not repeated).",
+       "examples": [
+        [
+         0.0,
+         0.0,
+         0.001,
+         0.0,
+         0.001,
+         0.001,
+         0.0,
+         0.001
+        ]
+       ],
+       "items": {
+        "type": "number"
+       },
+       "title": "Exterior",
+       "type": "array"
+      },
+      "holes": {
+       "default": [],
+       "description": "Hole rings, clockwise, strictly inside the exterior.",
+       "items": {
+        "description": "Flat XY list in metres: [x0,y0,x1,y1,...]; even length.",
+        "examples": [
+         [
+          0.0,
+          0.0,
+          0.001,
+          0.0,
+          0.001,
+          0.001,
+          0.0,
+          0.001
+         ]
+        ],
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       "title": "Holes",
+       "type": "array"
+      }
+     },
+     "required": [
+      "exterior"
+     ],
+     "title": "Polygon",
+     "type": "object"
+    },
+    "TableDkDf": {
+     "additionalProperties": false,
+     "description": "Measured/vendor table; interpolated log-f, linear Dk/Df.",
+     "properties": {
+      "df": {
+       "description": "Loss tangent at each frequency.",
+       "items": {
+        "type": "number"
+       },
+       "title": "Df",
+       "type": "array"
+      },
+      "dk": {
+       "description": "Relative permittivity at each frequency.",
+       "items": {
+        "type": "number"
+       },
+       "title": "Dk",
+       "type": "array"
+      },
+      "freqs": {
+       "description": "Strictly increasing frequencies, Hz.",
+       "items": {
+        "type": "number"
+       },
+       "title": "Freqs",
+       "type": "array"
+      },
+      "kind": {
+       "const": "table",
+       "default": "table",
+       "description": "Discriminator tag; always 'table'.",
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     "required": [
+      "freqs",
+      "dk",
+      "df"
+     ],
+     "title": "TableDkDf",
+     "type": "object"
+    },
+    "XsCircle": {
+     "additionalProperties": false,
+     "description": "Analytic validation shapes (coax, wire over plane).",
+     "properties": {
+      "kind": {
+       "const": "circle",
+       "default": "circle",
+       "description": "Discriminator tag; always 'circle'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "radius": {
+       "description": "Radius, metres.",
+       "exclusiveMinimum": 0,
+       "minimum": 0.0,
+       "title": "Radius",
+       "type": "number"
+      },
+      "u_center": {
+       "description": "Centre u, metres.",
+       "title": "U Center",
+       "type": "number"
+      },
+      "z_center": {
+       "description": "Centre z, metres.",
+       "title": "Z Center",
+       "type": "number"
+      }
+     },
+     "required": [
+      "u_center",
+      "z_center",
+      "radius"
+     ],
+     "title": "XsCircle",
+     "type": "object"
+    },
+    "XsConductor": {
+     "additionalProperties": false,
+     "properties": {
+      "conductivity": {
+       "default": 58000000.0,
+       "description": "Conductivity, S/m.",
+       "exclusiveMinimum": 0,
+       "title": "Conductivity",
+       "type": "number"
+      },
+      "id": {
+       "description": "'s1', 's2', 'g1', ...: unique in the section.",
+       "title": "Id",
+       "type": "string"
+      },
+      "net": {
+       "anyOf": [
+        {
+         "description": "Net name, unique per board (the net's key). Never an index.",
+         "minLength": 1,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Provenance only; NOT part of the key.",
+       "title": "Net"
+      },
+      "role": {
+       "description": "Electrical role.",
+       "enum": [
+        "signal",
+        "ground",
+        "floating"
+       ],
+       "title": "Role",
+       "type": "string"
+      },
+      "roughness_bottom": {
+       "default": {
+        "kind": "none"
+       },
+       "description": "Bottom surface roughness.",
+       "discriminator": {
+        "mapping": {
+         "cannonball_huray": "#/$defs/CannonballHuray",
+         "groisse": "#/$defs/Groisse",
+         "hammerstad": "#/$defs/Hammerstad",
+         "huray": "#/$defs/Huray",
+         "none": "#/$defs/NoRoughness"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/NoRoughness"
+        },
+        {
+         "$ref": "#/$defs/Hammerstad"
+        },
+        {
+         "$ref": "#/$defs/Groisse"
+        },
+        {
+         "$ref": "#/$defs/Huray"
+        },
+        {
+         "$ref": "#/$defs/CannonballHuray"
+        }
+       ],
+       "title": "Roughness Bottom"
+      },
+      "roughness_side": {
+       "default": {
+        "kind": "none"
+       },
+       "description": "Sidewall roughness.",
+       "discriminator": {
+        "mapping": {
+         "cannonball_huray": "#/$defs/CannonballHuray",
+         "groisse": "#/$defs/Groisse",
+         "hammerstad": "#/$defs/Hammerstad",
+         "huray": "#/$defs/Huray",
+         "none": "#/$defs/NoRoughness"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/NoRoughness"
+        },
+        {
+         "$ref": "#/$defs/Hammerstad"
+        },
+        {
+         "$ref": "#/$defs/Groisse"
+        },
+        {
+         "$ref": "#/$defs/Huray"
+        },
+        {
+         "$ref": "#/$defs/CannonballHuray"
+        }
+       ],
+       "title": "Roughness Side"
+      },
+      "roughness_top": {
+       "default": {
+        "kind": "none"
+       },
+       "description": "Top surface roughness.",
+       "discriminator": {
+        "mapping": {
+         "cannonball_huray": "#/$defs/CannonballHuray",
+         "groisse": "#/$defs/Groisse",
+         "hammerstad": "#/$defs/Hammerstad",
+         "huray": "#/$defs/Huray",
+         "none": "#/$defs/NoRoughness"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/NoRoughness"
+        },
+        {
+         "$ref": "#/$defs/Hammerstad"
+        },
+        {
+         "$ref": "#/$defs/Groisse"
+        },
+        {
+         "$ref": "#/$defs/Huray"
+        },
+        {
+         "$ref": "#/$defs/CannonballHuray"
+        }
+       ],
+       "title": "Roughness Top"
+      },
+      "shape": {
+       "description": "Conductor geometry.",
+       "discriminator": {
+        "mapping": {
+         "circle": "#/$defs/XsCircle",
+         "plane": "#/$defs/XsPlane",
+         "polygon": "#/$defs/XsPolygon",
+         "trapezoid": "#/$defs/XsTrapezoid"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/XsTrapezoid"
+        },
+        {
+         "$ref": "#/$defs/XsPolygon"
+        },
+        {
+         "$ref": "#/$defs/XsCircle"
+        },
+        {
+         "$ref": "#/$defs/XsPlane"
+        }
+       ],
+       "title": "Shape"
+      }
+     },
+     "required": [
+      "id",
+      "role",
+      "shape"
+     ],
+     "title": "XsConductor",
+     "type": "object"
+    },
+    "XsDielectric": {
+     "additionalProperties": false,
+     "properties": {
+      "dk_z_over_dk_xy": {
+       "default": 1.0,
+       "description": "Anisotropy ratio.",
+       "exclusiveMinimum": 0,
+       "title": "Dk Z Over Dk Xy",
+       "type": "number"
+      },
+      "model": {
+       "description": "Frequency-dependent Dk/Df model.",
+       "discriminator": {
+        "mapping": {
+         "constant": "#/$defs/ConstantDkDf",
+         "djordjevic_sarkar": "#/$defs/DjordjevicSarkar",
+         "multipole_debye": "#/$defs/MultiPoleDebye",
+         "table": "#/$defs/TableDkDf"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/ConstantDkDf"
+        },
+        {
+         "$ref": "#/$defs/DjordjevicSarkar"
+        },
+        {
+         "$ref": "#/$defs/MultiPoleDebye"
+        },
+        {
+         "$ref": "#/$defs/TableDkDf"
+        }
+       ],
+       "title": "Model"
+      },
+      "priority": {
+       "default": 0,
+       "description": "Higher wins where regions overlap; slabs 0, regions 10.",
+       "title": "Priority",
+       "type": "integer"
+      },
+      "region": {
+       "description": "Where this dielectric is.",
+       "discriminator": {
+        "mapping": {
+         "region": "#/$defs/XsRegion",
+         "slab": "#/$defs/XsSlab"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/$defs/XsSlab"
+        },
+        {
+         "$ref": "#/$defs/XsRegion"
+        }
+       ],
+       "title": "Region"
+      }
+     },
+     "required": [
+      "region",
+      "model"
+     ],
+     "title": "XsDielectric",
+     "type": "object"
+    },
+    "XsPlane": {
+     "additionalProperties": false,
+     "description": "Horizontal ground/reference conductor; None bounds mean infinite.",
+     "properties": {
+      "kind": {
+       "const": "plane",
+       "default": "plane",
+       "description": "Discriminator tag; always 'plane'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "thickness": {
+       "description": "Thickness, metres; 0 = zero-thickness plane.",
+       "minimum": 0.0,
+       "title": "Thickness",
+       "type": "number"
+      },
+      "u_max": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Right edge u, metres; None = infinite.",
+       "title": "U Max"
+      },
+      "u_min": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Left edge u, metres; None = infinite.",
+       "title": "U Min"
+      },
+      "z_bottom": {
+       "description": "Bottom z, metres.",
+       "title": "Z Bottom",
+       "type": "number"
+      }
+     },
+     "required": [
+      "z_bottom",
+      "thickness"
+     ],
+     "title": "XsPlane",
+     "type": "object"
+    },
+    "XsPolygon": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "polygon",
+       "default": "polygon",
+       "description": "Discriminator tag; always 'polygon'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "polygon": {
+       "$ref": "#/$defs/Polygon",
+       "description": "(u, z) coordinates in the polygon's x, y slots, metres."
+      }
+     },
+     "required": [
+      "polygon"
+     ],
+     "title": "XsPolygon",
+     "type": "object"
+    },
+    "XsProvenance": {
+     "additionalProperties": false,
+     "properties": {
+      "board_hash": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "content_hash of the source board.",
+       "title": "Board Hash"
+      },
+      "layer": {
+       "anyOf": [
+        {
+         "description": "Stack layer id: L1..Ln copper (top to bottom), D1..Dm dielectric (top to bottom), MT/MB top/bottom solder mask.",
+         "examples": [
+          "L1",
+          "D2",
+          "MT"
+         ],
+         "pattern": "^(L[1-9][0-9]*|D[1-9][0-9]*|MT|MB)$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Signal layer id.",
+       "title": "Layer"
+      },
+      "net_ids": {
+       "default": [],
+       "description": "Nets in the section.",
+       "items": {
+        "description": "Net name, unique per board (the net's key). Never an index.",
+        "minLength": 1,
+        "type": "string"
+       },
+       "title": "Net Ids",
+       "type": "array"
+      },
+      "position": {
+       "anyOf": [
+        {
+         "maxItems": 2,
+         "minItems": 2,
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "number"
+          }
+         ],
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Board-frame sample point, metres.",
+       "title": "Position"
+      },
+      "track_ids": {
+       "default": [],
+       "description": "Source track ids.",
+       "items": {
+        "description": "Stable unique item id: 'k:<uuid>' (KiCad), 'i:<id>' (IPC-2581), 'h:<hash>'.",
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       "title": "Track Ids",
+       "type": "array"
+      }
+     },
+     "title": "XsProvenance",
+     "type": "object"
+    },
+    "XsRegion": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "region",
+       "default": "region",
+       "description": "Discriminator tag; always 'region'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "polygon": {
+       "$ref": "#/$defs/Polygon",
+       "description": "(u, z) polygon, e.g. conformal solder mask."
+      }
+     },
+     "required": [
+      "polygon"
+     ],
+     "title": "XsRegion",
+     "type": "object"
+    },
+    "XsSlab": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "slab",
+       "default": "slab",
+       "description": "Discriminator tag; always 'slab'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "u_max": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Right edge, metres; None = infinite.",
+       "title": "U Max"
+      },
+      "u_min": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Left edge, metres; None = infinite.",
+       "title": "U Min"
+      },
+      "z_bottom": {
+       "description": "Bottom z, metres.",
+       "title": "Z Bottom",
+       "type": "number"
+      },
+      "z_top": {
+       "description": "Top z, metres.",
+       "title": "Z Top",
+       "type": "number"
+      }
+     },
+     "required": [
+      "z_bottom",
+      "z_top"
+     ],
+     "title": "XsSlab",
+     "type": "object"
+    },
+    "XsTrapezoid": {
+     "additionalProperties": false,
+     "properties": {
+      "kind": {
+       "const": "trapezoid",
+       "default": "trapezoid",
+       "description": "Discriminator tag; always 'trapezoid'.",
+       "title": "Kind",
+       "type": "string"
+      },
+      "thickness": {
+       "description": "Height, metres.",
+       "exclusiveMinimum": 0,
+       "minimum": 0.0,
+       "title": "Thickness",
+       "type": "number"
+      },
+      "u_center": {
+       "description": "Lateral centre of the shape, metres.",
+       "title": "U Center",
+       "type": "number"
+      },
+      "w_bottom": {
+       "description": "Bottom width, metres.",
+       "exclusiveMinimum": 0,
+       "minimum": 0.0,
+       "title": "W Bottom",
+       "type": "number"
+      },
+      "w_top": {
+       "description": "Top width, metres (== w_bottom for a rectangle).",
+       "exclusiveMinimum": 0,
+       "minimum": 0.0,
+       "title": "W Top",
+       "type": "number"
+      },
+      "z_bottom": {
+       "description": "Bottom z, metres.",
+       "title": "Z Bottom",
+       "type": "number"
+      }
+     },
+     "required": [
+      "u_center",
+      "z_bottom",
+      "w_bottom",
+      "w_top",
+      "thickness"
+     ],
+     "title": "XsTrapezoid",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "freqs": {
+     "default": [
+      0.0
+     ],
+     "description": "Frequencies [Hz], ascending; 0 = static (lossless).",
+     "items": {
+      "type": "number"
+     },
+     "title": "Freqs",
+     "type": "array"
+    },
+    "method": {
+     "default": "auto",
+     "description": "Solver: auto picks a closed form when one applies else BEM.",
+     "enum": [
+      "auto",
+      "closed_form",
+      "bem",
+      "fem"
+     ],
+     "title": "Method",
+     "type": "string"
+    },
+    "sample_ref": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Reference to a geometry sample (WP-104); not yet supported, use xsection.",
+     "title": "Sample Ref"
+    },
+    "xsection": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/CrossSection"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "description": "Inline cross-section to analyse (CrossSection, dimensionless)."
+    }
+   },
+   "title": "XsectionConfig",
+   "type": "object"
+  },
+  "kind": "impedance.xsection",
+  "title": "Cross-section impedance (closed form / 2D BEM)",
+  "version": "1"
+ },
+ {
+  "config_schema": {
+   "$defs": {
+    "LimitsConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "drop_fraction": {
+       "default": 0.03,
+       "description": "Allowed load drop as a fraction of vset [1].",
+       "exclusiveMaximum": 1.0,
+       "exclusiveMinimum": 0.0,
+       "title": "Drop Fraction",
+       "type": "number"
+      },
+      "via_current_density": {
+       "default": 300000000.0,
+       "description": "Allowed via barrel current density [A/m^2].",
+       "exclusiveMinimum": 0.0,
+       "title": "Via Current Density",
+       "type": "number"
+      }
+     },
+     "title": "LimitsConfig",
+     "type": "object"
+    },
+    "LoadConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "component": {
+       "description": "Refdes of the load component (IC, connector).",
+       "title": "Component",
+       "type": "string"
+      },
+      "current": {
+       "description": "Total load current [A], drawn from the rail pins.",
+       "title": "Current",
+       "type": "number"
+      },
+      "model": {
+       "default": "pin_group",
+       "description": "'pin_group': all pins are one equipotential node and the copper decides the split (default). 'equal_split': every pin draws current/N independently.",
+       "enum": [
+        "pin_group",
+        "equal_split"
+       ],
+       "title": "Model",
+       "type": "string"
+      },
+      "name": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Display name; defaults to the refdes.",
+       "title": "Name"
+      },
+      "nets": {
+       "default": [],
+       "description": "Nets drawing the current; the first must be the rail net. Empty = the rail.",
+       "items": {
+        "description": "Net name, unique per board (the net's key). Never an index.",
+        "minLength": 1,
+        "type": "string"
+       },
+       "title": "Nets",
+       "type": "array"
+      },
+      "pins": {
+       "default": [],
+       "description": "Pin numbers on the rail net; empty = every pin on the rail net.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Pins",
+       "type": "array"
+      },
+      "return_pins": {
+       "default": [],
+       "description": "Pin numbers on the return net; empty = every pin on it.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Return Pins",
+       "type": "array"
+      }
+     },
+     "required": [
+      "component",
+      "current"
+     ],
+     "title": "LoadConfig",
+     "type": "object"
+    },
+    "MeshConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "h_plane": {
+       "default": 0.0008,
+       "description": "Target element edge in copper areas [m].",
+       "exclusiveMinimum": 0.0,
+       "minimum": 0.0,
+       "title": "H Plane",
+       "type": "number"
+      },
+      "h_trace_factor": {
+       "default": 0.33,
+       "description": "Element edge along tracks as a fraction of the track width [1].",
+       "exclusiveMinimum": 0.0,
+       "maximum": 1.0,
+       "title": "H Trace Factor",
+       "type": "number"
+      },
+      "solver": {
+       "default": "auto",
+       "description": "Linear solver. 'auto': PARDISO or CHOLMOD when installed, else SuperLU; AMG-PCG above 1 million unknowns.",
+       "enum": [
+        "auto",
+        "superlu",
+        "pardiso",
+        "cholmod",
+        "amg"
+       ],
+       "title": "Solver",
+       "type": "string"
+      },
+      "via_ring_segments": {
+       "default": 16,
+       "description": "Mesh nodes around every via/pad contact ring [1].",
+       "maximum": 256,
+       "minimum": 8,
+       "title": "Via Ring Segments",
+       "type": "integer"
+      }
+     },
+     "title": "MeshConfig",
+     "type": "object"
+    },
+    "RailConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "net": {
+       "description": "Supply net whose copper carries the load current.",
+       "minLength": 1,
+       "title": "Net",
+       "type": "string"
+      },
+      "return": {
+       "anyOf": [
+        {
+         "description": "Net name, unique per board (the net's key). Never an index.",
+         "minLength": 1,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Return (ground) net, solved together with the rail. None = ideal lossless return: the drop is then the rail copper only.",
+       "title": "Return"
+      }
+     },
+     "required": [
+      "net"
+     ],
+     "title": "RailConfig",
+     "type": "object"
+    },
+    "SenseConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "neg": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Remote-sense pin on the return net, 'REFDES.PIN'. None = sense to ground.",
+       "title": "Neg"
+      },
+      "pos": {
+       "description": "Remote-sense pin on the rail net, 'REFDES.PIN' (e.g. 'U1.AA12').",
+       "title": "Pos",
+       "type": "string"
+      }
+     },
+     "required": [
+      "pos"
+     ],
+     "title": "SenseConfig",
+     "type": "object"
+    },
+    "VrmConfig": {
+     "additionalProperties": false,
+     "properties": {
+      "component": {
+       "description": "Refdes of the regulator (or connector) feeding the rail.",
+       "title": "Component",
+       "type": "string"
+      },
+      "pins": {
+       "default": [],
+       "description": "Output pin numbers on the rail net; empty = every pin of the component on it.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Pins",
+       "type": "array"
+      },
+      "r_out": {
+       "default": 0.0,
+       "description": "Thevenin output resistance of the regulator [ohm].",
+       "minimum": 0.0,
+       "title": "R Out",
+       "type": "number"
+      },
+      "return_pins": {
+       "default": [],
+       "description": "Return pin numbers on the return net; empty = every pin on the return net.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Return Pins",
+       "type": "array"
+      },
+      "sense": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/SenseConfig"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "description": "Remote sense: the regulator adjusts its output so the sensed voltage is vset."
+      },
+      "vset": {
+       "default": 1.0,
+       "description": "Regulated output voltage [V] (between output and return pins).",
+       "title": "Vset",
+       "type": "number"
+      }
+     },
+     "required": [
+      "component"
+     ],
+     "title": "VrmConfig",
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "limits": {
+     "$ref": "#/$defs/LimitsConfig",
+     "default": {
+      "drop_fraction": 0.03,
+      "via_current_density": 300000000.0
+     },
+     "description": "Pass/fail limits."
+    },
+    "loads": {
+     "description": "Current sinks.",
+     "items": {
+      "$ref": "#/$defs/LoadConfig"
+     },
+     "minItems": 1,
+     "title": "Loads",
+     "type": "array"
+    },
+    "mesh": {
+     "$ref": "#/$defs/MeshConfig",
+     "default": {
+      "h_plane": 0.0008,
+      "h_trace_factor": 0.33,
+      "solver": "auto",
+      "via_ring_segments": 16
+     },
+     "description": "Meshing and solver controls."
+    },
+    "rail": {
+     "$ref": "#/$defs/RailConfig",
+     "description": "Supply and return nets."
+    },
+    "temperature": {
+     "default": 298.15,
+     "description": "Uniform copper temperature [K]. Strings such as '25degC' parse.",
+     "title": "Temperature",
+     "type": "number"
+    },
+    "vrm": {
+     "$ref": "#/$defs/VrmConfig",
+     "description": "The regulator (Dirichlet source)."
+    }
+   },
+   "required": [
+    "rail",
+    "vrm",
+    "loads"
+   ],
+   "title": "DcConfig",
+   "type": "object"
+  },
+  "kind": "pi.dc",
+  "title": "DC IR drop",
+  "version": "1"
+ }
+]
