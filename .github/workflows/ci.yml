@@ -77,6 +77,9 @@ jobs:
           libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync --all-packages --python 3.13
       - run: uv run pytest -m "slow and not external and not kicad" --timeout 1800
+        env:
+          OA_RUN_SLOW: "1"
+          OA_TEST_MEM_GB: "12"
 
   reuse:
     name: reuse lint
