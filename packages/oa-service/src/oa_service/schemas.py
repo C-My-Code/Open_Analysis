@@ -76,8 +76,16 @@ def _render(doc: dict[str, Any]) -> str:
     return json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+def _with_plugins(registry: Registry) -> Registry:
+    """The registry plus the ``open_analysis.commands`` entry points (WP-210's propose.*)."""
+    from oa_service.commands import Registry as _Registry
+
+    return _Registry.load(registry.service)
+
+
 def write_schemas(registry: Registry, root: Path) -> list[Path]:
     """Write every schema under ``root`` (the repo's ``schemas/`` directory)."""
+    registry = _with_plugins(registry)
     written = []
     for sid in schema_models(registry):
         path = root / file_for(sid)
@@ -89,6 +97,7 @@ def write_schemas(registry: Registry, root: Path) -> list[Path]:
 
 def check_schemas(registry: Registry, root: Path) -> list[str]:
     """Differences between ``root`` and the regeneration (empty when in sync)."""
+    registry = _with_plugins(registry)
     problems = []
     expected = {
         file_for(sid): _render(schema_for(registry, sid)) for sid in schema_models(registry)

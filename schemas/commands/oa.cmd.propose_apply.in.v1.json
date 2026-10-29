@@ -1,0 +1,37 @@
+{
+  "$id": "oa.cmd.propose_apply.in/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Apply a stored proposal. A WRITE: needs a process that allows writes.",
+  "properties": {
+    "confirm": {
+      "default": false,
+      "description": "Human confirmation, honored only for the CLI and UI (`oa ... --yes`).",
+      "title": "Confirm",
+      "type": "boolean"
+    },
+    "confirm_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Single-use token from the proposal (required over MCP/REST).",
+      "title": "Confirm Token"
+    },
+    "proposal_id": {
+      "description": "Proposal id from propose.rules.",
+      "title": "Proposal Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal_id"
+  ],
+  "title": "ApplyIn",
+  "type": "object"
+}

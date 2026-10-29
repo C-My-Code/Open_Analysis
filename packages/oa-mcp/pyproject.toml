@@ -15,7 +15,13 @@ dependencies = [
     "oa-model",
     "oa-results",
     "oa-framework",
+    "oa-service",
+    "oa-jobs",
+    "mcp>=1.30,<2",
 ]
+
+[project.scripts]
+oa-mcp = "oa_mcp.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_mcp"]
@@ -24,3 +30,5 @@ packages = ["src/oa_mcp"]
 oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
+oa-service = { workspace = true }
+oa-jobs = { workspace = true }

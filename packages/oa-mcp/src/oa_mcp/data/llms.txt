@@ -1,0 +1,32 @@
+# Open_Analysis
+
+> Open-source (GPL-3.0-or-later) PCB signal, power and RF integrity analysis suite: board ingest (KiCad, IPC-2581), impedance, rule checks (ERC), DC IR drop and EM S-parameters. AI agents are first-class users: every operation is one catalog command available as an MCP tool (`oa-mcp`) and as `oa ... --json`. Results are structured, size-bounded and carry an accuracy class; writes to KiCad files are always propose-then-confirm.
+
+## Agent guide
+- [Guide for agents using Open_Analysis](docs/agents/AGENTS.md): setup, the M1 workflow, reading accuracy, budgets, propose and apply, errors.
+- [Connecting Claude Code and Claude Desktop](docs/agents/connect.md): config snippets, flags, HTTP transport.
+
+## MCP tools
+- [MCP server contract](docs/specs/ai-integration.md): tools, resources, prompts, schemas and safety rules (sections 8 and 10).
+- Tools: describe, open_board, board_summary, list_nets, get_net, stackup, compute_xsection_impedance, impedance_profile, run_erc, list_violations, explain_violation, run_analysis, job_status, cancel_job, get_result, result_summary, export_report, propose_rule_changes, apply_proposal.
+
+## CLI JSON
+- [Agent-friendly CLI conventions](docs/specs/ai-integration.md): `--json` envelope, exit codes 0-7, `oa describe`.
+
+## Schemas
+- [Board model](docs/specs/board-model.md): the frozen board data model.
+- [Interfaces](docs/specs/interfaces.md): analysis, result and job contracts.
+- [JSON Schemas](schemas/CHANGELOG.md): published schema files and their changelog.
+
+## Accuracy classes
+- [Accuracy classes and tolerance tiers](docs/agents/accuracy.md)
+
+## Rule catalog
+- [Roadmap](docs/ROADMAP.md): milestones, rule sets and validation gates.
+
+## Validation page
+- [Work breakdown](docs/TASKS.md): per-package acceptance criteria and golden suites.
+
+## Optional
+- [Architecture](docs/ARCHITECTURE.md)
+- [ADR-0007: AI integration](docs/adr/0007-ai-integration.md)

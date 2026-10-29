@@ -1,0 +1,582 @@
+cmd:analysis.run.out#PlanEstimate/cpus: no description
+cmd:analysis.run.out#PlanEstimate/est_peak_memory_gb: no description
+cmd:analysis.run.out#PlanEstimate/est_peak_memory_gb: numeric property without a [unit]
+cmd:analysis.run.out#PlanEstimate/est_seconds: no description
+cmd:analysis.run.out#PlanEstimate/est_seconds: numeric property without a [unit]
+cmd:analysis.run.out#PlanEstimate/est_wall_seconds: no description
+cmd:analysis.run.out#PlanEstimate/est_wall_seconds: numeric property without a [unit]
+cmd:analysis.run.out#PlanEstimate/external: no description
+cmd:analysis.run.out#PlanEstimate/needs: no description
+cmd:analysis.run.out#PlanEstimate/tasks: no description
+cmd:analysis.run.out#PlanEstimate/warnings: no description
+cmd:analysis.run.out#PlanEstimate/within_budget: no description
+cmd:erc.run.out#PlanEstimate/cpus: no description
+cmd:erc.run.out#PlanEstimate/est_peak_memory_gb: no description
+cmd:erc.run.out#PlanEstimate/est_peak_memory_gb: numeric property without a [unit]
+cmd:erc.run.out#PlanEstimate/est_seconds: no description
+cmd:erc.run.out#PlanEstimate/est_seconds: numeric property without a [unit]
+cmd:erc.run.out#PlanEstimate/est_wall_seconds: no description
+cmd:erc.run.out#PlanEstimate/est_wall_seconds: numeric property without a [unit]
+cmd:erc.run.out#PlanEstimate/external: no description
+cmd:erc.run.out#PlanEstimate/needs: no description
+cmd:erc.run.out#PlanEstimate/tasks: no description
+cmd:erc.run.out#PlanEstimate/warnings: no description
+cmd:erc.run.out#PlanEstimate/within_budget: no description
+cmd:impedance.profile.out#PlanEstimate/cpus: no description
+cmd:impedance.profile.out#PlanEstimate/est_peak_memory_gb: no description
+cmd:impedance.profile.out#PlanEstimate/est_peak_memory_gb: numeric property without a [unit]
+cmd:impedance.profile.out#PlanEstimate/est_seconds: no description
+cmd:impedance.profile.out#PlanEstimate/est_seconds: numeric property without a [unit]
+cmd:impedance.profile.out#PlanEstimate/est_wall_seconds: no description
+cmd:impedance.profile.out#PlanEstimate/est_wall_seconds: numeric property without a [unit]
+cmd:impedance.profile.out#PlanEstimate/external: no description
+cmd:impedance.profile.out#PlanEstimate/needs: no description
+cmd:impedance.profile.out#PlanEstimate/tasks: no description
+cmd:impedance.profile.out#PlanEstimate/warnings: no description
+cmd:impedance.profile.out#PlanEstimate/within_budget: no description
+cmd:impedance.xs.in#CannonballHuray/rz: numeric property without a [unit]
+cmd:impedance.xs.in#ConstantDkDf/df: numeric property without a [unit]
+cmd:impedance.xs.in#ConstantDkDf/dk: numeric property without a [unit]
+cmd:impedance.xs.in#ConstantDkDf/f_ref: numeric property without a [unit]
+cmd:impedance.xs.in#CrossSection/background_dk: numeric property without a [unit]
+cmd:impedance.xs.in#DjordjevicSarkar/df: numeric property without a [unit]
+cmd:impedance.xs.in#DjordjevicSarkar/dk: numeric property without a [unit]
+cmd:impedance.xs.in#DjordjevicSarkar/f_high: numeric property without a [unit]
+cmd:impedance.xs.in#DjordjevicSarkar/f_low: numeric property without a [unit]
+cmd:impedance.xs.in#DjordjevicSarkar/f_ref: numeric property without a [unit]
+cmd:impedance.xs.in#Groisse/rq: numeric property without a [unit]
+cmd:impedance.xs.in#Hammerstad/rq: numeric property without a [unit]
+cmd:impedance.xs.in#Huray/flat_ratio: numeric property without a [unit]
+cmd:impedance.xs.in#Huray/sphere_radius: numeric property without a [unit]
+cmd:impedance.xs.in#Huray/surface_ratio: numeric property without a [unit]
+cmd:impedance.xs.in#MultiPoleDebye/eps_inf: numeric property without a [unit]
+cmd:impedance.xs.in#MultiPoleDebye/sigma_dc: numeric property without a [unit]
+cmd:impedance.xs.in#XsCircle/radius: numeric property without a [unit]
+cmd:impedance.xs.in#XsCircle/u_center: numeric property without a [unit]
+cmd:impedance.xs.in#XsCircle/z_center: numeric property without a [unit]
+cmd:impedance.xs.in#XsConductor/conductivity: numeric property without a [unit]
+cmd:impedance.xs.in#XsDielectric/dk_z_over_dk_xy: numeric property without a [unit]
+cmd:impedance.xs.in#XsPlane/thickness: numeric property without a [unit]
+cmd:impedance.xs.in#XsPlane/u_max: numeric property without a [unit]
+cmd:impedance.xs.in#XsPlane/u_min: numeric property without a [unit]
+cmd:impedance.xs.in#XsPlane/z_bottom: numeric property without a [unit]
+cmd:impedance.xs.in#XsSlab/u_max: numeric property without a [unit]
+cmd:impedance.xs.in#XsSlab/u_min: numeric property without a [unit]
+cmd:impedance.xs.in#XsSlab/z_bottom: numeric property without a [unit]
+cmd:impedance.xs.in#XsSlab/z_top: numeric property without a [unit]
+cmd:impedance.xs.in#XsTrapezoid/thickness: numeric property without a [unit]
+cmd:impedance.xs.in#XsTrapezoid/u_center: numeric property without a [unit]
+cmd:impedance.xs.in#XsTrapezoid/w_bottom: numeric property without a [unit]
+cmd:impedance.xs.in#XsTrapezoid/w_top: numeric property without a [unit]
+cmd:impedance.xs.in#XsTrapezoid/z_bottom: numeric property without a [unit]
+cmd:results.explain.out#ViolationView/limit: numeric property without a [unit]
+cmd:results.explain.out#ViolationView/measured: numeric property without a [unit]
+cmd:results.explain.out/margin: numeric property without a [unit]
+cmd:results.violations.out#ViolationBrief/limit: numeric property without a [unit]
+cmd:results.violations.out#ViolationBrief/measured: numeric property without a [unit]
+cmd:results.violations.out#ViolationView/limit: numeric property without a [unit]
+cmd:results.violations.out#ViolationView/measured: numeric property without a [unit]
+cmd:setups.get.out#CoaxPort/inner_radius: numeric property without a [unit]
+cmd:setups.get.out#CoaxPort/outer_radius: numeric property without a [unit]
+cmd:setups.get.out#CoaxPort/z0: numeric property without a [unit]
+cmd:setups.get.out#LumpedPort/z0: numeric property without a [unit]
+cmd:setups.get.out#NearestReferenceTerminal/search_radius: numeric property without a [unit]
+cmd:setups.get.out#PlanePairPort/radius: numeric property without a [unit]
+cmd:setups.get.out#TraceEndPort/deembed: numeric property without a [unit]
+cmd:setups.get.out#TraceEndPort/z0: numeric property without a [unit]
+file:board-model.v1.json#Backdrill/depth: numeric property without a [unit]
+file:board-model.v1.json#Backdrill/diameter: numeric property without a [unit]
+file:board-model.v1.json#BoardMeta/arc_tolerance: numeric property without a [unit]
+file:board-model.v1.json#CannonballHuray/rz: numeric property without a [unit]
+file:board-model.v1.json#ChamferedRectShape/chamfer: numeric property without a [unit]
+file:board-model.v1.json#ChamferedRectShape/corner_radius: numeric property without a [unit]
+file:board-model.v1.json#ChamferedRectShape/height: numeric property without a [unit]
+file:board-model.v1.json#ChamferedRectShape/width: numeric property without a [unit]
+file:board-model.v1.json#CircleShape/diameter: numeric property without a [unit]
+file:board-model.v1.json#Component/body_height: numeric property without a [unit]
+file:board-model.v1.json#Component/rotation: numeric property without a [unit]
+file:board-model.v1.json#ConductorLayer/plating_thickness: numeric property without a [unit]
+file:board-model.v1.json#ConductorLayer/thickness: numeric property without a [unit]
+file:board-model.v1.json#ConductorLayer/z_bottom: numeric property without a [unit]
+file:board-model.v1.json#ConductorLayer/z_top: numeric property without a [unit]
+file:board-model.v1.json#ConductorMaterial/conductivity: numeric property without a [unit]
+file:board-model.v1.json#ConductorMaterial/mu_r: numeric property without a [unit]
+file:board-model.v1.json#ConductorMaterial/t_ref: numeric property without a [unit]
+file:board-model.v1.json#ConductorMaterial/temp_coeff: numeric property without a [unit]
+file:board-model.v1.json#ConstantDkDf/df: numeric property without a [unit]
+file:board-model.v1.json#ConstantDkDf/dk: numeric property without a [unit]
+file:board-model.v1.json#ConstantDkDf/f_ref: numeric property without a [unit]
+file:board-model.v1.json#DielectricLayer/thickness: numeric property without a [unit]
+file:board-model.v1.json#DielectricLayer/z_bottom: numeric property without a [unit]
+file:board-model.v1.json#DielectricLayer/z_top: numeric property without a [unit]
+file:board-model.v1.json#DielectricMaterial/dk_z_over_dk_xy: numeric property without a [unit]
+file:board-model.v1.json#DiffPair/target_z_diff: numeric property without a [unit]
+file:board-model.v1.json#DjordjevicSarkar/df: numeric property without a [unit]
+file:board-model.v1.json#DjordjevicSarkar/dk: numeric property without a [unit]
+file:board-model.v1.json#DjordjevicSarkar/f_high: numeric property without a [unit]
+file:board-model.v1.json#DjordjevicSarkar/f_low: numeric property without a [unit]
+file:board-model.v1.json#DjordjevicSarkar/f_ref: numeric property without a [unit]
+file:board-model.v1.json#Drill/diameter: numeric property without a [unit]
+file:board-model.v1.json#Drill/plating_thickness: numeric property without a [unit]
+file:board-model.v1.json#Drill/slot_length: numeric property without a [unit]
+file:board-model.v1.json#Etch/value: numeric property without a [unit]
+file:board-model.v1.json#Groisse/rq: numeric property without a [unit]
+file:board-model.v1.json#Hammerstad/rq: numeric property without a [unit]
+file:board-model.v1.json#Huray/flat_ratio: numeric property without a [unit]
+file:board-model.v1.json#Huray/sphere_radius: numeric property without a [unit]
+file:board-model.v1.json#Huray/surface_ratio: numeric property without a [unit]
+file:board-model.v1.json#MaskLayer/thickness: numeric property without a [unit]
+file:board-model.v1.json#MaskLayer/thickness_over_copper: numeric property without a [unit]
+file:board-model.v1.json#MaskLayer/z_bottom: numeric property without a [unit]
+file:board-model.v1.json#MaskLayer/z_top: numeric property without a [unit]
+file:board-model.v1.json#MultiPoleDebye/eps_inf: numeric property without a [unit]
+file:board-model.v1.json#MultiPoleDebye/sigma_dc: numeric property without a [unit]
+file:board-model.v1.json#NetClass/clearance: numeric property without a [unit]
+file:board-model.v1.json#NetClass/dp_gap: numeric property without a [unit]
+file:board-model.v1.json#NetClass/dp_width: numeric property without a [unit]
+file:board-model.v1.json#NetClass/target_tolerance: numeric property without a [unit]
+file:board-model.v1.json#NetClass/target_z_diff: numeric property without a [unit]
+file:board-model.v1.json#NetClass/target_z_se: numeric property without a [unit]
+file:board-model.v1.json#NetClass/track_width: numeric property without a [unit]
+file:board-model.v1.json#NetClass/via_diameter: numeric property without a [unit]
+file:board-model.v1.json#NetClass/via_drill: numeric property without a [unit]
+file:board-model.v1.json#ObroundShape/height: numeric property without a [unit]
+file:board-model.v1.json#ObroundShape/width: numeric property without a [unit]
+file:board-model.v1.json#Pad/die_delay: numeric property without a [unit]
+file:board-model.v1.json#Pad/die_length: numeric property without a [unit]
+file:board-model.v1.json#Pad/rotation: numeric property without a [unit]
+file:board-model.v1.json#PadstackLayer/thermal_gap: numeric property without a [unit]
+file:board-model.v1.json#PadstackLayer/thermal_spoke_width: numeric property without a [unit]
+file:board-model.v1.json#RectShape/height: numeric property without a [unit]
+file:board-model.v1.json#RectShape/width: numeric property without a [unit]
+file:board-model.v1.json#RoundRectShape/corner_radius: numeric property without a [unit]
+file:board-model.v1.json#RoundRectShape/height: numeric property without a [unit]
+file:board-model.v1.json#RoundRectShape/width: numeric property without a [unit]
+file:board-model.v1.json#ThermalProps/density: numeric property without a [unit]
+file:board-model.v1.json#ThermalProps/emissivity: numeric property without a [unit]
+file:board-model.v1.json#ThermalProps/k_xy: numeric property without a [unit]
+file:board-model.v1.json#ThermalProps/k_z: numeric property without a [unit]
+file:board-model.v1.json#ThermalProps/specific_heat: numeric property without a [unit]
+file:board-model.v1.json#Track/width: numeric property without a [unit]
+file:board-model.v1.json#TrapezoidShape/delta_x: numeric property without a [unit]
+file:board-model.v1.json#TrapezoidShape/delta_y: numeric property without a [unit]
+file:board-model.v1.json#TrapezoidShape/height: numeric property without a [unit]
+file:board-model.v1.json#TrapezoidShape/width: numeric property without a [unit]
+file:board-model.v1.json#Zone/min_thickness: numeric property without a [unit]
+file:oa-emproblem.v1.json#Boundaries/air_padding: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/xmax: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/xmin: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/ymax: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/ymin: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/zmax: numeric property without a [unit]
+file:oa-emproblem.v1.json#Box3/zmin: numeric property without a [unit]
+file:oa-emproblem.v1.json#CannonballHuray/rz: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorBody/z_bottom: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorBody/z_top: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorMaterial/conductivity: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorMaterial/mu_r: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorMaterial/t_ref: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConductorMaterial/temp_coeff: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConstantDkDf/df: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConstantDkDf/dk: numeric property without a [unit]
+file:oa-emproblem.v1.json#ConstantDkDf/f_ref: numeric property without a [unit]
+file:oa-emproblem.v1.json#Convergence/delta_s: numeric property without a [unit]
+file:oa-emproblem.v1.json#Convergence/energy_decay_db: numeric property without a [unit]
+file:oa-emproblem.v1.json#Convergence/max_wall_s: numeric property without a [unit]
+file:oa-emproblem.v1.json#DielectricMaterial/dk_z_over_dk_xy: numeric property without a [unit]
+file:oa-emproblem.v1.json#DjordjevicSarkar/df: numeric property without a [unit]
+file:oa-emproblem.v1.json#DjordjevicSarkar/dk: numeric property without a [unit]
+file:oa-emproblem.v1.json#DjordjevicSarkar/f_high: numeric property without a [unit]
+file:oa-emproblem.v1.json#DjordjevicSarkar/f_low: numeric property without a [unit]
+file:oa-emproblem.v1.json#DjordjevicSarkar/f_ref: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMCoaxPort/r_inner: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMCoaxPort/r_outer: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMCoaxPort/z0: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMCoaxPort/z: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMLumpedPort/width: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMLumpedPort/z0: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMTerminalGeom/z: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMWavePort/deembed: numeric property without a [unit]
+file:oa-emproblem.v1.json#EMWavePort/z0: numeric property without a [unit]
+file:oa-emproblem.v1.json#Eigenmode/f_target: numeric property without a [unit]
+file:oa-emproblem.v1.json#FarFieldRequest/phi_step: numeric property without a [unit]
+file:oa-emproblem.v1.json#FarFieldRequest/theta_step: numeric property without a [unit]
+file:oa-emproblem.v1.json#FieldDumpRequest/position: numeric property without a [unit]
+file:oa-emproblem.v1.json#FrequencyPlan/f_max: numeric property without a [unit]
+file:oa-emproblem.v1.json#FrequencyPlan/f_min: numeric property without a [unit]
+file:oa-emproblem.v1.json#Groisse/rq: numeric property without a [unit]
+file:oa-emproblem.v1.json#Hammerstad/rq: numeric property without a [unit]
+file:oa-emproblem.v1.json#Huray/flat_ratio: numeric property without a [unit]
+file:oa-emproblem.v1.json#Huray/sphere_radius: numeric property without a [unit]
+file:oa-emproblem.v1.json#Huray/surface_ratio: numeric property without a [unit]
+file:oa-emproblem.v1.json#LumpedElement/c: numeric property without a [unit]
+file:oa-emproblem.v1.json#LumpedElement/l: numeric property without a [unit]
+file:oa-emproblem.v1.json#LumpedElement/r: numeric property without a [unit]
+file:oa-emproblem.v1.json#MaterialSlab/z_bottom: numeric property without a [unit]
+file:oa-emproblem.v1.json#MaterialSlab/z_top: numeric property without a [unit]
+file:oa-emproblem.v1.json#MeshSettings/cells_per_wavelength: numeric property without a [unit]
+file:oa-emproblem.v1.json#MeshSettings/max_grading: numeric property without a [unit]
+file:oa-emproblem.v1.json#MeshSettings/min_cell: numeric property without a [unit]
+file:oa-emproblem.v1.json#MultiPoleDebye/eps_inf: numeric property without a [unit]
+file:oa-emproblem.v1.json#MultiPoleDebye/sigma_dc: numeric property without a [unit]
+file:oa-emproblem.v1.json#ThermalProps/density: numeric property without a [unit]
+file:oa-emproblem.v1.json#ThermalProps/emissivity: numeric property without a [unit]
+file:oa-emproblem.v1.json#ThermalProps/k_xy: numeric property without a [unit]
+file:oa-emproblem.v1.json#ThermalProps/k_z: numeric property without a [unit]
+file:oa-emproblem.v1.json#ThermalProps/specific_heat: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaBody/plating: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaBody/r_outer: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaBody/z_bottom: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaBody/z_top: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaPad/radius: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaPad/z_bottom: numeric property without a [unit]
+file:oa-emproblem.v1.json#ViaPad/z_top: numeric property without a [unit]
+file:oa-envelope.v1.json#ErrorInfo/code: no description
+file:oa-envelope.v1.json#ErrorInfo/hint: no description
+file:oa-envelope.v1.json#ErrorInfo/message: no description
+file:oa-envelope.v1.json#ErrorInfo/path: no description
+file:oa-error.v1.json/code: no description
+file:oa-error.v1.json/hint: no description
+file:oa-error.v1.json/message: no description
+file:oa-error.v1.json/path: no description
+file:oa-intent.v1.json#DiffPair/target_z_diff: numeric property without a [unit]
+file:oa-intent.v1.json#PowerIntent/i_max: numeric property without a [unit]
+file:oa-intent.v1.json#PowerIntent/tolerance: numeric property without a [unit]
+file:oa-intent.v1.json#PowerIntent/v_nominal: numeric property without a [unit]
+file:oa-intent.v1.json#SignalIntent/f_max: numeric property without a [unit]
+file:oa-intent.v1.json#SignalIntent/rise_time: numeric property without a [unit]
+file:oa-intent.v1.json#SignalIntent/target_z_diff: numeric property without a [unit]
+file:oa-intent.v1.json#SignalIntent/target_z_se: numeric property without a [unit]
+file:oa-intent.v1.json#SignalIntent/z_tolerance: numeric property without a [unit]
+file:oa-physics.v1.json#CannonballHuray/rz: numeric property without a [unit]
+file:oa-physics.v1.json#ConductorMaterial/conductivity: numeric property without a [unit]
+file:oa-physics.v1.json#ConductorMaterial/mu_r: numeric property without a [unit]
+file:oa-physics.v1.json#ConductorMaterial/t_ref: numeric property without a [unit]
+file:oa-physics.v1.json#ConductorMaterial/temp_coeff: numeric property without a [unit]
+file:oa-physics.v1.json#ConstantDkDf/df: numeric property without a [unit]
+file:oa-physics.v1.json#ConstantDkDf/dk: numeric property without a [unit]
+file:oa-physics.v1.json#ConstantDkDf/f_ref: numeric property without a [unit]
+file:oa-physics.v1.json#DielectricMaterial/dk_z_over_dk_xy: numeric property without a [unit]
+file:oa-physics.v1.json#DjordjevicSarkar/df: numeric property without a [unit]
+file:oa-physics.v1.json#DjordjevicSarkar/dk: numeric property without a [unit]
+file:oa-physics.v1.json#DjordjevicSarkar/f_high: numeric property without a [unit]
+file:oa-physics.v1.json#DjordjevicSarkar/f_low: numeric property without a [unit]
+file:oa-physics.v1.json#DjordjevicSarkar/f_ref: numeric property without a [unit]
+file:oa-physics.v1.json#Etch/value: numeric property without a [unit]
+file:oa-physics.v1.json#Groisse/rq: numeric property without a [unit]
+file:oa-physics.v1.json#Hammerstad/rq: numeric property without a [unit]
+file:oa-physics.v1.json#Huray/flat_ratio: numeric property without a [unit]
+file:oa-physics.v1.json#Huray/sphere_radius: numeric property without a [unit]
+file:oa-physics.v1.json#Huray/surface_ratio: numeric property without a [unit]
+file:oa-physics.v1.json#LayerOverride/plating_thickness: numeric property without a [unit]
+file:oa-physics.v1.json#LayerOverride/thickness: numeric property without a [unit]
+file:oa-physics.v1.json#MultiPoleDebye/eps_inf: numeric property without a [unit]
+file:oa-physics.v1.json#MultiPoleDebye/sigma_dc: numeric property without a [unit]
+file:oa-physics.v1.json#ThermalProps/density: numeric property without a [unit]
+file:oa-physics.v1.json#ThermalProps/emissivity: numeric property without a [unit]
+file:oa-physics.v1.json#ThermalProps/k_xy: numeric property without a [unit]
+file:oa-physics.v1.json#ThermalProps/k_z: numeric property without a [unit]
+file:oa-physics.v1.json#ThermalProps/specific_heat: numeric property without a [unit]
+file:oa-physics.v1.json/temperature: numeric property without a [unit]
+file:oa-physics.v1.json/via_plating_thickness: numeric property without a [unit]
+file:oa-project.v1.json#ReadOptions/arc_tolerance: numeric property without a [unit]
+file:oa-result.v1.json#ArtifactOnly/accuracy_class: no description
+file:oa-result.v1.json#ArtifactOnly/validity_flags: no description
+file:oa-result.v1.json#ArtifactRef/media_type: no description
+file:oa-result.v1.json#ArtifactRef/name: no description
+file:oa-result.v1.json#ArtifactRef/sha256: no description
+file:oa-result.v1.json#ArtifactRef/size: no description
+file:oa-result.v1.json#ColumnSpec/dtype: no description
+file:oa-result.v1.json#ColumnSpec/name: no description
+file:oa-result.v1.json#ColumnSpec/role: no description
+file:oa-result.v1.json#ColumnSpec/unit: no description
+file:oa-result.v1.json#ExtractionResult/C/data: no description
+file:oa-result.v1.json#ExtractionResult/C/dtype: no description
+file:oa-result.v1.json#ExtractionResult/C/shape: no description
+file:oa-result.v1.json#ExtractionResult/G/data: no description
+file:oa-result.v1.json#ExtractionResult/G/dtype: no description
+file:oa-result.v1.json#ExtractionResult/G/shape: no description
+file:oa-result.v1.json#ExtractionResult/G: no description
+file:oa-result.v1.json#ExtractionResult/L/data: no description
+file:oa-result.v1.json#ExtractionResult/L/dtype: no description
+file:oa-result.v1.json#ExtractionResult/L/shape: no description
+file:oa-result.v1.json#ExtractionResult/L: no description
+file:oa-result.v1.json#ExtractionResult/R/data: no description
+file:oa-result.v1.json#ExtractionResult/R/dtype: no description
+file:oa-result.v1.json#ExtractionResult/R/shape: no description
+file:oa-result.v1.json#ExtractionResult/R: no description
+file:oa-result.v1.json#ExtractionResult/accuracy_class: no description
+file:oa-result.v1.json#ExtractionResult/basis: no description
+file:oa-result.v1.json#ExtractionResult/freqs: no description
+file:oa-result.v1.json#ExtractionResult/terminals: no description
+file:oa-result.v1.json#ExtractionResult/validity_flags: no description
+file:oa-result.v1.json#ExtractionResult/validity_fmax: numeric property without a [unit]
+file:oa-result.v1.json#FarFieldResult/accuracy_class: no description
+file:oa-result.v1.json#FarFieldResult/e_phi/data: no description
+file:oa-result.v1.json#FarFieldResult/e_phi/dtype: no description
+file:oa-result.v1.json#FarFieldResult/e_phi/shape: no description
+file:oa-result.v1.json#FarFieldResult/e_theta/data: no description
+file:oa-result.v1.json#FarFieldResult/e_theta/dtype: no description
+file:oa-result.v1.json#FarFieldResult/e_theta/shape: no description
+file:oa-result.v1.json#FarFieldResult/efficiency: no description
+file:oa-result.v1.json#FarFieldResult/p_acc: no description
+file:oa-result.v1.json#FarFieldResult/validity_flags: no description
+file:oa-result.v1.json#FieldData/clim_hint: no description
+file:oa-result.v1.json#FieldData/location: no description
+file:oa-result.v1.json#FieldData/log_scale: no description
+file:oa-result.v1.json#FieldData/name: no description
+file:oa-result.v1.json#FieldData/unit: no description
+file:oa-result.v1.json#FieldData/values/data: no description
+file:oa-result.v1.json#FieldData/values/dtype: no description
+file:oa-result.v1.json#FieldData/values/shape: no description
+file:oa-result.v1.json#FieldPiece/fields: no description
+file:oa-result.v1.json#FieldPiece/net: no description
+file:oa-result.v1.json#FieldResult/accuracy_class: no description
+file:oa-result.v1.json#FieldResult/pieces: no description
+file:oa-result.v1.json#FieldResult/validity_flags: no description
+file:oa-result.v1.json#ImpedanceResult/accuracy_class: no description
+file:oa-result.v1.json#ImpedanceResult/method: no description
+file:oa-result.v1.json#ImpedanceResult/model_name: no description
+file:oa-result.v1.json#ImpedanceResult/notes: no description
+file:oa-result.v1.json#ImpedanceResult/solver_version: no description
+file:oa-result.v1.json#ImpedanceResult/validity: no description
+file:oa-result.v1.json#ImpedanceResult/validity_flags: no description
+file:oa-result.v1.json#ImpedanceResult/xs_key: no description
+file:oa-result.v1.json#LineParams/delay_per_m/data: no description
+file:oa-result.v1.json#LineParams/delay_per_m/dtype: no description
+file:oa-result.v1.json#LineParams/delay_per_m/shape: no description
+file:oa-result.v1.json#LineParams/eps_eff_modal/data: no description
+file:oa-result.v1.json#LineParams/eps_eff_modal/dtype: no description
+file:oa-result.v1.json#LineParams/eps_eff_modal/shape: no description
+file:oa-result.v1.json#LineParams/loss_db_per_m/data: no description
+file:oa-result.v1.json#LineParams/loss_db_per_m/dtype: no description
+file:oa-result.v1.json#LineParams/loss_db_per_m/shape: no description
+file:oa-result.v1.json#LineParams/z0: no description
+file:oa-result.v1.json#LineParams/z_comm: no description
+file:oa-result.v1.json#LineParams/z_diff: no description
+file:oa-result.v1.json#LineParams/z_even: no description
+file:oa-result.v1.json#LineParams/z_odd: no description
+file:oa-result.v1.json#LineParams/zc_matrix/data: no description
+file:oa-result.v1.json#LineParams/zc_matrix/dtype: no description
+file:oa-result.v1.json#LineParams/zc_matrix/shape: no description
+file:oa-result.v1.json#LineParams/zc_modal/data: no description
+file:oa-result.v1.json#LineParams/zc_modal/dtype: no description
+file:oa-result.v1.json#LineParams/zc_modal/shape: no description
+file:oa-result.v1.json#MatrixPassivity/fixes_applied: no description
+file:oa-result.v1.json#MatrixPassivity/notes: no description
+file:oa-result.v1.json#MatrixPassivity/ok: no description
+file:oa-result.v1.json#NetworkResult/accuracy_class: no description
+file:oa-result.v1.json#NetworkResult/mixed_mode_pairs: no description
+file:oa-result.v1.json#NetworkResult/port_map: no description
+file:oa-result.v1.json#NetworkResult/port_names: no description
+file:oa-result.v1.json#NetworkResult/s/data: no description
+file:oa-result.v1.json#NetworkResult/s/dtype: no description
+file:oa-result.v1.json#NetworkResult/s/shape: no description
+file:oa-result.v1.json#NetworkResult/validity_flags: no description
+file:oa-result.v1.json#NetworkResult/validity_fmax: no description
+file:oa-result.v1.json#NetworkResult/validity_fmax: numeric property without a [unit]
+file:oa-result.v1.json#NetworkResult/z0/data: no description
+file:oa-result.v1.json#NetworkResult/z0/dtype: no description
+file:oa-result.v1.json#NetworkResult/z0/shape: no description
+file:oa-result.v1.json#PortMapEntry/location: no description
+file:oa-result.v1.json#PortMapEntry/nets: no description
+file:oa-result.v1.json#PortMapEntry/port: no description
+file:oa-result.v1.json#PortMapEntry/terminals: no description
+file:oa-result.v1.json#ProfileEvent/item: no description
+file:oa-result.v1.json#ProfileEvent/kind: no description
+file:oa-result.v1.json#ProfileEvent/message: no description
+file:oa-result.v1.json#ProfileEvent/s: no description
+file:oa-result.v1.json#ProfileEvent/s: numeric property without a [unit]
+file:oa-result.v1.json#ProfileResult/accuracy_class: no description
+file:oa-result.v1.json#ProfileResult/events: no description
+file:oa-result.v1.json#ProfileResult/net: no description
+file:oa-result.v1.json#ProfileResult/quantities: no description
+file:oa-result.v1.json#ProfileResult/target: no description
+file:oa-result.v1.json#ProfileResult/target: numeric property without a [unit]
+file:oa-result.v1.json#ProfileResult/tolerance: no description
+file:oa-result.v1.json#ProfileResult/tolerance: numeric property without a [unit]
+file:oa-result.v1.json#ProfileResult/validity_flags: no description
+file:oa-result.v1.json#Provenance/analysis: no description
+file:oa-result.v1.json#Provenance/analysis_version: no description
+file:oa-result.v1.json#Provenance/board_hash: no description
+file:oa-result.v1.json#Provenance/config: no description
+file:oa-result.v1.json#Provenance/finished_utc: no description
+file:oa-result.v1.json#Provenance/host: no description
+file:oa-result.v1.json#Provenance/inputs_hash: no description
+file:oa-result.v1.json#Provenance/physics_hash: no description
+file:oa-result.v1.json#Provenance/setup_hash: no description
+file:oa-result.v1.json#Provenance/solver: no description
+file:oa-result.v1.json#Provenance/solver_version: no description
+file:oa-result.v1.json#Provenance/started_utc: no description
+file:oa-result.v1.json#QualityCriteria/cqm_min: no description
+file:oa-result.v1.json#QualityCriteria/cqm_min: numeric property without a [unit]
+file:oa-result.v1.json#QualityCriteria/max_df_fraction: no description
+file:oa-result.v1.json#QualityCriteria/max_df_fraction: numeric property without a [unit]
+file:oa-result.v1.json#QualityCriteria/passivity_tol: no description
+file:oa-result.v1.json#QualityCriteria/passivity_tol: numeric property without a [unit]
+file:oa-result.v1.json#QualityCriteria/pqm_min: no description
+file:oa-result.v1.json#QualityCriteria/pqm_min: numeric property without a [unit]
+file:oa-result.v1.json#QualityCriteria/require_dc: no description
+file:oa-result.v1.json#QualityCriteria/rqm_min: no description
+file:oa-result.v1.json#QualityCriteria/rqm_min: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/cqm: no description
+file:oa-result.v1.json#QualityReport/cqm: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/dc: no description
+file:oa-result.v1.json#QualityReport/f_max: no description
+file:oa-result.v1.json#QualityReport/f_max: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/f_min: no description
+file:oa-result.v1.json#QualityReport/f_min: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/fixes_applied: no description
+file:oa-result.v1.json#QualityReport/max_singular_value: no description
+file:oa-result.v1.json#QualityReport/max_singular_value: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/n_freqs: no description
+file:oa-result.v1.json#QualityReport/notes: no description
+file:oa-result.v1.json#QualityReport/pqm: no description
+file:oa-result.v1.json#QualityReport/pqm: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/reciprocity_max_err: no description
+file:oa-result.v1.json#QualityReport/reciprocity_max_err: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/rqm: no description
+file:oa-result.v1.json#QualityReport/rqm: numeric property without a [unit]
+file:oa-result.v1.json#QualityReport/verdict: no description
+file:oa-result.v1.json#QualityReport/worst_passivity_freq: no description
+file:oa-result.v1.json#QualityReport/worst_passivity_freq: numeric property without a [unit]
+file:oa-result.v1.json#RLGC/C/data: no description
+file:oa-result.v1.json#RLGC/C/dtype: no description
+file:oa-result.v1.json#RLGC/C/shape: no description
+file:oa-result.v1.json#RLGC/G/data: no description
+file:oa-result.v1.json#RLGC/G/dtype: no description
+file:oa-result.v1.json#RLGC/G/shape: no description
+file:oa-result.v1.json#RLGC/L/data: no description
+file:oa-result.v1.json#RLGC/L/dtype: no description
+file:oa-result.v1.json#RLGC/L/shape: no description
+file:oa-result.v1.json#RLGC/R/data: no description
+file:oa-result.v1.json#RLGC/R/dtype: no description
+file:oa-result.v1.json#RLGC/R/shape: no description
+file:oa-result.v1.json#RLGC/conductor_ids: no description
+file:oa-result.v1.json#RLGCResultSet/accuracy_class: no description
+file:oa-result.v1.json#RLGCResultSet/results: no description
+file:oa-result.v1.json#RLGCResultSet/validity_flags: no description
+file:oa-result.v1.json#RasterGrid2D/dx: no description
+file:oa-result.v1.json#RasterGrid2D/dx: numeric property without a [unit]
+file:oa-result.v1.json#RasterGrid2D/dy: no description
+file:oa-result.v1.json#RasterGrid2D/dy: numeric property without a [unit]
+file:oa-result.v1.json#RasterGrid2D/layer: no description
+file:oa-result.v1.json#RasterGrid2D/nx: no description
+file:oa-result.v1.json#RasterGrid2D/ny: no description
+file:oa-result.v1.json#RasterGrid2D/origin: no description
+file:oa-result.v1.json#Remediation/actions: no description
+file:oa-result.v1.json#Remediation/hint: no description
+file:oa-result.v1.json#RemediationAction/field: no description
+file:oa-result.v1.json#RemediationAction/item: no description
+file:oa-result.v1.json#RemediationAction/note: no description
+file:oa-result.v1.json#ResultItem/data: no description
+file:oa-result.v1.json#ResultItem/id: no description
+file:oa-result.v1.json#ResultItem/kind: no description
+file:oa-result.v1.json#ResultItem/title: no description
+file:oa-result.v1.json#Scalar/limit: no description
+file:oa-result.v1.json#Scalar/limit: numeric property without a [unit]
+file:oa-result.v1.json#Scalar/name: no description
+file:oa-result.v1.json#Scalar/status: no description
+file:oa-result.v1.json#Scalar/unit: no description
+file:oa-result.v1.json#Scalar/value: no description
+file:oa-result.v1.json#Scalar/value: numeric property without a [unit]
+file:oa-result.v1.json#ScalarSet/accuracy_class: no description
+file:oa-result.v1.json#ScalarSet/validity_flags: no description
+file:oa-result.v1.json#ScalarSet/values: no description
+file:oa-result.v1.json#SolverProvenance/inputs_hash: no description
+file:oa-result.v1.json#SolverProvenance/solver: no description
+file:oa-result.v1.json#SolverProvenance/solver_version: no description
+file:oa-result.v1.json#TableResult/accuracy_class: no description
+file:oa-result.v1.json#TableResult/columns: no description
+file:oa-result.v1.json#TableResult/inline: no description
+file:oa-result.v1.json#TableResult/validity_flags: no description
+file:oa-result.v1.json#TetMesh3D/nodes/data: no description
+file:oa-result.v1.json#TetMesh3D/nodes/dtype: no description
+file:oa-result.v1.json#TetMesh3D/nodes/shape: no description
+file:oa-result.v1.json#TetMesh3D/tets/data: no description
+file:oa-result.v1.json#TetMesh3D/tets/dtype: no description
+file:oa-result.v1.json#TetMesh3D/tets/shape: no description
+file:oa-result.v1.json#TriMesh2D/layer: no description
+file:oa-result.v1.json#TriMesh2D/triangles/data: no description
+file:oa-result.v1.json#TriMesh2D/triangles/dtype: no description
+file:oa-result.v1.json#TriMesh2D/triangles/shape: no description
+file:oa-result.v1.json#TriMesh2D/z: no description
+file:oa-result.v1.json#TriMesh2D/z: numeric property without a [unit]
+file:oa-result.v1.json#ValidityFlag/code: no description
+file:oa-result.v1.json#ValidityFlag/message: no description
+file:oa-result.v1.json#ValidityFlag/ok: no description
+file:oa-result.v1.json#Violation/fingerprint: no description
+file:oa-result.v1.json#Violation/fix_hint: no description
+file:oa-result.v1.json#Violation/items: no description
+file:oa-result.v1.json#Violation/layers: no description
+file:oa-result.v1.json#Violation/limit: no description
+file:oa-result.v1.json#Violation/limit: numeric property without a [unit]
+file:oa-result.v1.json#Violation/location: no description
+file:oa-result.v1.json#Violation/measured: no description
+file:oa-result.v1.json#Violation/measured: numeric property without a [unit]
+file:oa-result.v1.json#Violation/message: no description
+file:oa-result.v1.json#Violation/nets: no description
+file:oa-result.v1.json#Violation/rule_id: no description
+file:oa-result.v1.json#Violation/severity: no description
+file:oa-result.v1.json#Violation/unit: no description
+file:oa-result.v1.json#ViolationSet/accuracy_class: no description
+file:oa-result.v1.json#ViolationSet/counts: no description
+file:oa-result.v1.json#ViolationSet/rules_run: no description
+file:oa-result.v1.json#ViolationSet/validity_flags: no description
+file:oa-result.v1.json#ViolationSet/violations: no description
+file:oa-result.v1.json#Waiver/author: no description
+file:oa-result.v1.json#Waiver/expires: no description
+file:oa-result.v1.json#Waiver/fingerprint: no description
+file:oa-result.v1.json#Waiver/nets: no description
+file:oa-result.v1.json#Waiver/reason: no description
+file:oa-result.v1.json#Waiver/rule_id: no description
+file:oa-result.v1.json/accuracy_class: no description
+file:oa-result.v1.json/diagnostics: no description
+file:oa-result.v1.json/id: no description
+file:oa-result.v1.json/items: no description
+file:oa-result.v1.json/status: no description
+file:oa-result.v1.json/summary: no description
+file:oa-result.v1.json/validity_flags: no description
+file:oa-setup.v1.json#CoaxPort/inner_radius: numeric property without a [unit]
+file:oa-setup.v1.json#CoaxPort/outer_radius: numeric property without a [unit]
+file:oa-setup.v1.json#CoaxPort/z0: numeric property without a [unit]
+file:oa-setup.v1.json#LumpedPort/z0: numeric property without a [unit]
+file:oa-setup.v1.json#NearestReferenceTerminal/search_radius: numeric property without a [unit]
+file:oa-setup.v1.json#PlanePairPort/radius: numeric property without a [unit]
+file:oa-setup.v1.json#TraceEndPort/deembed: numeric property without a [unit]
+file:oa-setup.v1.json#TraceEndPort/z0: numeric property without a [unit]
+file:oa-xsection.v1.json#CannonballHuray/rz: numeric property without a [unit]
+file:oa-xsection.v1.json#ConstantDkDf/df: numeric property without a [unit]
+file:oa-xsection.v1.json#ConstantDkDf/dk: numeric property without a [unit]
+file:oa-xsection.v1.json#ConstantDkDf/f_ref: numeric property without a [unit]
+file:oa-xsection.v1.json#DjordjevicSarkar/df: numeric property without a [unit]
+file:oa-xsection.v1.json#DjordjevicSarkar/dk: numeric property without a [unit]
+file:oa-xsection.v1.json#DjordjevicSarkar/f_high: numeric property without a [unit]
+file:oa-xsection.v1.json#DjordjevicSarkar/f_low: numeric property without a [unit]
+file:oa-xsection.v1.json#DjordjevicSarkar/f_ref: numeric property without a [unit]
+file:oa-xsection.v1.json#Groisse/rq: numeric property without a [unit]
+file:oa-xsection.v1.json#Hammerstad/rq: numeric property without a [unit]
+file:oa-xsection.v1.json#Huray/flat_ratio: numeric property without a [unit]
+file:oa-xsection.v1.json#Huray/sphere_radius: numeric property without a [unit]
+file:oa-xsection.v1.json#Huray/surface_ratio: numeric property without a [unit]
+file:oa-xsection.v1.json#MultiPoleDebye/eps_inf: numeric property without a [unit]
+file:oa-xsection.v1.json#MultiPoleDebye/sigma_dc: numeric property without a [unit]
+file:oa-xsection.v1.json#XsCircle/radius: numeric property without a [unit]
+file:oa-xsection.v1.json#XsCircle/u_center: numeric property without a [unit]
+file:oa-xsection.v1.json#XsCircle/z_center: numeric property without a [unit]
+file:oa-xsection.v1.json#XsConductor/conductivity: numeric property without a [unit]
+file:oa-xsection.v1.json#XsDielectric/dk_z_over_dk_xy: numeric property without a [unit]
+file:oa-xsection.v1.json#XsPlane/thickness: numeric property without a [unit]
+file:oa-xsection.v1.json#XsPlane/u_max: numeric property without a [unit]
+file:oa-xsection.v1.json#XsPlane/u_min: numeric property without a [unit]
+file:oa-xsection.v1.json#XsPlane/z_bottom: numeric property without a [unit]
+file:oa-xsection.v1.json#XsSlab/u_max: numeric property without a [unit]
+file:oa-xsection.v1.json#XsSlab/u_min: numeric property without a [unit]
+file:oa-xsection.v1.json#XsSlab/z_bottom: numeric property without a [unit]
+file:oa-xsection.v1.json#XsSlab/z_top: numeric property without a [unit]
+file:oa-xsection.v1.json#XsTrapezoid/thickness: numeric property without a [unit]
+file:oa-xsection.v1.json#XsTrapezoid/u_center: numeric property without a [unit]
+file:oa-xsection.v1.json#XsTrapezoid/w_bottom: numeric property without a [unit]
+file:oa-xsection.v1.json#XsTrapezoid/w_top: numeric property without a [unit]
+file:oa-xsection.v1.json#XsTrapezoid/z_bottom: numeric property without a [unit]
+file:oa-xsection.v1.json/background_dk: numeric property without a [unit]
