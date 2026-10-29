@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "oa-native"
+version = "0.1.0"
+description = "Open_Analysis compiled core (Rust/PyO3): KiCad S-expression parser"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = ["numpy>=1.26"]
+
+[tool.maturin]
+manifest-path = "../../crates/oa-native/Cargo.toml"
+python-source = "src"
+module-name = "oa_native._native"
+features = ["extension-module"]
+
+[dependency-groups]
+dev = ["maturin>=1.7,<2"]

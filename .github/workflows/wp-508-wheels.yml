@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: wp-508-wheels
+
+on:
+  push:
+    paths:
+      - "crates/oa-native/**"
+      - "packages/oa-native/**"
+      - "packages/oa-ingest-kicad/src/oa_ingest_kicad/sexpr.py"
+      - ".github/workflows/wp-508-wheels.yml"
+  pull_request:
+    paths:
+      - "crates/oa-native/**"
+      - "packages/oa-native/**"
+      - "packages/oa-ingest-kicad/src/oa_ingest_kicad/sexpr.py"
+      - ".github/workflows/wp-508-wheels.yml"
+
+jobs:
+  wheels:
+    name: abi3 wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: Build abi3 wheel
+        working-directory: packages/oa-native
+        run: uvx maturin build --release --out ../../dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oa-native-wheel-${{ matrix.os }}
+          path: dist/*.whl
+      - name: Equivalence tests against the Python oracle
+        run: |
+          uv sync
+          uv pip install --no-index --find-links dist oa-native
+          uv run --no-sync pytest packages/oa-native/tests -q
+      - name: Fallback with no wheel installed
+        run: |
+          uv pip uninstall oa-native
+          uv run --no-sync pytest packages/oa-ingest-kicad/tests -q -m "not external"
