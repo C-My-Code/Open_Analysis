@@ -11,6 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from accel_helpers import grid_laplacian, random_spd
+
 from oa_accel.errors import AccelError
 from oa_accel.memory import GIB, MemoryBudget, dense_solve_bytes
 from oa_accel.policy import DevicePolicy, Problem, select

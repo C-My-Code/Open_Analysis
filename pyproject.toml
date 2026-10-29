@@ -11,11 +11,20 @@ dependencies = []
 
 [tool.uv]
 package = false
+# cuda12 and cuda13 pin incompatible cuda-bindings; they are alternative opt-in extras.
+conflicts = [
+    [
+        { package = "oa-accel", extra = "cuda12" },
+        { package = "oa-accel", extra = "cuda13" },
+        { package = "oa-accel", extra = "rocm" },
+    ],
+]
 
 [tool.uv.workspace]
 members = ["packages/*"]
 
 [tool.uv.sources]
+oa-accel = { workspace = true }
 oa-assistant = { workspace = true }
 oa-cli = { workspace = true }
 oa-em = { workspace = true }
@@ -58,6 +67,7 @@ dev = [
     "charset-normalizer>=3.3",
     "types-PyYAML",
     "lxml-stubs",
+    "oa-accel",
     "oa-assistant",
     "oa-cli",
     "oa-em",
@@ -103,13 +113,14 @@ markers = [
     "external: needs an external tool (openEMS, Palace, ...)",
     "slow: long-running test",
     "kicad: needs KiCad installed",
+    "gpu: needs a GPU and OA_RUN_GPU=1",
 ]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["packages/oa-assistant/src", "packages/oa-cli/src", "packages/oa-em/src", "packages/oa-em-openems/src", "packages/oa-em-palace/src", "packages/oa-emi/src", "packages/oa-erc/src", "packages/oa-framework/src", "packages/oa-geometry/src", "packages/oa-impedance/src", "packages/oa-ingest-ipc2581/src", "packages/oa-ingest-kicad/src", "packages/oa-jobs/src", "packages/oa-kicad-bridge/src", "packages/oa-mcp/src", "packages/oa-mesh/src", "packages/oa-model/src", "packages/oa-network/src", "packages/oa-physics/src", "packages/oa-pi/src", "packages/oa-qs/src", "packages/oa-results/src", "packages/oa-server/src", "packages/oa-service/src", "packages/oa-si/src", "packages/oa-testkit/src", "packages/oa-thermal/src"]
+src = ["packages/oa-accel/src", "packages/oa-assistant/src", "packages/oa-cli/src", "packages/oa-em/src", "packages/oa-em-openems/src", "packages/oa-em-palace/src", "packages/oa-emi/src", "packages/oa-erc/src", "packages/oa-framework/src", "packages/oa-geometry/src", "packages/oa-impedance/src", "packages/oa-ingest-ipc2581/src", "packages/oa-ingest-kicad/src", "packages/oa-jobs/src", "packages/oa-kicad-bridge/src", "packages/oa-mcp/src", "packages/oa-mesh/src", "packages/oa-model/src", "packages/oa-network/src", "packages/oa-physics/src", "packages/oa-pi/src", "packages/oa-qs/src", "packages/oa-results/src", "packages/oa-server/src", "packages/oa-service/src", "packages/oa-si/src", "packages/oa-testkit/src", "packages/oa-thermal/src"]
 extend-exclude = ["schemas", "web", "tests/fixtures"]
 
 [tool.ruff.lint]
@@ -118,6 +129,7 @@ ignore = ["RUF012", "PT018"]
 
 [tool.ruff.lint.isort]
 known-first-party = [
+    "oa_accel",
     "oa_assistant",
     "oa_cli",
     "oa_em",
@@ -153,7 +165,7 @@ known-first-party = [
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
 python_version = "3.11"
-mypy_path = "$MYPY_CONFIG_FILE_DIR/packages/oa-assistant/src:$MYPY_CONFIG_FILE_DIR/packages/oa-cli/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-openems/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-palace/src:$MYPY_CONFIG_FILE_DIR/packages/oa-emi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-erc/src:$MYPY_CONFIG_FILE_DIR/packages/oa-framework/src:$MYPY_CONFIG_FILE_DIR/packages/oa-geometry/src:$MYPY_CONFIG_FILE_DIR/packages/oa-impedance/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-ipc2581/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-kicad/src:$MYPY_CONFIG_FILE_DIR/packages/oa-jobs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-kicad-bridge/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mcp/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mesh/src:$MYPY_CONFIG_FILE_DIR/packages/oa-model/src:$MYPY_CONFIG_FILE_DIR/packages/oa-network/src:$MYPY_CONFIG_FILE_DIR/packages/oa-physics/src:$MYPY_CONFIG_FILE_DIR/packages/oa-pi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-qs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-results/src:$MYPY_CONFIG_FILE_DIR/packages/oa-server/src:$MYPY_CONFIG_FILE_DIR/packages/oa-service/src:$MYPY_CONFIG_FILE_DIR/packages/oa-si/src:$MYPY_CONFIG_FILE_DIR/packages/oa-testkit/src:$MYPY_CONFIG_FILE_DIR/packages/oa-thermal/src"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/packages/oa-accel/src:$MYPY_CONFIG_FILE_DIR/packages/oa-assistant/src:$MYPY_CONFIG_FILE_DIR/packages/oa-cli/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-openems/src:$MYPY_CONFIG_FILE_DIR/packages/oa-em-palace/src:$MYPY_CONFIG_FILE_DIR/packages/oa-emi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-erc/src:$MYPY_CONFIG_FILE_DIR/packages/oa-framework/src:$MYPY_CONFIG_FILE_DIR/packages/oa-geometry/src:$MYPY_CONFIG_FILE_DIR/packages/oa-impedance/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-ipc2581/src:$MYPY_CONFIG_FILE_DIR/packages/oa-ingest-kicad/src:$MYPY_CONFIG_FILE_DIR/packages/oa-jobs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-kicad-bridge/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mcp/src:$MYPY_CONFIG_FILE_DIR/packages/oa-mesh/src:$MYPY_CONFIG_FILE_DIR/packages/oa-model/src:$MYPY_CONFIG_FILE_DIR/packages/oa-network/src:$MYPY_CONFIG_FILE_DIR/packages/oa-physics/src:$MYPY_CONFIG_FILE_DIR/packages/oa-pi/src:$MYPY_CONFIG_FILE_DIR/packages/oa-qs/src:$MYPY_CONFIG_FILE_DIR/packages/oa-results/src:$MYPY_CONFIG_FILE_DIR/packages/oa-server/src:$MYPY_CONFIG_FILE_DIR/packages/oa-service/src:$MYPY_CONFIG_FILE_DIR/packages/oa-si/src:$MYPY_CONFIG_FILE_DIR/packages/oa-testkit/src:$MYPY_CONFIG_FILE_DIR/packages/oa-thermal/src"
 explicit_package_bases = true
 namespace_packages = true
 files = [
@@ -174,9 +186,14 @@ strict = true
 module = ["skrf"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["cupy", "cupyx", "cupyx.*", "nvmath", "nvmath.*"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------- import-linter
 [tool.importlinter]
 root_packages = [
+    "oa_accel",
     "oa_assistant",
     "oa_cli",
     "oa_em",
@@ -222,7 +239,7 @@ layers = [
     "oa_geometry | oa_mesh | oa_network",
     "oa_kicad_bridge",
     "oa_ingest_kicad | oa_ingest_ipc2581",
-    "oa_physics | oa_results",
+    "oa_physics | oa_results | oa_accel",
     "oa_model",
 ]
 
@@ -280,3 +297,10 @@ type = "forbidden"
 source_modules = ["oa_service", "oa_mcp"]
 forbidden_modules = ["requests", "httpx", "urllib3", "aiohttp", "anthropic", "openai"]
 allow_indirect_imports = true
+
+# ADR-0009: only oa_accel and oa_fdtd.engine import cupy (oa_fdtd is exempted by WP-505).
+[[tool.importlinter.contracts]]
+name = "Only oa_accel and oa_fdtd.engine import cupy"
+type = "forbidden"
+source_modules = ["oa_assistant", "oa_cli", "oa_em", "oa_em_openems", "oa_em_palace", "oa_emi", "oa_erc", "oa_framework", "oa_geometry", "oa_impedance", "oa_ingest_ipc2581", "oa_ingest_kicad", "oa_jobs", "oa_kicad_bridge", "oa_mcp", "oa_mesh", "oa_model", "oa_network", "oa_physics", "oa_pi", "oa_qs", "oa_results", "oa_server", "oa_service", "oa_si", "oa_thermal", "oa_testkit"]
+forbidden_modules = ["cupy", "cupyx", "nvmath"]

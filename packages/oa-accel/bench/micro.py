@@ -26,6 +26,7 @@ from typing import Any
 
 import numpy as np
 import scipy.sparse as sp
+
 from oa_accel.policy import DevicePolicy, select
 
 

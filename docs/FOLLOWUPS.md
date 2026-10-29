@@ -138,3 +138,14 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - NOT approved: a CUDA toolkit in WSL. Palace's GPU build (WP-502 CUDA part) is blocked; Palace stays CPU-only.
 - Heavy-job budget: 8 threads and 16 GB (WSL Palace runs: systemd-run MemoryMax=12G). Only one heavy or GPU job at a time.
 - No AMD GPU is available, so the ROCm path is CI-built and unit-tested only, marked "untested on hardware".
+
+## GPU backend (WP-503)
+- [ ] `ErrorInfo` in oa-accel is a local copy (CR WP-503-errorinfo-layer); switch to the shared one when the layer placement is settled.
+- [ ] The pinned-memory limit isn't enforced.
+- [ ] ROCm is untested on hardware (no AMD GPU).
+- [ ] No CuPy is installed in the venv, so the GPU tests skip here ("no CuPy device available"). Install the `cuda12` or `cuda13` extra to run them. The three extras are declared as conflicting in the root `[tool.uv]`.
+
+## Native parser (WP-508)
+- [ ] The full KiCadReader is barely faster with the native parser (1.07 s vs 1.02 s) because parsing is a small share of the time. The Jetson target needs whole-reader profiling.
+- [ ] The ReferenceMap isn't native (CR WP-508-refmap-scope, proposed WP-508b).
+- [ ] The wheel CI (`wp-508-wheels.yml`) hasn't run yet.

@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from oa_accel.doctor import capabilities, format_text
 from oa_accel.errors import AccelError
 from oa_accel.memory import GIB, MemoryBudget, dense_solve_bytes, sparse_solve_bytes

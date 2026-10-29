@@ -79,7 +79,7 @@ def stencil_apply(xp: Any, u: Any, weights: tuple[float, ...]) -> Any:
 
 
 def cpu_dense_solve(a: Any, b: Any, assume: str) -> Any:
-    import scipy.linalg as sla
+    import scipy.linalg as sla  # type: ignore[import-untyped,unused-ignore]
 
     try:
         with warnings.catch_warnings():
@@ -92,7 +92,7 @@ def cpu_dense_solve(a: Any, b: Any, assume: str) -> Any:
 
 
 def _jacobi_cpu(a: Any) -> Any:
-    from scipy.sparse.linalg import LinearOperator
+    from scipy.sparse.linalg import LinearOperator  # type: ignore[import-untyped,unused-ignore]
 
     d = np.asarray(a.diagonal())
     inv = 1.0 / d
@@ -100,7 +100,7 @@ def _jacobi_cpu(a: Any) -> Any:
 
 
 def cpu_sparse_solve(a: Any, b: Any, method: str, m: Any, tol: float, maxiter: int | None) -> Any:
-    import scipy.sparse.linalg as spla
+    import scipy.sparse.linalg as spla  # type: ignore[import-untyped,unused-ignore]
 
     a = a.tocsr()
     if method == "direct":

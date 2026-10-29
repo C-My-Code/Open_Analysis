@@ -90,7 +90,7 @@ class CpuBackend:
     fallback: Fallback
 
     def __init__(self, fallback: Fallback = "cpu", notes: list[str] | None = None) -> None:
-        import scipy.sparse as sp
+        import scipy.sparse as sp  # type: ignore[import-untyped,unused-ignore]
 
         self.xp = np
         self.sparse = sp
