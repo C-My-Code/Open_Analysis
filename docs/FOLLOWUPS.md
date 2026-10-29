@@ -126,3 +126,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] Pending: Palace (4 slots, WP-301), the openEMS tutorial reproductions, and the kicad-irdrop/padne DC IR oracle.
 - [ ] Only 100 of the 248 passes have an independent reference. The rest are self-computed or in-repo cross-solver. Raise the independent share.
 - [ ] Add mkdocs nav and ROADMAP links to docs/validation (CR WP-302).
+
+## Palace (WP-301), superseded by M1P P1
+- [ ] ACCURACY: the microstrip IL is 1.24 dB vs about 0.75 dB (openEMS 0.74, BEM RLGC 0.78) from a p1 coarse mesh, SuperLU and a 6 GB cap. Not acceptable; fix in P1 (p2/p3, AMR, iterative solvers, surface-impedance copper).
+- [ ] FREEZE #4 cause: an uncapped Palace SuperLU run of about 300k DOF in WSL. Every Palace run now goes through the `oa-palace-run` wrapper under systemd-run MemoryMax=6G.
+- [ ] The stripline and via Palace acceptance cases aren't run. AMR and the adaptive sweep are untested. There's no CI test for the Windows WSL runner. Wave-port z0 isn't honoured. Dielectrics are single-frequency; roughness is ignored.
+- [ ] The install is built from source in WSL (~/opt/palace, v0.18.1); docker/palace/install-wsl.sh reproduces it. The Spack Dockerfile is untested.

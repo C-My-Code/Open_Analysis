@@ -1811,18 +1811,31 @@ name = "oa-em-palace"
 version = "0.1.0"
 source = { editable = "packages/oa-em-palace" }
 dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "oa-em" },
     { name = "oa-framework" },
+    { name = "oa-jobs" },
+    { name = "oa-mesh" },
     { name = "oa-model" },
+    { name = "oa-network" },
+    { name = "oa-physics" },
     { name = "oa-results" },
+    { name = "scikit-rf" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=1.26" },
     { name = "oa-em", editable = "packages/oa-em" },
     { name = "oa-framework", editable = "packages/oa-framework" },
+    { name = "oa-jobs", editable = "packages/oa-jobs" },
+    { name = "oa-mesh", editable = "packages/oa-mesh" },
     { name = "oa-model", editable = "packages/oa-model" },
+    { name = "oa-network", editable = "packages/oa-network" },
+    { name = "oa-physics", editable = "packages/oa-physics" },
     { name = "oa-results", editable = "packages/oa-results" },
+    { name = "scikit-rf", specifier = ">=1.0" },
 ]
 
 [[package]]
