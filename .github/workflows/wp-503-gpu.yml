@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# WP-503 / ADR-0009: nightly GPU lane. Runs only on the self-hosted reference machine (never on
+# shared runners) and only with OA_RUN_GPU=1, which only the holder of the heavy/GPU token sets
+# (TASKS rule 11). The ROCm lane has no hardware: it checks that the CPU-only suite and the
+# fake-device ROCm selection tests pass; the ROCm code path is "untested on hardware".
+name: accel-gpu
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/oa-accel/**"
+
+env:
+  OMP_NUM_THREADS: "2"
+  OPENBLAS_NUM_THREADS: "2"
+  MKL_NUM_THREADS: "2"
+  OA_NUM_THREADS: "2"
+
+jobs:
+  cpu-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: oa-accel without CuPy (auto selects the CPU, GPU tests skip)
+        run: uv run pytest packages/oa-accel/tests -q
+
+  rocm-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: ROCm selection logic on fake devices (untested on hardware)
+        run: uv run pytest packages/oa-accel/tests/test_policy.py -q -k "rocm or precedence"
+
+  cuda:
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, gpu, cuda]
+    timeout-minutes: 20
+    env:
+      OA_RUN_GPU: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv pip install "cupy-cuda12x" "nvmath-python[cu12]"
+      - name: Capability report
+        run: uv run python -m oa_accel.doctor
+      - name: GPU tests
+        run: uv run pytest packages/oa-accel/tests -q --timeout 60
+      - name: Micro-benchmark
+        run: uv run python packages/oa-accel/bench/micro.py
