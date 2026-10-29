@@ -82,18 +82,18 @@ def test_flags_win_over_config_and_budget_is_clamped(tmp_path: Path) -> None:
     assert s.max_memory_gb == 4.0
     assert s.allow_writes is True
     ctx = s.call_context()
-    assert ctx.budget_ceiling["max_runtime_s"] == 300.0
-    assert ctx.default_budget["max_runtime_s"] == 300.0  # default 600 s clamped to the ceiling
-    assert ctx.default_budget["max_memory_gb"] == 4.0
-    assert ctx.roots == (str(tmp_path.resolve()),)
+    assert ctx.budget_ceiling.max_runtime_s == 300.0
+    assert ctx.default_budget.max_runtime_s == 300.0  # default 600 s clamped to the ceiling
+    assert ctx.default_budget.max_memory_gb == 4.0
+    assert ctx.roots == (tmp_path.resolve(),)
 
 
 def test_defaults_are_read_only() -> None:
     s = Settings()
     assert s.allow_writes is False
     ctx = s.call_context()
-    assert ctx.default_budget["max_runtime_s"] == 600.0
-    assert ctx.budget_ceiling["max_runtime_s"] == 4 * 3600.0
+    assert ctx.default_budget.max_runtime_s == 600.0
+    assert ctx.budget_ceiling.max_runtime_s == 4 * 3600.0
     assert ctx.max_response_bytes == 24 * 1024
 
 

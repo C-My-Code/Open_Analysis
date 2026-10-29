@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Build the FastMCP server over an :class:`~oa_mcp.protocol.OaServiceLike`."""
+"""Build the FastMCP server over an ``oa_service`` :class:`~oa_service.Registry`."""
 
 from __future__ import annotations
 
@@ -10,13 +10,14 @@ from typing import Any
 import mcp.types as mt
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import BaseModel, Field
 
 from oa_mcp.config import Settings
 from oa_mcp.contract import TOOLS
 from oa_mcp.prompts import register_prompts
-from oa_mcp.protocol import OaServiceLike
-from oa_mcp.resources import register_resources
-from oa_mcp.tools import ToolAdapter
+from oa_mcp.resources import ResourceReader, register_resources
+from oa_mcp.tools import ConfirmFn, ToolAdapter
+from oa_service import Registry
 
 INSTRUCTIONS = (
     "Open_Analysis: PCB signal/power integrity analysis. Start with open_board, then "
@@ -29,11 +30,17 @@ INSTRUCTIONS = (
 
 
 class ContractError(RuntimeError):
-    """The service does not provide a tool that the MCP contract requires."""
+    """The registry does not provide a tool that the MCP contract requires."""
+
+
+class _Confirm(BaseModel):
+    """Elicitation form: the user confirms the write."""
+
+    apply: bool = Field(description="Apply the change shown above.")
 
 
 def build_server(
-    service: OaServiceLike,
+    registry: Registry,
     settings: Settings,
     *,
     host: str = "127.0.0.1",
@@ -42,7 +49,7 @@ def build_server(
 ) -> FastMCP:
     """Create the server: tools generated from the catalog, plus resources and prompts."""
     ctx = settings.call_context()
-    adapter = ToolAdapter(service, ctx)
+    adapter = ToolAdapter(registry, ctx, settings.executor)
     if check_contract:
         missing = sorted(set(TOOLS) - set(adapter.tool_names))
         if missing:
@@ -72,8 +79,18 @@ def build_server(
     @low.call_tool(validate_input=False)  # type: ignore[untyped-decorator]
     async def _call_tool(name: str, arguments: dict[str, Any]) -> mt.CallToolResult:
         request_ctx = server.get_context()
-        return await adapter.call(name, arguments, request_ctx.report_progress)
+        confirm: ConfirmFn | None = None
+        session = request_ctx.request_context.session
+        if session.check_client_capability(
+            mt.ClientCapabilities(elicitation=mt.ElicitationCapability())
+        ):
 
-    register_resources(server, service, ctx)
+            async def confirm(message: str) -> bool:
+                res = await request_ctx.elicit(message=message, schema=_Confirm)
+                return res.action == "accept" and bool(res.data.apply)
+
+        return await adapter.call(name, arguments, request_ctx.report_progress, confirm)
+
+    register_resources(server, ResourceReader(registry, ctx))
     register_prompts(server)
     return server

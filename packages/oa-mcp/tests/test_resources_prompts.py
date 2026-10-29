@@ -5,9 +5,11 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from mcp.client.session import ClientSession
-from mcp_helpers import BOARD_DIR
+from mcp_helpers import BOARD_FILE
 from pydantic import AnyUrl
 
 from oa_mcp.contract import PROMPTS, RESOURCE_TEMPLATES, STATIC_RESOURCES
@@ -18,7 +20,7 @@ pytestmark = pytest.mark.anyio
 async def test_resources_and_templates_are_advertised(client: ClientSession) -> None:
     listed = {str(r.uri) for r in (await client.list_resources()).resources}
     assert set(STATIC_RESOURCES) <= listed
-    assert {"oa://schemas/board-model/1", "oa://schemas/oa-setup/1"} <= listed
+    assert {"oa://schemas/oa-envelope/1", "oa://schemas/oa.cmd.board_open.in/1"} <= listed
     templates = {t.uriTemplate for t in (await client.list_resource_templates()).resourceTemplates}
     assert templates == set(RESOURCE_TEMPLATES)
 
@@ -34,22 +36,31 @@ async def test_docs_resources_are_served_from_the_package(client: ClientSession)
 
 
 async def test_service_backed_resources(client: ClientSession) -> None:
-    schema = await client.read_resource(AnyUrl("oa://schemas/oa-setup/1"))
+    schema = await client.read_resource(AnyUrl("oa://schemas/oa.cmd.board_open.in/1"))
     assert schema.contents[0].mimeType == "application/schema+json"
-    rule = await client.read_resource(AnyUrl("oa://docs/rules/IM-002"))
-    assert rule.contents[0].text.startswith("# IM-002")  # type: ignore[union-attr]
-    opened = await client.call_tool("open_board", {"path": str(BOARD_DIR)})
+    assert "path" in schema.contents[0].text  # type: ignore[union-attr]
+    rules = json.loads((await client.read_resource(AnyUrl("oa://rules"))).contents[0].text)  # type: ignore[union-attr]
+    assert isinstance(rules, list)  # the FakeService has no ERC rules installed
+    with pytest.raises(Exception, match="No rule 'NOPE-1'"):
+        await client.read_resource(AnyUrl("oa://docs/rules/NOPE-1"))
+    opened = await client.call_tool("open_board", {"path": str(BOARD_FILE)})
     assert opened.structuredContent is not None
     pid = opened.structuredContent["data"]["project_id"]
     part = await client.read_resource(AnyUrl(f"oa://projects/{pid}/board/stackup"))
-    assert "stackup" in part.contents[0].text  # type: ignore[union-attr]
-    arr = await client.read_resource(AnyUrl("oa://results/r_1/items/i1/arrays/z0"))
-    assert arr.contents[0].mimeType == "application/x-npy"
-    assert arr.contents[0].blob  # type: ignore[union-attr]
+    assert json.loads(part.contents[0].text)  # type: ignore[union-attr]
+    board = await client.read_resource(AnyUrl(f"oa://projects/{pid}/board"))
+    assert "stackup" in json.loads(board.contents[0].text)  # type: ignore[union-attr]
+    erc = await client.call_tool("run_erc", {"project_id": pid, "wait_s": 5})
+    assert erc.structuredContent is not None
+    rid = erc.structuredContent["data"]["job"]["result_id"]
+    manifest = await client.read_resource(AnyUrl(f"oa://results/{rid}"))
+    assert json.loads(manifest.contents[0].text)["analysis"] == "erc"  # type: ignore[union-attr]
+    export = await client.read_resource(AnyUrl(f"oa://results/{rid}/export/md"))
+    assert export.contents[0].text  # type: ignore[union-attr]
 
 
 async def test_unknown_resource_is_a_protocol_error(client: ClientSession) -> None:
-    with pytest.raises(Exception, match="oa://results/nope"):
+    with pytest.raises(Exception, match=r"NOT_FOUND: No result .nope."):
         await client.read_resource(AnyUrl("oa://results/nope"))
 
 

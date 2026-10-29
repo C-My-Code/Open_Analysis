@@ -9,3 +9,4 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BOARD_DIR = REPO_ROOT / "tests" / "boards" / "kicad10" / "microstrip"
+BOARD_FILE = REPO_ROOT / "tests" / "fixtures" / "model" / "microstrip.oab.json"

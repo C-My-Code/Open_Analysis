@@ -19,11 +19,12 @@ if _here not in sys.path:
 from mcp.client.session import ClientSession  # noqa: E402
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 from mcp.shared.memory import create_connected_server_and_client_session  # noqa: E402
-from mcp_fake_service import FakeOaService  # noqa: E402
 from mcp_helpers import REPO_ROOT  # noqa: E402
 
 from oa_mcp.config import Settings  # noqa: E402
 from oa_mcp.server import build_server  # noqa: E402
+from oa_service import Registry  # noqa: E402
+from oa_service.testing import FakeService  # noqa: E402
 
 
 @pytest.fixture
@@ -37,13 +38,18 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def service() -> FakeOaService:
-    return FakeOaService()
+def service(tmp_path: Path) -> FakeService:
+    return FakeService(workdir=tmp_path / "fake")
 
 
 @pytest.fixture
-def server(service: FakeOaService, settings: Settings) -> FastMCP:
-    return build_server(service, settings)
+def registry(service: FakeService) -> Registry:
+    return Registry.load(service)
+
+
+@pytest.fixture
+def server(registry: Registry, settings: Settings) -> FastMCP:
+    return build_server(registry, settings)
 
 
 @pytest.fixture

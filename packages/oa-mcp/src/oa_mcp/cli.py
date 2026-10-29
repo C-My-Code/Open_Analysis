@@ -16,10 +16,10 @@ from typing import Any
 
 from oa_mcp.config import read_mcp_table, resolve_settings
 from oa_mcp.http import load_or_create_token, run_http
-from oa_mcp.protocol import OaServiceLike
 from oa_mcp.server import build_server
+from oa_service import OAService, Registry
 
-DEFAULT_FACTORY = "oa_service:create_service"
+DEFAULT_FACTORY = "oa_service.local:LocalService"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,13 +46,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--service-factory",
         default=os.environ.get("OA_MCP_SERVICE_FACTORY", DEFAULT_FACTORY),
         metavar="MODULE:FUNC",
-        help=f"callable returning the service (default {DEFAULT_FACTORY})",
+        help=f"zero-argument callable returning an OAService (default {DEFAULT_FACTORY})",
     )
     return p
 
 
-def load_service(factory: str, *, roots: Sequence[str], executor: str) -> OaServiceLike:
-    """Import ``module:func`` and call it as ``func(roots=..., executor=...)``."""
+def load_service(factory: str) -> OAService:
+    """Import ``module:func`` and call it with no arguments (default: ``LocalService``)."""
     module_name, _, attr = factory.partition(":")
     if not module_name or not attr:
         raise SystemExit(f"oa-mcp: bad --service-factory {factory!r}; expected MODULE:FUNC")
@@ -60,7 +60,7 @@ def load_service(factory: str, *, roots: Sequence[str], executor: str) -> OaServ
         func: Any = getattr(importlib.import_module(module_name), attr)
     except (ImportError, AttributeError) as exc:
         raise SystemExit(f"oa-mcp: cannot load service factory {factory!r}: {exc}") from exc
-    service: OaServiceLike = func(roots=tuple(roots), executor=executor)
+    service: OAService = func()
     return service
 
 
@@ -79,8 +79,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         "max_response_kb": args.max_response_kb,
     }
     settings = resolve_settings(flags, read_mcp_table())
-    service = load_service(args.service_factory, roots=settings.roots, executor=settings.executor)
-    server = build_server(service, settings)
+    registry = Registry.load(load_service(args.service_factory))
+    server = build_server(registry, settings)
     if args.http:
         run_http(server, load_or_create_token(args.token_file), args.port)
     else:

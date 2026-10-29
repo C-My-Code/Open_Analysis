@@ -30,6 +30,10 @@ dependencies = [
 # oa_service.testing.FakeService serves oa_testkit boards.
 testing = ["oa-testkit"]
 
+[project.entry-points."open_analysis.commands"]
+# WP-210: propose.rules / propose.apply
+proposals = "oa_service.proposals:commands"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_service"]
 

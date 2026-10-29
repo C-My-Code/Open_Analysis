@@ -22,28 +22,40 @@ Adapter behaviour (the only logic here):
 - Last-resort size cap: an envelope above `max_response_bytes` is replaced by an `ok=false` `RESULT_TRUNCATED` envelope (the commands' own pagination should make this a no-op).
 - `dispatch` runs in a worker thread; progress reported through `ctx.progress` becomes MCP progress notifications.
 
-## Assumptions about `oa-service` (to reconcile)
+## Reconciliation with `oa-service` (WP-207)
 
-`oa-mcp` was written before `oa-service` existed. It uses `OaServiceLike` (`oa_mcp/protocol.py`), tested against `tests/mcp_fake_service.py`. The real `Registry`/`OAService` needs a small shim (or `oa-mcp` switches to it directly) for these points:
+`oa-mcp` binds directly to `oa_service.Registry` (the earlier local `OaServiceLike` protocol is gone). The earlier assumptions map as follows.
 
-1. **Spec objects.** `service.specs()` returns objects with `name, mcp_tool, title, description, side_effect, idempotent, long_running` (the `CommandSpec` fields). Real `Registry.specs()` already fits.
-2. **Schemas as JSON.** `input_schema(name)` / `output_schema(name)` return JSON Schema dicts. The real `Registry` has `input_type(name)`/`output_type(name)`, so the shim is `type.model_json_schema()`. `output_schema` is the schema of `Envelope.data`, not of the envelope.
-3. **`dispatch` returns a dict** (`Envelope.model_dump(mode="json")`, model key order) and never raises. Real `dispatch` returns an `Envelope`.
-4. **Call context.** `oa_mcp.protocol.McpCallContext` is a dataclass with the `CallContext` fields (`roots` as `str`, `allow_writes`, `max_response_bytes`, `caller="mcp"`), budgets as plain dicts with the section 10.4 field names, plus an extra `progress(fraction, message)` callback. Real `CallContext` has `Budget` models and **no progress hook**: WP-207 needs one (or a job-event subscription) for MCP progress notifications.
-5. **Command names** are exactly the section 2.4 table (`board.open` ... `propose.apply`), and every `mcp_tool` listed there is non-null. `build_server` fails fast with `ContractError` if a tool of the contract is missing.
-6. **Validation errors** (unknown top-level field, bad type) come back from `dispatch` as `ok=false` with `SETUP_INVALID`, a JSON Pointer `path` and a `hint`. The adapter does no JSON-Schema validation of its own (`validate_input=False`).
-7. **Waiting.** `wait_s` is an input field handled inside `dispatch` (blocks up to `wait_s`). The adapter does not poll.
-8. **Resources.** The real service has no resource API. `OaServiceLike` needs `schema_ids()` (ids of section 7.2, listed as concrete resources) and `read_resource(uri, ctx) -> ResourceContent` for `oa://schemas/...`, `oa://analyses`, `oa://rules`, `oa://docs/rules/{id}`, `oa://projects/...` and `oa://results/...` (raising `ResourceNotFound`). These are expected to be built from `meta.schema`, `meta.describe`, `board.*`, `results.*` and `ProjectSession`. Docs resources (`agent-guide`, `llms.txt`, `accuracy`) are bundled in `oa_mcp/data/` (copies made by `tools/agents/sync_docs.py`, checked by a test).
-9. **Service factory.** The CLI loads `--service-factory MODULE:FUNC` (default `oa_service:create_service`, a guess) and calls it as `func(roots=(...), executor="process"|"inline")`.
-10. **Oversize code.** The cap reuses `RESULT_TRUNCATED` (a warning code in section 6) as an error code, because section 6 has no error code for "response dropped".
+| Assumption | Outcome |
+|---|---|
+| spec objects | `Registry.specs()` (`CommandSpec`) used as is. |
+| schemas as JSON | `registry.input_type(n).model_json_schema(by_alias=True)`; `output_type(n)` in serialization mode, wrapped into the envelope schema. |
+| `dispatch` returns a dict | `Registry.dispatch` returns an `Envelope`; the adapter dumps it with `model_dump(mode="json", by_alias=True)`. |
+| call context | the real `CallContext` (caller `mcp`, `Budget` models from `oa_jobs`). |
+| progress hook | none exists in `oa-service`. Instead the adapter polls `svc.jobs(project_id, state="running")` once a second while a long-running tool blocks and sends MCP progress notifications. Best effort; needs `project_id` in the arguments. |
+| `schema_ids()` | `oa_service.schemas.schema_entries(registry)` / `schema_for`. These cover the envelope, `ErrorInfo` and the command schemas only: the seven published `schemas/*.v1.json` documents (board-model, oa-setup, ...) are **not** served as resources yet. |
+| `read_resource()` | implemented in `oa_mcp.resources.ResourceReader` from `svc.analyses()/rules()`, `session.board` (`dumps_board`), `session.setup()`, `svc.result()` with `results_view.manifest/item_arrays/export_bundle`. `oa://projects/{pid}/physics` is not available (no path in `ProjectHandle`); `intent` is read from `<root>/oa/intent.yaml` when the service exposes `root_of`. |
+| service factory | `--service-factory MODULE:FUNC`, default `oa_service.local:LocalService`, called with no arguments. |
+| run output shapes | `RunResult` (`job.result_id`, `job.summary`) as in the WP-207 change request, not the per-tool shapes of section 8.3. |
+| paging | inputs use `page: {offset, limit}`; extra tools are exposed too (`list_jobs`, `list_projects`, `reload_project`, `list_setups`, `get_setup`, `validate_setup`, `doctor`). |
+| executor | `--executor` fills the `executor` input of the run tools when the call omits it. |
 
-## Test fixtures
+Additive changes outside `packages/oa-mcp` (listed for the integrator):
+- `packages/oa-service/pyproject.toml`: entry point `open_analysis.commands` -> `proposals = oa_service.proposals:commands`.
+- `oa_service/proposals/**` and `packages/oa-service/tests/proposals/**` (owned by WP-210).
+- `propose.rules` is declared `compute` (it stores the proposal under `.oa/proposals/`), not `read` as in the section 2.4 table.
+- `oa_service.proposals` reaches `oa_erc.dru.propose_dru` through `importlib` (the registry-only contract forbids a static import); without `oa-erc` installed, `from_violations` returns `ANALYSIS_UNAVAILABLE`.
+- `tests/agents/` and `llms-full.txt` at the repo root; `tools/agents/{sync_docs,build_llms,check_docs}.py`. The root `testpaths` must include `tests/agents` (integrator).
 
-`tests/mcp_fake_service.py` is an in-memory `OaServiceLike`. It opens `tests/boards/kicad10/microstrip/board.kicad_pcb` (4 copper layers, found by scanning the file) or an `.oab.json`, serves 5 canned ERC violations, and implements propose/apply with a single-use HMAC token. Its output schemas for tools the tests do not exercise are loose. Replace it by `oa_service.testing.FakeService` when WP-207 merges.
+Adapter behaviour that is MCP-specific: the last-resort size cap (`RESULT_TRUNCATED`, reused as an error code because section 6 has none for "response dropped"), tool annotations, and elicitation. For `apply_proposal`, when the client supports elicitation the adapter first dispatches without the token to obtain the diff (`CONFIRMATION_REQUIRED` details), asks the user, and only then dispatches the real call; a decline returns `CONFIRMATION_REQUIRED`. Clients without elicitation use the confirm-token flow. The token is an HMAC with a per-process secret and is single use; `confirm=true` is honored only for the CLI and UI callers.
 
-## Not done in this slice
+## Tests
 
-- `oa_service.proposals` (`.kicad_dru` reader/writer, `net_settings` editor, diffs, tokens) and the catalog commands `propose.rules`/`propose.apply`: the tools exist and are tested against the fake only.
-- MCP elicitation for `apply_proposal` (section 10.3). The confirm token and the client's own tool approval are the current gates.
-- `tests/agents/` (schema-description lint over `schemas/`, M1 workflow test, parity with `oa ... --json`, pytest-socket guard) and `llms-full.txt` generation: they need `oa_service`/the CLI. The description lint over tool schemas is done in `tests/test_tools_schema.py`.
+- `packages/oa-mcp/tests`: in-process MCP client over `FakeService` (tool list and schemas, flow, write safety, elicitation, resources, prompts, progress), stdio (subprocess) and streamable HTTP (token, Origin).
+- `tests/agents`: the real `LocalService` behind MCP on the WP-102 boards (M1 workflow, read-only hash check, propose/apply, budgets), CLI parity, schema-description lint with a shrink-only baseline, socket guard, import hygiene, docs checks.
+
+## Not done
+
+- Serving the seven published `schemas/*.v1.json` documents and `oa://projects/{pid}/physics` as resources.
+- KiCad acceptance of the patched `.kicad_dru` with `kicad-cli pcb drc` (marker `kicad`).
 - `oa mcp ...` delegation from the CLI (WP-207).

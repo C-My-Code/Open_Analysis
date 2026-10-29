@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from oa_mcp.protocol import McpCallContext
+from oa_jobs.models import Budget
+from oa_service import CallContext
 
 _DURATION = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(s|m|h)?\s*$")
 _SIZE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(gb|g|mb|m)?\s*$", re.IGNORECASE)
@@ -77,27 +78,28 @@ class Settings:
     executor: str = "process"
     max_response_bytes: int = 24 * 1024
 
-    def call_context(self) -> McpCallContext:
-        """Build the context for one call; the default budget is clamped to the ceiling."""
+    def call_context(self) -> CallContext:
+        """The context of every call; the default budget is clamped to the ceiling (10.4)."""
         cpus = os.cpu_count() or 1
-        default = {
-            "max_runtime_s": min(600.0, self.max_runtime_s),
-            "max_memory_gb": min(8.0, self.max_memory_gb),
-            "max_cpus": max(1, min(cpus - 1, 8, self.max_cpus)),
-            "allow_external": self.allow_external,
-        }
-        ceiling = {
-            "max_runtime_s": self.max_runtime_s,
-            "max_memory_gb": self.max_memory_gb,
-            "max_cpus": self.max_cpus,
-            "allow_external": self.allow_external,
-        }
-        return McpCallContext(
-            roots=self.roots,
+        ceiling = Budget(
+            max_runtime_s=self.max_runtime_s,
+            max_memory_gb=self.max_memory_gb,
+            max_cpus=self.max_cpus,
+            allow_external=self.allow_external,
+        )
+        default = Budget(
+            max_runtime_s=min(600.0, self.max_runtime_s),
+            max_memory_gb=min(8.0, self.max_memory_gb),
+            max_cpus=max(1, min(cpus - 1, 8, self.max_cpus)),
+            allow_external=self.allow_external,
+        )
+        return CallContext(
+            caller="mcp",
+            roots=tuple(Path(r) for r in self.roots),
             allow_writes=self.allow_writes,
             budget_ceiling=ceiling,
             default_budget=default,
-            max_response_bytes=self.max_response_bytes,
+            max_response_bytes=max(1024, self.max_response_bytes),
         )
 
 

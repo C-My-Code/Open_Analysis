@@ -19,7 +19,7 @@ from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.server.fastmcp import FastMCP
-from mcp_helpers import BOARD_DIR, REPO_ROOT
+from mcp_helpers import BOARD_FILE, REPO_ROOT
 
 from oa_mcp.http import bind_loopback, load_or_create_token, make_uvicorn, origin_is_loopback
 
@@ -31,18 +31,18 @@ TOKEN = "t" * 32
 
 async def _flow(session: ClientSession) -> None:
     await session.initialize()
-    opened = await session.call_tool("open_board", {"path": str(BOARD_DIR)})
+    opened = await session.call_tool("open_board", {"path": str(BOARD_FILE)})
     assert opened.structuredContent is not None
     pid = opened.structuredContent["data"]["project_id"]
     summary = await session.call_tool("board_summary", {"project_id": pid})
     assert summary.structuredContent is not None
-    assert summary.structuredContent["data"]["layer_count"] == 4
+    assert summary.structuredContent["data"]["layer_count"] == 2
     erc = await session.call_tool("run_erc", {"project_id": pid, "wait_s": 60})
     assert erc.structuredContent is not None
-    rid = erc.structuredContent["data"]["result_id"]
+    rid = erc.structuredContent["data"]["job"]["result_id"]
     res = await session.call_tool("result_summary", {"result_id": rid})
     assert res.structuredContent is not None
-    assert res.structuredContent["data"]["diagnostics"]["error"] == 2
+    assert "1 error" in res.structuredContent["data"]["text"]
 
 
 async def test_stdio_end_to_end() -> None:
@@ -54,7 +54,7 @@ async def test_stdio_end_to_end() -> None:
             "-m",
             "oa_mcp",
             "--service-factory",
-            "mcp_fake_service:create_service",
+            "oa_service.testing:FakeService",
             "--root",
             str(REPO_ROOT / "tests"),
         ],

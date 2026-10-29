@@ -33,9 +33,11 @@ See [connect.md](connect.md) for Windows paths, `uv run` variants and the HTTP t
 4. `list_nets(project_id, high_speed_only=true)` to find the nets that matter.
 5. `stackup(project_id)` when impedance depends on material values. Look at `physics_source`: `default` means the stackup values are assumed, not measured.
 6. `impedance_profile` for the chosen nets, or `compute_xsection_impedance` for a single cross-section.
-7. `run_erc(project_id, wait_s=60)`. If it returns a `JobHandle`, poll `job_status(job_id, wait_s=30)`.
-8. `result_summary(result_id)` first. Then `list_violations(result_id, severity_min="error")` page by page, and `explain_violation` for the ones you will report.
+7. `run_erc(project_id, wait_s=60)`. Run tools (`run_erc`, `impedance_profile`, `run_analysis`) return one shape: `job` (with `result_id` and, when finished, a bounded `summary`) or, with `dry_run`, an `estimate`. If the job is still running, poll `job_status(job_id, wait_s=30)`.
+8. `result_summary(result_id)` first. Then `list_violations(result_id, severity_min="error", page={"offset": 0, "limit": 20})` page by page (follow `next_offset`), and `explain_violation` for the ones you will report.
 9. For fixes, `propose_rule_changes`, show the diff to the user, and let the user decide (section 6).
+
+Other read tools: list_projects, reload_project, list_jobs, list_setups, get_setup, validate_setup, doctor.
 
 Never page through everything to "see it all". Summaries are written to be enough for a first answer.
 
@@ -78,7 +80,7 @@ Rules for not overclaiming:
 
 1. `propose_rule_changes(project_id, from_violations={result_id, fingerprints})`. It is a dry run and writes nothing. It returns a `ChangeProposal` with unified diffs for `.kicad_dru` / `.kicad_pro`, a `confirm_token` and an expiry (24 h).
 2. Show the user the diff and the rationale. Items under `not_applicable` need a human to edit the board.
-3. Only after the user agrees, and only if the server was started with `--allow-writes`, call `apply_proposal(proposal_id, confirm_token)`. The token is single use. If a file changed since the proposal, you get `STALE_BASE`: propose again.
+3. Only after the user agrees, and only if the server was started with `--allow-writes`, call `apply_proposal(proposal_id, confirm_token)`. If your client supports elicitation, the user is also shown the diff and asked to confirm; a refusal blocks the write. The token is single use and only valid in the server process that issued it; `confirm=true` is ignored over MCP. If a file changed since the proposal, you get `STALE_BASE`: propose again.
 
 Do not call `apply_proposal` to "try it". A backup is made under `.oa/backups/`, but the call changes user files.
 

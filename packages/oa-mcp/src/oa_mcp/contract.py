@@ -26,7 +26,7 @@ TOOLS: Final[dict[str, tuple[str, str]]] = {
     "get_result": ("results.get", "read"),
     "result_summary": ("results.summary", "read"),
     "export_report": ("results.export", "compute"),
-    "propose_rule_changes": ("propose.rules", "read"),
+    "propose_rule_changes": ("propose.rules", "compute"),
     "apply_proposal": ("propose.apply", "write"),
 }
 
