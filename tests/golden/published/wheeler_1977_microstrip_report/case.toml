@@ -1,0 +1,22 @@
+source = "Wheeler, IEEE T-MTT 25(8), 1977, pp. 631-647 (microstrip synthesis/analysis formula), value quoted in docs/research/02-impedance.md sec 1.4 (41.1 ohm for the IPC-2141 case h = 0.2 mm, t = 35 um, er = 4.3, W = 0.5 mm). The 41.1 figure was NOT recomputed independently of oa_impedance: self-computed, not counted as independent validation (docs/FOLLOWUPS.md, WP-000C)."
+
+[tolerance]
+rtol = 0.0
+atol = 0.1
+
+[inputs]
+h = 0.0002
+t = 3.5e-05
+er = 4.3
+w = 0.0005
+
+[expected]
+z0 = 41.1
+
+[meta]
+reference_class = "self-computed"
+independent = false
+citation_status = "ok"
+quantity = "Z0 (Wheeler 1977)"
+unit = "ohm"
+note = "Reference value comes from the project's own research note; the formula itself is Wheeler 1977."

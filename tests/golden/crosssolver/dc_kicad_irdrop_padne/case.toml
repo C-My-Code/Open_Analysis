@@ -1,0 +1,18 @@
+source = "[verify] kicad-irdrop 4-layer board: published 3.04 mohm, padne 2.97 mohm (ROADMAP DC IR cross-check, gate <= 3 %). Not run: the board and the external tools were not available (docs/FOLLOWUPS.md, WP-204); the figures are taken from the ROADMAP text, not from the projects."
+
+[tolerance]
+rtol = 0.03
+
+[inputs]
+
+[expected]
+r_ohm = 0.00304
+
+[meta]
+reference_class = "cross-solver"
+independent = true
+citation_status = "verify"
+status = "pending"
+quantity = "R (kicad-irdrop board)"
+unit = "ohm"
+note = "Nightly external oracle."

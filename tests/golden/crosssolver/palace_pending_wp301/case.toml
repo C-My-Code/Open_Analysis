@@ -1,0 +1,18 @@
+source = "Palace: pending WP-301. Slots for the openEMS vs Palace matrix (ROADMAP EM cross-solver: via transition 0-40 GHz, |dS21| <= 0.5 dB to 20 GHz and <= 1 dB to 40 GHz, |dS11| <= 3 dB where S11 > -30 dB) and the Palace microstrip Z0 / IL checks. WP-301 is not merged; nothing was run and WSL was not used."
+
+[tolerance]
+rtol = 0.0
+atol = 0.0
+
+[inputs]
+
+[expected]
+
+[meta]
+reference_class = "cross-solver"
+independent = true
+citation_status = "ok"
+status = "pending"
+quantity = "slot"
+unit = ""
+note = "Palace: pending WP-301."

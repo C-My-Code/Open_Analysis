@@ -1,0 +1,17 @@
+source = "[verify] openEMS MSL notch filter and simple 2.4 GHz patch antenna tutorials (openEMS project documentation), to be regenerated from our pipeline: notch f <= 1 %, S11 min f <= 1 % (ROADMAP EM published). Not done: the tutorial reference scripts were not available and the pipeline cannot yet reproduce them (docs/FOLLOWUPS.md, WP-108)."
+
+[tolerance]
+rtol = 0.01
+
+[inputs]
+
+[expected]
+
+[meta]
+reference_class = "published"
+independent = true
+citation_status = "verify"
+status = "pending"
+quantity = "slot"
+unit = ""
+note = "No numbers invented."
