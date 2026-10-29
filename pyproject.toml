@@ -89,7 +89,7 @@ dev = [
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
-testpaths = ["packages/*/tests", "tests/integration"]
+testpaths = ["packages/*/tests", "tests/integration", "tests/agents"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 timeout = 300
 timeout_method = "thread"

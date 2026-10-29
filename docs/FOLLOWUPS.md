@@ -113,3 +113,10 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] pi.dc and network views are tested only on synthetic data, not a live run. Jobs poll instead of using the WebSocket feed.
 - [ ] CR WP-209-api-typing: untyped result manifest, implicit array names, job state enum.
 - [ ] PROCESS: agents must not leave `oa serve` running; start servers only through test fixtures that tear them down.
+
+## MCP / agents (WP-210)
+- [ ] The seven published `schemas/*.v1.json` documents and `oa://projects/{pid}/physics` aren't served as MCP resources yet.
+- [ ] The kicad-cli DRC acceptance check for applied proposals isn't done.
+- [ ] Schema-lint ratchet: a baseline of about 580 schema fields without descriptions, in other WPs' schemas. Burn it down.
+- [ ] BundleSummary is 8854 B with spaced JSON; it fits the cap only when compact. Enforce compact output or trim it.
+- [ ] oa-service has no progress hook; MCP progress polls running jobs instead.
