@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 7 * * *"  # nightly run of the slow suite
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -49,8 +52,31 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends
           libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync --all-packages --python ${{ matrix.python }}
-      # Markers needing external tools (external, kicad) are opt-in.
-      - run: uv run pytest -m "not external and not kicad"
+      # Markers needing external tools (external, kicad) are opt-in. Slow tests (3D meshing,
+      # large solves, convergence studies) run in the nightly `slow` job instead.
+      - run: uv run pytest -m "not external and not kicad and not slow"
+
+  slow:
+    name: slow tests (${{ matrix.os }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
+      - run: uv sync --all-packages --python 3.13
+      - run: uv run pytest -m "slow and not external and not kicad" --timeout 1800
 
   reuse:
     name: reuse lint
