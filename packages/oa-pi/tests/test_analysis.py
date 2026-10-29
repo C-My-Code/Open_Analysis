@@ -231,6 +231,6 @@ def test_three_hundred_thousand_unknowns_solve_under_20_s() -> None:
     dt = time.perf_counter() - t0
     assert sol.n_unknowns > 2.5e5
     assert sol.timings["assemble"] + sol.timings["solve"] < 20.0, sol.timings
-    assert dt < 60.0, (dt, sol.timings)  # gmsh meshing dominates and varies with machine load
+    assert dt < 20.0, (dt, sol.timings)  # WP-211 measured 10.5 s total
     exact = 0.098 / side * 4.926108374384237e-4 * (1 / (1.0)) * (1.0)
     assert 1.0 - sol.group_voltage["load:J2"] == pytest.approx(exact, rel=0.002)

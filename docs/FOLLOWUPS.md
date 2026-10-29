@@ -106,3 +106,10 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] Validated only 1-10 GHz (microstrip) and 4-20 GHz (via); the full 0-40 GHz band is not validated. The stripline wave-port stall is unresolved. The differential path has no solve.
 - [ ] Z0 matches the BEM thin-strip value within 0.4%, because openEMS uses sheet copper; it is 3.8% off the 35 um BEM value. Add thick-copper modelling or document this.
 - [ ] CRs: WP-205-setup-ports-and-adapter-entry-point, WP-205-openems-adapter-findings.
+
+## Web results (WP-209)
+- [ ] Arrow board-geometry decoding isn't done; the UI loads /board/full.
+- [ ] Not done: TDR, Smith chart, 3D preview, port picker, export buttons.
+- [ ] pi.dc and network views are tested only on synthetic data, not a live run. Jobs poll instead of using the WebSocket feed.
+- [ ] CR WP-209-api-typing: untyped result manifest, implicit array names, job state enum.
+- [ ] PROCESS: agents must not leave `oa serve` running; start servers only through test fixtures that tear them down.
