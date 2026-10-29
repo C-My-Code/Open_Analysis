@@ -1,0 +1,15 @@
+source = "cross-solver (in-repo): oa_pi FEM vs the raster finite-volume reference oa_pi.reference.solve_raster at h/4, on the oa_testkit power_plane board (with and without a neck) and the WP-102 power_plane board."
+
+[tolerance]
+rtol = 0.01
+
+[inputs]
+h_fem_over_h_raster = 4
+
+[expected]
+
+[meta]
+reference_class = "cross-solver"
+independent = false
+citation_status = "ok"
+note = "Both solvers consume the same DcNetwork, so network construction errors are common to both."

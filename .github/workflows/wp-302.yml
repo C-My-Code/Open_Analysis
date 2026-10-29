@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# WP-302: validation suite. Nightly run of every reference case; any gate failure fails the
+# workflow and the summary lists the failing cases. The page build runs on every change to the
+# validation tool. openEMS and Palace are not installed on these runners: the openEMS cases are
+# 'skipped' (self-hosted nightly runner: set OA_VALIDATION_OPENEMS_ROOT and drop --skip-openems).
+name: validation
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/validation/**"
+      - "docs/validation/**"
+      - "tests/golden/published/**"
+      - "tests/golden/crosssolver/**"
+
+env:
+  OMP_NUM_THREADS: "2"
+  OPENBLAS_NUM_THREADS: "2"
+  MKL_NUM_THREADS: "2"
+  OA_NUM_THREADS: "2"
+
+jobs:
+  page:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Tool self-test
+        run: uv run pytest tools/validation -q
+      - name: Quick run and page build
+        run: uv run python tools/validation/run_validation.py --quick --skip-openems --page
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-page
+          path: docs/validation
+
+  nightly:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Run every validation case
+        run: uv run python tools/validation/run_validation.py --skip-openems --page
+      - name: List failing cases in the job summary
+        if: always()
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("docs/validation/results.json"))
+          bad = [c for c in d["cases"] if c["status"] == "fail"]
+          print("## Validation:", "FAILED" if bad else "all gates green")
+          for c in bad:
+              print(f"- `{c['id']}`: expected {c['expected']}, got {c['got']}, "
+                    f"tolerance {c['tolerance']['text']}")
+          for r in d["summary"]:
+              print(f"- {r['category']}: {r['passed']}/{r['cases']} passed, "
+                    f"{r['known_gap']} known gap, {r['verify']} [verify], {r['pending']} pending")
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-results
+          path: docs/validation

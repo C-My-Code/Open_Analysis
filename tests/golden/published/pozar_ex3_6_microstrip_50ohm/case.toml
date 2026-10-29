@@ -1,0 +1,22 @@
+source = "[verify] Pozar, Microwave Engineering (4th ed.), Example 3.6: 50 ohm microstrip on er = 2.2, d = 1.27 mm gives W/d = 3.081 (design equations 3.197) and eeff = 1.87. Recalled from memory, the book was not available to check; page, equation and the eeff figure must be confirmed. Excluded from pass counts until verified."
+
+[tolerance]
+rtol = 0.01
+atol = 0.0
+
+[inputs]
+d = 0.00127
+er = 2.2
+w_over_d = 3.081
+
+[expected]
+z0 = 50.0
+eeff = 1.87
+
+[meta]
+reference_class = "published"
+independent = true
+citation_status = "verify"
+quantity = "Z0 / eeff"
+unit = "ohm"
+note = "Design target of the textbook example; Pozar's own formulas are Hammerstad-type, so 1 % is the expected agreement band."

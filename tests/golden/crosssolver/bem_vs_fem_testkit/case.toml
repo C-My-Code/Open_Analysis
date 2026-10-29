@@ -1,0 +1,18 @@
+source = "cross-solver: oa_impedance BEM vs oa_impedance.fem on the oa_testkit cross-section fixtures (HJ rows, Cohn, edge-coupled, CPW, round conductors). Both are in-repo 2D quasi-static solvers with different discretisations (boundary vs finite element)."
+
+[tolerance]
+rtol = 0.005
+
+[tolerance.per_key.zdiff]
+rtol = 0.01
+
+[inputs]
+fixtures = "oa_testkit.xsections.all_cases()"
+
+[expected]
+
+[meta]
+reference_class = "cross-solver"
+independent = false
+citation_status = "ok"
+note = "ROADMAP gate: Z0 <= 0.5 %, Zdiff <= 1 %."

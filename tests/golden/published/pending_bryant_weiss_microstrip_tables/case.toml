@@ -1,0 +1,19 @@
+source = "[verify] Bryant and Weiss, IEEE T-MTT 16(12), 1968, microstrip tables. TASKS WP-302: at least 10 table points. The paper was not available; no value is transcribed from memory."
+
+[tolerance]
+rtol = 0.0
+atol = 0.0
+
+[inputs]
+required_cases = 10
+
+[expected]
+
+[meta]
+reference_class = "published"
+independent = true
+citation_status = "verify"
+status = "pending"
+quantity = "slot"
+unit = ""
+note = "Placeholder: no numbers invented. Excluded from every pass count."

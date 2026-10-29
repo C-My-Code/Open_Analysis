@@ -1,0 +1,19 @@
+source = "cross-solver: openEMS 0.37 FDTD, 23 mm microstrip thru (oa_testkit.builders.microstrip_board, region 1..24 mm, 0..10 GHz) vs our 2D BEM RLGC cascade. Z0 reference: BEM thin-strip limit (1 um) because openEMS models the 35 um copper as a conducting sheet; loss reference: BEM with the real 35 um section."
+
+[tolerance]
+z0_rel = 0.03
+il_abs_db = 0.2
+s11_max_db = -25.0
+
+[inputs]
+length_m = 0.023
+f_il = 1.0e10
+threads = 4
+
+[expected]
+
+[meta]
+reference_class = "cross-solver"
+independent = true
+citation_status = "ok"
+note = "ROADMAP gate (EM sanity): Z0 <= 3 %, IL <= 0.2 dB at 10 GHz per 25 mm. The 35 um BEM Z0 is 3.8 % away (docs/FOLLOWUPS.md, WP-205) and is reported as known_gap."
