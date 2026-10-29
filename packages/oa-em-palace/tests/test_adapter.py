@@ -16,7 +16,7 @@ from palace_helpers import FIXTURES, GOLDEN, coarse
 from oa_em_palace import PalaceAdapter
 from oa_framework.em import SolverAdapter
 from oa_framework.external import ToolInfo
-from oa_model.em import EMProblem, Eigenmode, FarFieldRequest
+from oa_model.em import Eigenmode, EMProblem, FarFieldRequest
 
 TOOL = ToolInfo(program="palace", runner="wsl", path="/x/oa-palace-run")
 
@@ -67,18 +67,24 @@ def test_check_reports_unsupported_features() -> None:
     bad = p.model_copy(
         update={
             "physics": Eigenmode(f_target=1e9),
-            "outputs": p.outputs.model_copy(update={"farfield": FarFieldRequest(frequencies=(1e9,))}),
+            "outputs": p.outputs.model_copy(
+                update={"farfield": FarFieldRequest(frequencies=(1e9,))}
+            ),
         }
     )
     codes = {d.code for d in PalaceAdapter().check(bad) if d.severity == "error"}
     assert {"PALACE.PHYSICS", "PALACE.FARFIELD"} <= codes
-    silent = p.model_copy(update={"ports": tuple(q.model_copy(update={"excite": False}) for q in p.ports)})
+    silent = p.model_copy(
+        update={"ports": tuple(q.model_copy(update={"excite": False}) for q in p.ports)}
+    )
     assert "PALACE.NO_EXCITATION" in {d.code for d in PalaceAdapter().check(silent)}
 
 
 def test_check_warns_about_wave_port_z0() -> None:
     p = FIXTURES["stripline_thru"]()
-    fixed = p.model_copy(update={"ports": tuple(q.model_copy(update={"z0": 50.0}) for q in p.ports)})
+    fixed = p.model_copy(
+        update={"ports": tuple(q.model_copy(update={"z0": 50.0}) for q in p.ports)}
+    )
     assert "PALACE.WAVE_Z0_IGNORED" in {d.code for d in PalaceAdapter().check(fixed)}
     assert "PALACE.WAVE_Z0_IGNORED" not in {d.code for d in PalaceAdapter().check(p)}
 
@@ -96,7 +102,7 @@ def test_prepare_writes_config_and_one_command(
     assert cmd.env == {
         "OA_PALACE_NP": "2",
         "OA_PALACE_MEM_GB": "6",
-        "OA_PALACE_CPU_PERCENT": "200",
+        "OA_PALACE_CPU_PERCENT": "400",
     }
     cfg = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
     assert cfg == json.loads((GOLDEN / f"config_{name}.json").read_text(encoding="utf-8"))
@@ -112,7 +118,9 @@ def test_prepare_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     p = coarse(FIXTURES["microstrip_thru"]())
     a = PalaceAdapter().prepare(p, tmp_path / "a", TOOL)
     b = PalaceAdapter().prepare(p, tmp_path / "b", TOOL)
-    assert (tmp_path / "a" / "config.json").read_bytes() == (tmp_path / "b" / "config.json").read_bytes()
+    assert (tmp_path / "a" / "config.json").read_bytes() == (
+        tmp_path / "b" / "config.json"
+    ).read_bytes()
     assert a.mesh_stats == b.mesh_stats
 
 
@@ -128,5 +136,5 @@ def test_gpu_flag_and_ranks_hook(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     PalaceAdapter(gpu=True).prepare(p, tmp_path, TOOL)
     cfg = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))
     assert cfg["Solver"]["Device"] == "GPU"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="mpi_ranks"):
         PalaceAdapter(mpi_ranks=0)

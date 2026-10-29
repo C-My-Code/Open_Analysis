@@ -53,7 +53,8 @@ class PalaceOptions:
     the real thickness for sheets) on every conductor surface; ``"pec"`` makes them perfect.
     ``abc_order``: order of the absorbing boundary (1 or 2). ``eps_freq``: frequency [Hz] at which
     the dielectrics are evaluated (default: ``f_max / 2``; Palace has no frequency-dependent
-    materials). ``linear_tol``: GMRES tolerance. ``solver``: ``"Default"``, ``"SuperLU"`` ...
+    materials). ``linear_tol``: GMRES tolerance. ``solver``: ``"AMS"`` (default, about 3.5 GB for
+    230k tets) or ``"SuperLU"``/``"Default"`` (sparse direct: far more memory).
     ``adaptive_tol``: fast-sweep ROM tolerance when ``frequency.adaptive`` is set. ``device``:
     ``"CPU"`` or ``"GPU"`` (GPU hook; needs a CUDA/HIP build). ``f_min_fraction``: lowest sweep
     point as a fraction of ``f_max`` when ``frequency.f_min == 0``.
@@ -63,7 +64,7 @@ class PalaceOptions:
     abc_order: int = 1
     eps_freq: float | None = None
     linear_tol: float = 1e-6
-    solver: str = "Default"
+    solver: str = "AMS"
     adaptive_tol: float = 1e-3
     device: str = "CPU"
     f_min_fraction: float = 0.1
@@ -120,7 +121,7 @@ def _direction(pos: EMTerminalGeom, neg: EMTerminalGeom) -> str | list[float]:
 def _eps_table(
     problem: EMProblem, f_fit: float, info: ConfigInfo
 ) -> dict[str, tuple[float, float, float]]:
-    """name -> (eps_r', tan_delta, dk_z/dk_xy) evaluated at ``f_fit``; records the band variation."""
+    """name -> (eps_r', tan_delta, dk_z/dk_xy) at ``f_fit``; records the band variation."""
     out: dict[str, tuple[float, float, float]] = {}
     f_hi = problem.frequency.f_max
     f_lo = max(problem.frequency.f_min, 0.1 * f_hi)
@@ -173,12 +174,10 @@ def _is_external(body: ConductorBody | None, problem: EMProblem) -> bool:
         return False
     for poly in body.polygons:
         ext = np.asarray(poly.exterior.array)
-        if (
-            ext[:, 0].min() <= box.xmin + tol
-            and ext[:, 0].max() >= box.xmax - tol
-            and ext[:, 1].min() <= box.ymin + tol
-            and ext[:, 1].max() >= box.ymax - tol
-        ):
+        x_lo, x_hi = float(np.min(ext[:, 0])), float(np.max(ext[:, 0]))
+        y_lo, y_hi = float(np.min(ext[:, 1])), float(np.max(ext[:, 1]))
+        covers_x = x_lo <= box.xmin + tol and x_hi >= box.xmax - tol
+        if covers_x and y_lo <= box.ymin + tol and y_hi >= box.ymax - tol:
             return True
     return False
 
@@ -224,7 +223,9 @@ def build_config(
     """
     opts = options or PalaceOptions.from_expert(problem.mesh.expert)
     if not isinstance(problem.physics, FullWaveDriven):
-        raise ValueError(f"Palace adapter supports fullwave_driven only, got {problem.physics.kind}")
+        raise ValueError(
+            f"Palace adapter supports fullwave_driven only, got {problem.physics.kind}"
+        )
     f_fit = dielectric_fit_frequency(problem, opts)
     info = ConfigInfo(eps_freq=f_fit)
     eps = _eps_table(problem, f_fit, info)
@@ -314,6 +315,12 @@ def build_config(
 
     lumped: list[dict[str, Any]] = []
     wave: list[dict[str, Any]] = []
+    # ``"Excitation": true`` is excitation group 1 for every port (all driven at once); one
+    # group per excited port gives one S-matrix column each (verified against Palace 0.18.1)
+    group: dict[str, int] = {}
+    for port in problem.ports:
+        if port.excite:
+            group[port.name] = len(group) + 1
     port_group = {p["name"]: p["group"] for p in groups.get("ports", [])}
     tag_of = {g["name"]: g["tag"] for g in infos}
     for idx, port in enumerate(problem.ports, start=1):
@@ -328,7 +335,7 @@ def build_config(
                     "Attributes": [tag],
                     "Direction": _direction(port.positive, port.negative),
                     "R": float(port.z0),
-                    "Excitation": bool(port.excite),
+                    "Excitation": group.get(port.name, False),
                 }
             )
         elif isinstance(port, EMWavePort):
@@ -337,7 +344,7 @@ def build_config(
                 "Attributes": [tag],
                 "Mode": 1,
                 "Offset": round(float(port.deembed), 12),
-                "Excitation": bool(port.excite),
+                "Excitation": group.get(port.name, False),
             }
             if port.n_modes != 1:
                 info.diagnostics.append(
@@ -356,7 +363,7 @@ def build_config(
                     "Direction": "+R" if port.direction == "+z" else "-R",
                     "CoordinateSystem": "Cylindrical",
                     "R": float(port.z0),
-                    "Excitation": bool(port.excite),
+                    "Excitation": group.get(port.name, False),
                 }
             )
 

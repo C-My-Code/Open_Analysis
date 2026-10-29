@@ -15,7 +15,9 @@ import numpy.typing as npt
 
 __all__ = ["RunFooter", "SParams", "parse_footer", "read_csv_table", "read_port_s"]
 
-_S_COL = re.compile(r"^\s*(?P<kind>\|S|arg\(S)\[(?P<i>\d+)\]\[(?P<j>\d+)\]\)?\|?\s*\((?P<unit>dB|deg)\)")
+_S_COL = re.compile(
+    r"^\s*(?P<kind>\|S|arg\(S)\[(?P<i>\d+)\]\[(?P<j>\d+)\]\)?\|?\s*\((?P<unit>dB|deg\.?)\)"
+)
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,9 @@ def read_port_s(path: Path) -> SParams:
     if not header or not header[0].lower().startswith("f"):
         raise ValueError(f"{path.name}: first column is not a frequency: {header[:1]}")
     unit = re.search(r"\((\w+)\)", header[0])
-    scale = {"ghz": 1e9, "mhz": 1e6, "khz": 1e3, "hz": 1.0}[(unit.group(1) if unit else "GHz").lower()]
+    scale = {"ghz": 1e9, "mhz": 1e6, "khz": 1e3, "hz": 1.0}[
+        (unit.group(1) if unit else "GHz").lower()
+    ]
     mag: dict[tuple[int, int], npt.NDArray[np.float64]] = {}
     ang: dict[tuple[int, int], npt.NDArray[np.float64]] = {}
     for c, name in enumerate(header[1:], start=1):
@@ -71,9 +75,7 @@ def read_port_s(path: Path) -> SParams:
     s = np.full((body.shape[0], n, n), np.nan + 0j, dtype=np.complex128)
     for (i, j), db in mag.items():
         s[:, i, j] = 10.0 ** (db / 20.0) * np.exp(1j * np.deg2rad(ang[(i, j)]))
-    return SParams(
-        freqs=body[:, 0] * scale, s=s, excited=tuple(sorted({j for _, j in mag}))
-    )
+    return SParams(freqs=body[:, 0] * scale, s=s, excited=tuple(sorted({j for _, j in mag})))
 
 
 def parse_footer(text: str) -> RunFooter:

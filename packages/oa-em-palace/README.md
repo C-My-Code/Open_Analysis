@@ -10,11 +10,11 @@ Palace (AWS, Apache-2.0, FEM on MFEM) solver adapter, WP-301. Implements
 ```python
 from oa_em_palace import PalaceAdapter, build_config, discover, host_to_wsl
 
-adapter = PalaceAdapter(mpi_ranks=2, gpu=False, memory_gb=8)   # hooks: ranks, GPU flag, memory box
-adapter.capabilities()   # modal wave ports, lumped, coax; absorbing/pec/pmc; all excitations in one run
-adapter.check(problem)   # unsupported features as Diagnostics
-run = adapter.prepare(problem, workdir, tool_info)   # mesh (WP-206) + config.json + 1 command
-out = adapter.collect(problem, run, results)         # EMSolveOutput: network (+ .sNp), convergence log
+adapter = PalaceAdapter(mpi_ranks=2, gpu=False, memory_gb=8)  # hooks: ranks, GPU flag, memory box
+adapter.capabilities()  # modal wave ports, lumped, coax; absorbing/pec/pmc; all excitations in one run
+adapter.check(problem)  # unsupported features as Diagnostics
+run = adapter.prepare(problem, workdir, tool_info)  # mesh (WP-206) + config.json + 1 command
+out = adapter.collect(problem, run, results)  # EMSolveOutput: network (+ .sNp), convergence log
 ```
 
 `prepare` writes `workdir/{model.msh, model.groups.json, config.json}` and one `ExternalCommand`
@@ -54,7 +54,7 @@ The WSL VM has no memory cap and the host job object cannot see inside it. The l
 `palace` is therefore the wrapper `scripts/oa-palace-run`, which every runner starts instead of the
 Palace launcher:
 
-- `systemd-run --user --scope -p MemoryMax=<OA_PALACE_MEM_GB>G -p MemorySwapMax=0 -p CPUQuota=200%`
+- `systemd-run --user --scope -p MemoryMax=<OA_PALACE_MEM_GB>G -p MemorySwapMax=0 -p CPUQuota=400%`
   (fallback `prlimit --as`), `nice -n 19`, MPI ranks clamped to `OA_PALACE_MAX_NP` (2);
 - stages a job on `/mnt/<drive>` to the Linux file system (9p is slow) and copies results back;
 - prints `OA_PALACE_VERSION`, `OA_PALACE_WALL_S`, `OA_PALACE_PEAK_MEM_KB` (cgroup peak) for the
@@ -97,4 +97,66 @@ here (no Docker on the development machine).
   runner, compared with the openEMS result; see "Validation".
 - Regenerate snapshots with `pytest --update-golden`.
 
-RESULTS_PLACEHOLDER
+## Validation (microstrip thru, 25 mm, 0.38 mm on 0.2 mm FR-4)
+
+Palace 0.18.1, wave ports, coarse WP-206 mesh (228k tets, 293k DOFs), order 1, AMS, 2 MPI ranks,
+3 sweep points; openEMS numbers are the WP-205 lumped-port results.
+
+| Quantity | openEMS (WP-205) | Palace | Tolerance |
+|---|---|---|---|
+| IL at 10 GHz | 0.74 dB | 1.24 dB | 0.6 dB |
+| IL at 1 GHz / 5.5 GHz | - | 0.15 / 0.72 dB | loss grows with f |
+| Pozar closed form, 10 GHz | about 1.0 dB | (same) | |
+| \|S11\| (modal reference) | below -20 dB | below -36 dB | -30 dB |
+| delay | within 5 % of Hammerstad-Jensen | within 5 % | 5 % |
+| Z0 | 50.7 ohm | not exported (see below) | Hammerstad-Jensen 50.7 ohm checked |
+
+The 0.5 dB excess over openEMS is mostly dielectric loss: Palace holds tan d fixed at its 5 GHz
+value (0.020) and the two-sided sheet conductor model adds conductor loss; Pozar's closed form
+lies between the two solvers. Z0: Palace 0.18 exports no Z0(f) for wave ports unless GSLIB
+(`VoltagePath`) is built in, so the check is S11 against the port's own modal reference.
+
+Cost (one full run, 2 excitations, 3 frequencies, through the WSL runner and `oa-palace-run`):
+runtime 169 s (pytest module total 166 s including meshing), peak memory 3.6 GB (cgroup peak of
+the whole tree, limit 6 GB). An 11-point lumped-port run took 548 s and 4.0 GB. The sparse
+direct solver (Palace's default) is not usable on a 16 GB-class machine at this size: it is why
+the adapter defaults to `Solver.Linear.Type = "AMS"` (GMRES, 28 to 61 iterations per frequency).
+
+## Resolved [verify] items (WP-206 notes, against Palace 0.18.1)
+
+- **Mesh format**: MFEM's gmsh reader in Palace 0.18.1 reads **`.msh` 2.2 only**; a 4.1 file aborts
+  with "vertices indices are not unique". The adapter writes `msh_version="2.2"`.
+- **Length unit**: `Model.L0 = 1.0` for a mesh in metres works (Palace default is 1e-6); lengths
+  in the file (`Offset`, `Thickness`) are then metres. The lumped-port surface resistance Palace
+  derives (95 ohm/sq for R = 50 ohm, 0.38 x 0.2 mm) confirms it.
+- **Attributes**: the physical-group tags of the 2.2 file are the attributes (volumes `mat:*`,
+  surfaces everything else); no physical name is used.
+- **Interior sheets**: `Conductivity` (with `Thickness`, `External`) on zero-thickness interior
+  sheets and `PEC` on them are both accepted and solve; wave-port mode analysis takes the sheets as
+  PEC through `WavePortPEC`. The loss difference between sheet and PEC conductor is below what the
+  fixture resolves.
+- **Wave-port faces**: a port face made of several coplanar triangle groups (one group, several
+  materials, copper cross-section cut out) works as one `WavePort` attribute.
+- **Absorbing faces next to lumped ports**: a lumped port on a face whose remainder is absorbing
+  loses about 3 dB (|S21| = -4 dB at 1 GHz) because the first-order boundary shunts the line end.
+  Use wave ports for FEM microstrip; the lumped fixture is not a valid Palace comparison.
+- **Excitation**: `"Excitation": true` puts every port in excitation group 1; the adapter writes
+  one integer group per excited port to get a full S matrix in one run.
+- **Sweep**: `Samples.NSample` is the number of points (end points included); `NSample = 1` fails.
+- **Output**: `postpro/port-S.csv` header is `f (GHz), |S[i][j]| (dB), arg(S[i][j]) (deg.)`,
+  `S[i][j]` = port i response to excitation j; AMR writes `error-indicators.csv`.
+
+## Known gaps
+
+- Differential/coupled wave ports, coax ports and rough-copper impedance boundaries are not
+  validated (roughness is ignored with a warning); far field and field dumps are not implemented.
+- The stripline and via-transition fixtures are covered by config snapshots only; their
+  Palace-vs-openEMS acceptance (|dS21| <= 0.5 dB to 20 GHz, stripline Z0 within 2 % of BEM) and the
+  AMR / adaptive-sweep options are not exercised. A real run of the via fixture needs a much larger
+  mesh than the 6 GB box allows at order 2.
+- Dielectrics are fixed at one frequency (no broadband models in Palace 0.18).
+- Wave-port S-parameters are referenced to the modal impedance; `port_impedance` is not returned.
+- The Docker image and GPU (`gpu=True`) paths are untested (no Docker or CUDA Palace here).
+- The Windows `wsl` runner test needs a Palace in WSL; CI runners without it skip.
+- `oa_testkit.plugin.tool_available("palace")` only searches the host PATH; the adapter's
+  `tests/conftest.py` lifts that skip when `discover()` finds Palace (CR WP-301).

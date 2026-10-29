@@ -1,0 +1,13 @@
+OA_PALACE_VERSION=0.18.1
+  Preconditioner                413.7M      413.7M        2.2G
+Estimation                      215.0M      215.0M        2.5G
+  Construction                  278.6M      278.6M        2.7G
+  Solve                         210.5M      210.5M        2.9G
+Postprocessing                  193.5M      193.5M        3.1G
+Disk IO                          78.2M       78.2M        3.2G
+--------------------------------------------------------------
+Total                             3.3G        3.3G        3.3G
+
+OA_PALACE_WALL_S=168.55
+OA_PALACE_PEAK_MEM_KB=3573984
+rc=0

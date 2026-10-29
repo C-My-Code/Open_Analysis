@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Find a Palace install: ``tools.toml`` first, then a WSL distro with ``~/opt/palace``.
 
-The logical tool ``palace`` is the ``oa-palace-run`` wrapper (see ``scripts/oa-palace-run``), not the
+The logical tool ``palace`` is the ``oa-palace-run`` wrapper (``scripts/oa-palace-run``), not the
 Palace launcher itself: the wrapper puts every run in a memory/CPU box and records runtime and
 peak memory. ``tools.toml``::
 
@@ -34,18 +34,13 @@ def wrapper_text() -> str:
     return resources.files("oa_em_palace").joinpath("scripts", WRAPPER_NAME).read_text("utf-8")
 
 
-def _wsl_probe(distro: str | None) -> tuple[str, str] | None:
-    """(distro, wrapper path) when ``<home>/opt/palace/bin/{palace,oa-palace-run}`` exist."""
+def _wsl(distro: str | None, *args: str) -> subprocess.CompletedProcess[str] | None:
     exe = shutil.which("wsl.exe")
     if exe is None:
         return None
-    script = (
-        f'p="$HOME/{_HOME_REL}"; [ -x "$p/palace" ] && [ -x "$p/{WRAPPER_NAME}" ] '
-        f'&& echo "$p/{WRAPPER_NAME}"'
-    )
-    cmd = [exe] + (["-d", distro] if distro else []) + ["--", "sh", "-c", script]
+    cmd = [exe] + (["-d", distro] if distro else []) + ["--", *args]
     try:
-        out = subprocess.run(
+        return subprocess.run(
             cmd,
             capture_output=True,
             timeout=30,
@@ -55,8 +50,19 @@ def _wsl_probe(distro: str | None) -> tuple[str, str] | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    path = out.stdout.strip().splitlines()[-1] if out.returncode == 0 and out.stdout.strip() else ""
-    return (distro or "", path) if path else None
+
+
+def _wsl_probe(distro: str | None) -> tuple[str, str] | None:
+    """(distro, wrapper path) when ``<home>/opt/palace/bin/{palace,oa-palace-run}`` exist."""
+    out = _wsl(distro, "sh", "-c", 'echo "$HOME"')
+    if out is None or out.returncode != 0 or not out.stdout.strip():
+        return None
+    base = f"{out.stdout.strip().splitlines()[-1]}/{_HOME_REL}"
+    for name in ("palace", WRAPPER_NAME):
+        res = _wsl(distro, "test", "-x", f"{base}/{name}")
+        if res is None or res.returncode != 0:
+            return None
+    return (distro or "", f"{base}/{WRAPPER_NAME}")
 
 
 def discover(*, distro: str | None = None, probe_wsl: bool = True) -> ToolInfo | None:

@@ -66,7 +66,9 @@ def test_microstrip_uses_lumped_ports_sheet_copper_and_absorbing_faces() -> None
     cfg, info = _config("microstrip_thru")
     b = cfg["Boundaries"]
     assert [p["Index"] for p in b["LumpedPort"]] == [1, 2]
-    assert all(p["R"] == 50.0 and p["Excitation"] is True for p in b["LumpedPort"])
+    assert all(p["R"] == 50.0 for p in b["LumpedPort"])
+    # one excitation group per port: "true" would drive both ports at once
+    assert [p["Excitation"] for p in b["LumpedPort"]] == [1, 2]
     assert all(p["Direction"] == "-Z" for p in b["LumpedPort"])  # trace (+) above the plane (-)
     assert "WavePort" not in b and "PEC" not in b  # the L2 plane is the sheet at the mesh bottom
     cond = {e["Attributes"][0]: e for e in b["Conductivity"]}

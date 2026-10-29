@@ -111,7 +111,7 @@
         ],
         "Mode": 1,
         "Offset": 0.0,
-        "Excitation": true
+        "Excitation": 1
       },
       {
         "Index": 2,
@@ -120,7 +120,7 @@
         ],
         "Mode": 1,
         "Offset": 0.0,
-        "Excitation": true
+        "Excitation": 2
       }
     ],
     "WavePortPEC": {
@@ -151,7 +151,7 @@
       ]
     },
     "Linear": {
-      "Type": "Default",
+      "Type": "AMS",
       "KSPType": "GMRES",
       "Tol": 1e-06,
       "MaxIts": 200

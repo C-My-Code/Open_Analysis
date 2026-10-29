@@ -108,8 +108,8 @@ class PalaceAdapter:
         *,
         mpi_ranks: int = 1,
         gpu: bool = False,
-        memory_gb: float = 8.0,
-        cpu_percent: int = 200,
+        memory_gb: float = 6.0,
+        cpu_percent: int = 400,
         assessor: Assessor | None = None,
     ) -> None:
         if mpi_ranks < 1:
@@ -139,14 +139,10 @@ class PalaceAdapter:
         diags: list[Diagnostic] = []
 
         def err(code: str, message: str, hint: str | None = None) -> None:
-            diags.append(
-                Diagnostic(severity="error", code=code, message=message, hint=hint)
-            )
+            diags.append(Diagnostic(severity="error", code=code, message=message, hint=hint))
 
         def warn(code: str, message: str, hint: str | None = None) -> None:
-            diags.append(
-                Diagnostic(severity="warning", code=code, message=message, hint=hint)
-            )
+            diags.append(Diagnostic(severity="warning", code=code, message=message, hint=hint))
 
         if not isinstance(problem.physics, FullWaveDriven):
             err(
@@ -244,16 +240,15 @@ class PalaceAdapter:
             }
         )
         files = (CONFIG, MESH, "model.groups.json")
-        return PreparedRun(
-            workdir=workdir, commands=(command,), mesh_stats=mesh_stats, files=files
-        )
+        return PreparedRun(workdir=workdir, commands=(command,), mesh_stats=mesh_stats, files=files)
 
     # --------------------------------------------------------------------------- collect
     def collect(
         self, problem: EMProblem, run: PreparedRun, results: Sequence[ExternalResult]
     ) -> EMSolveOutput:
         warnings: list[Diagnostic] = [
-            Diagnostic.model_validate(d) for d in run.mesh_stats.get("diagnostics", [])  # type: ignore[union-attr]
+            Diagnostic.model_validate(d)
+            for d in run.mesh_stats.get("diagnostics", [])  # type: ignore[union-attr]
         ]
         version = "unknown"
 
@@ -309,7 +304,7 @@ class PalaceAdapter:
             )
         z0 = np.array(
             [
-                float(p.z0) if not isinstance(p, EMWavePort) or p.z0 is not None else 50.0
+                50.0 if p.z0 is None else float(p.z0)  # wave z0=None: modal reference, see README
                 for p in ports
             ],
             dtype=np.float64,

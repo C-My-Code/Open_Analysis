@@ -11,7 +11,7 @@
 #   ~/opt/src       Palace sources (tag v0.18.1) and the build tree
 #   ~/opt/palace    install prefix: bin/palace, bin/oa-palace-run
 #
-# Resource use: the build runs under `systemd-run --user --scope -p MemoryMax=8G -p CPUQuota=200%`
+# Resource use: the build runs under `systemd-run --user --scope -p MemoryMax=6G -p MemorySwapMax=0 -p CPUQuota=400%`
 # (when available), `nice -n 19`, `make -j2`. About 40 minutes and 5 GB of disk on 2 cores.
 #
 # Why not a prebuilt binary: Palace publishes none (releases are source tags; the supported
@@ -54,9 +54,9 @@ cmake -G "Unix Makefiles" -S ../palace -B . -DCMAKE_BUILD_TYPE=Release \
   -DPALACE_WITH_GSLIB=OFF -DPALACE_WITH_SUNDIALS=OFF -DPALACE_WITH_MAGMA=OFF \
   -DPALACE_WITH_LIBXSMM=OFF
 if systemd-run --user --scope -q true 2>/dev/null; then
-  systemd-run --user --scope -q -p MemoryMax=8G -p CPUQuota=200% nice -n 19 make -j2
+  systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 -p CPUQuota=400% nice -n 19 make -j2
 else
-  prlimit --as=$((8 * 1024 * 1024 * 1024)) nice -n 19 make -j2
+  prlimit --as=$((6 * 1024 * 1024 * 1024)) nice -n 19 make -j2
 fi
 
 # 4. the resource-box wrapper next to the Palace launcher

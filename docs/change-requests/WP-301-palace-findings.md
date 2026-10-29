@@ -32,6 +32,19 @@ cannot honour a fixed `z0` and does not return `port_impedance` for wave ports. 
 document `z0` as "ignored by modal-port solvers" in interfaces.md section 5, or require adapters to
 renormalize (needs Z0(f) from the solver).
 
+## 5. `external("palace")` skip logic
+
+`oa_testkit.plugin.tool_available` falls back to `shutil.which(tool)`, so a Palace installed in WSL
+is never seen and the marker always skips on Windows. Proposal: let adapter packages register a
+probe (entry point `open_analysis.tool_probes`), or have the plugin call the adapter's `discover()`.
+The adapter's test conftest works around it.
+
+## 6. WP-206 mesh format
+
+`mesh_problem` has no `msh_version` argument and defaults to 4.1, which Palace 0.18.1 cannot read
+(MFEM reads 2.2 only). Proposal: add `msh_version` to `mesh_problem` (the adapter calls
+`build_occ_model` + `write_msh(msh_version="2.2")` itself) or make 2.2 the default.
+
 ## 4. WP-206 `.msh` file header unit
 
 The `$Entities` section of the written `.msh` holds bounding boxes in millimetres (gmsh's internal

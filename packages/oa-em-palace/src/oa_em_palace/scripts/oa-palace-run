@@ -20,8 +20,8 @@
 #   OA_PALACE_ENV         conda/micromamba prefix with mpirun + libraries  (~/opt/mm/env)
 #   OA_PALACE_NP          MPI ranks                                         (1)
 #   OA_PALACE_MAX_NP      hard ceiling for OA_PALACE_NP                     (2)
-#   OA_PALACE_MEM_GB      memory limit of the whole process tree           (8)
-#   OA_PALACE_CPU_PERCENT CPU quota, 100 = one core                        (200)
+#   OA_PALACE_MEM_GB      memory limit of the whole process tree           (6)
+#   OA_PALACE_CPU_PERCENT CPU quota, 100 = one core                        (400)
 #   OA_PALACE_STAGE       "1" (default) copies a /mnt/<drive> job to ~/.cache/oa-palace and back
 #
 # On exit it prints, for the adapter to record:
@@ -33,8 +33,8 @@ HOME_DIR="${OA_PALACE_HOME:-$HOME/opt/palace}"
 ENV_DIR="${OA_PALACE_ENV:-$HOME/opt/mm/env}"
 NP="${OA_PALACE_NP:-1}"
 MAX_NP="${OA_PALACE_MAX_NP:-2}"
-MEM_GB="${OA_PALACE_MEM_GB:-8}"
-CPU_PCT="${OA_PALACE_CPU_PERCENT:-200}"
+MEM_GB="${OA_PALACE_MEM_GB:-6}"
+CPU_PCT="${OA_PALACE_CPU_PERCENT:-400}"
 
 [ "$NP" -gt "$MAX_NP" ] 2>/dev/null && NP="$MAX_NP"
 [ "$NP" -ge 1 ] 2>/dev/null || NP=1
@@ -62,6 +62,7 @@ if [ "${1:-}" = "--inner" ]; then
   nice -n 19 "$PALACE_BIN" -np "$NP" "$@"
   rc=$?
   t1="$(date +%s.%N)"
+  echo "OA_PALACE_VERSION=$(cat "$HOME_DIR/VERSION" 2>/dev/null)" # runners keep only the log tail
   echo "OA_PALACE_WALL_S=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')"
   pk="$(peak_kb)"
   [ -n "$pk" ] && echo "OA_PALACE_PEAK_MEM_KB=$pk"
@@ -97,6 +98,7 @@ else
   t0="$(date +%s.%N)"
   prlimit --as=$(( MEM_GB * 1024 * 1024 * 1024 )) nice -n 19 "$PALACE_BIN" -np "$NP" "$@"
   rc=$?
+  echo "OA_PALACE_VERSION=$(cat "$HOME_DIR/VERSION" 2>/dev/null)"
   echo "OA_PALACE_WALL_S=$(awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN{printf "%.2f", b-a}')"
 fi
 

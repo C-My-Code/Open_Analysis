@@ -24,7 +24,9 @@ from pathlib import PurePosixPath, PureWindowsPath
 
 __all__ = ["host_to_wsl", "is_drvfs", "wsl_to_host"]
 
-_UNC = re.compile(r"^[\\/]{2}(?:wsl\$|wsl\.localhost)[\\/]+([^\\/]+)(?:[\\/]+(.*))?$", re.IGNORECASE)
+_UNC = re.compile(
+    r"^[\\/]{2}(?:wsl\$|wsl\.localhost)[\\/]+([^\\/]+)(?:[\\/]+(.*))?$", re.IGNORECASE
+)
 
 
 def host_to_wsl(path: str | os.PathLike[str]) -> str:

@@ -30,7 +30,7 @@ def test_host_to_wsl(host: str, wsl: str) -> None:
 
 @pytest.mark.parametrize("bad", ["relative\\dir", r"\\server\share\x", "D:rel"])
 def test_host_to_wsl_rejects_untranslatable_paths(bad: str) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="cannot translate"):
         host_to_wsl(bad)
 
 
@@ -79,6 +79,6 @@ def test_wrapper_applies_the_hard_limits() -> None:
     assert "systemd-run --user --scope" in text
     assert "MemoryMax=${MEM_GB}G" in text and "CPUQuota=${CPU_PCT}%" in text
     assert "prlimit --as=" in text
-    assert 'OA_PALACE_MAX_NP:-2' in text and "nice -n 19" in text
+    assert "OA_PALACE_MAX_NP:-2" in text and "nice -n 19" in text
     # MPI ranks never exceed the ceiling
     assert '[ "$NP" -gt "$MAX_NP" ]' in text
