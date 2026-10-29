@@ -15,6 +15,7 @@ line number, nothing else is fatal.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Iterator
 from typing import Any, TypeAlias
@@ -53,8 +54,34 @@ def _pts_array(tok: str) -> npt.NDArray[np.float64]:
     return np.array(values, dtype=np.float64).reshape(-1, 2)
 
 
+def _native_parse() -> Any:
+    """The compiled ``parse`` (``oa-native``, ``OA_NATIVE=0|1|auto``), or ``None``."""
+    try:
+        from oa_native import get  # type: ignore[import-not-found,unused-ignore]
+    except ImportError:
+        if os.environ.get("OA_NATIVE", "auto").strip() == "1":
+            raise
+        return None
+    mod = get()
+    return None if mod is None else mod.parse
+
+
 def parse(text: str) -> Node:
-    """Parse ``text`` and return the first top-level node."""
+    """Parse ``text`` and return the first top-level node.
+
+    Uses the compiled parser when available; it returns ``None`` for any input the Python
+    implementation would reject, so errors always come from :func:`parse_py`.
+    """
+    native = _native_parse()
+    if native is not None:
+        result: Node | None = native(text)
+        if result is not None:
+            return result
+    return parse_py(text)
+
+
+def parse_py(text: str) -> Node:
+    """Pure-Python reference implementation of :func:`parse` (the oracle for ``oa-native``)."""
     root: Node = []
     stack: list[Node] = []
     cur = root
