@@ -45,7 +45,7 @@ export function refBounds(s: AppState, r: Ref): Bounds | null {
     const ids = new Set(c?.pads ?? []);
     for (const lg of Object.values(s.render.layers)) for (const p of lg.polys) if (ids.has(p.id)) bs.push(ringsBounds(p.polygon));
   } else if (r.kind === 'rule') {
-    for (const v of allViolations(s)) if (v.rule_id === r.id) bs.push([v.location[0] * 1e3, v.location[1] * 1e3, v.location[0] * 1e3, v.location[1] * 1e3]);
+    for (const v of allViolations(s)) if (v.rule_id === r.id) bs.push([v.location_m[0]! * 1e3, v.location_m[1]! * 1e3, v.location_m[0]! * 1e3, v.location_m[1]! * 1e3]);
   }
   return union(bs);
 }

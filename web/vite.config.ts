@@ -7,5 +7,9 @@ export default defineConfig({
   // Relative base so `oa serve` can host web/dist from any mount point.
   base: './',
   build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 2500 },
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'tests/features/**/*.test.{ts,tsx}'],
+    setupFiles: ['tests/features/setup.ts'],
+  },
 });

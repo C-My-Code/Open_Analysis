@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+.badge { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: 11px; border: 1px solid var(--border); margin-left: 4px; }
+.acc-reference, .acc-validated, .q-pass, .job-succeeded { background: #1b5e3b; color: #fff; border-color: #1b5e3b; }
+.acc-screening, .q-warn, .job-running, .job-queued { background: #8a5a00; color: #fff; border-color: #8a5a00; }
+.acc-estimate, .acc-unverified, .q-fail, .job-failed, .job-cancelled { background: #8f1d21; color: #fff; border-color: #8f1d21; }
+.bad { color: #e5484d; }
+.banner.bad { border: 2px solid #e5484d; padding: 6px 8px; border-radius: 4px; font-weight: 600; }
+.flags { margin: 2px 0; padding-left: 16px; font-size: 12px; }
+.item { border-top: 1px solid var(--border); margin-top: 6px; }
+.item h3 { display: flex; align-items: center; flex-wrap: wrap; }
+tr.waived td { text-decoration: line-through; color: var(--muted); }
+tr.detail td { padding-bottom: 6px; cursor: default; }
+.colorbar { height: 10px; border-radius: 2px; margin: 2px 0; }
+.cbar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.prov summary { cursor: pointer; color: var(--muted); }
+.budget { border: 1px solid var(--border); margin: 6px 0; padding: 4px 8px; }
+.budget label { display: block; }
+.budget input { width: 6em; background: var(--panel); color: var(--fg); border: 1px solid var(--border); }
+.setup-form { max-height: 340px; overflow: auto; border: 1px solid var(--border); padding: 4px 8px; margin: 4px 0; }
+.setup-form fieldset { border: 1px solid var(--border); margin: 4px 0; min-width: 0; }
+.setup-form legend, .setup-form label { font-size: 12px; }
+.setup-form input, .setup-form select { background: var(--panel); color: var(--fg); border: 1px solid var(--border); max-width: 100%; }
+.setup-form .field-description, .setup-form .help-block { color: var(--muted); font-size: 11px; }
+progress { width: 100%; height: 8px; }
+textarea { width: 100%; background: var(--panel); color: var(--fg); border: 1px solid var(--border); font: 11px monospace; }
