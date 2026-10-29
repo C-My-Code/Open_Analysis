@@ -132,3 +132,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] FREEZE #4 cause: an uncapped Palace SuperLU run of about 300k DOF in WSL. Every Palace run now goes through the `oa-palace-run` wrapper under systemd-run MemoryMax=6G.
 - [ ] The stripline and via Palace acceptance cases aren't run. AMR and the adaptive sweep are untested. There's no CI test for the Windows WSL runner. Wave-port z0 isn't honoured. Dielectrics are single-frequency; roughness is ignored.
 - [ ] The install is built from source in WSL (~/opt/palace, v0.18.1); docker/palace/install-wsl.sh reproduces it. The Spack Dockerfile is untested.
+
+## M1P decisions (user, 2026-10-29)
+- Approved installs: rustup (user profile); CuPy + nvmath/cuDSS in the project venv (Windows CUDA).
+- NOT approved: a CUDA toolkit in WSL. Palace's GPU build (WP-502 CUDA part) is blocked; Palace stays CPU-only.
+- Heavy-job budget: 8 threads and 16 GB (WSL Palace runs: systemd-run MemoryMax=12G). Only one heavy or GPU job at a time.
+- No AMD GPU is available, so the ROCm path is CI-built and unit-tested only, marked "untested on hardware".
