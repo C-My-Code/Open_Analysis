@@ -130,6 +130,7 @@ def _apply_sizes(
     )
     grading = sizes.max_grading
     min_cell = (sizes.min_cell or 0.0) * MM
+    aspect = float(sizes.expert.get("gmsh.copper_layer_aspect", 4.0))  # type: ignore[arg-type]
     h_cap = float(sizes.expert.get("gmsh.h_max", 0.0)) * MM  # type: ignore[arg-type]
     pt: dict[int, float] = {}
     h_vol_max = 0.0
@@ -139,8 +140,13 @@ def _apply_sizes(
         if h_cap > 0:
             h = min(h, h_cap)
         dz = bb[5] - bb[2]
-        if cls == CLS_SLAB and 0 < dz < 2.0 * h and not _is_copper_layer(model, dz / MM):
-            h = min(h, dz / opts.thin_elements)
+        if 0 < dz < 2.0 * h:
+            if _is_copper_layer(model, dz / MM):
+                # resin/air filling a copper layer: lateral size at most ``aspect`` x thickness,
+                # else the tets between the layer faces degenerate into slivers (min SICN 0.017)
+                h = min(h, aspect * dz)
+            elif cls == CLS_SLAB:
+                h = min(h, dz / opts.thin_elements)
         h = max(h, min_cell)
         h_vol_max = max(h_vol_max, h)
         for _, p in gm.model.getBoundary([(3, v)], False, False, True):

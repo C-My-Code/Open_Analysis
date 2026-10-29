@@ -28,4 +28,4 @@ def test_via_region_medium_under_60s(threshold: float, tmp_path: Path) -> None:
     elapsed = time.perf_counter() - t0
     assert elapsed < 60.0, f"{elapsed:.1f} s"
     assert stats.n_tets > 10_000
-    assert stats.min_sicn > 0.01  # solid 35 um copper with pads: slivers near 0.017
+    assert stats.min_sicn > 0.2  # was 0.017 before copper-layer fills were capped (WP-211)
