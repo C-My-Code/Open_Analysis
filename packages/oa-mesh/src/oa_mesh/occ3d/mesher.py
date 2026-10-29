@@ -217,13 +217,22 @@ def write_msh(
     grading ``sizes.max_grading``. Writes ``path`` (gmsh .msh, metres, physical tag = attribute)
     and ``path`` with suffix ``.groups.json`` (group name -> model id, tag, BC). Deterministic for
     a fixed gmsh version.
+
+    ``sizes.expert`` keys (all optional): ``gmsh.algorithm3d`` (gmsh ``Mesh.Algorithm3D``, default
+    10 = HXT; 1 = Delaunay), ``gmsh.optimize`` (comma-separated ``gmsh.model.mesh.optimize``
+    methods run after meshing, e.g. ``"Netgen"``), ``gmsh.num_threads`` (default 1; > 1 gives up
+    bit-reproducibility).
     """
     t0 = time.perf_counter()
     sizes = sizes or MeshSettings()
     fmax = f_max if f_max is not None else model.options.f_max
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with gmsh_session() as gm:
+    ex = sizes.expert
+    alg3 = int(ex.get("gmsh.algorithm3d", 10))  # type: ignore[arg-type]
+    threads = int(ex.get("gmsh.num_threads", 1))  # type: ignore[arg-type]
+    optimize = [m for m in str(ex.get("gmsh.optimize", "")).split(",") if m]
+    with gmsh_session(threads=threads, algorithm3d=alg3) as gm:
         _configure_geometry(gm)
         try:
             built = construct(gm, model)
@@ -234,6 +243,8 @@ def write_msh(
                 gm.model.mesh.clear()
                 gm.option.setNumber("Mesh.Algorithm3D", 1)
                 gm.model.mesh.generate(3)
+            for method in optimize:
+                gm.model.mesh.optimize(method, False, 1)
         except MeshError:
             raise
         except Exception as exc:

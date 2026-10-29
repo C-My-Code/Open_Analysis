@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -27,6 +27,7 @@ from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
 from oa_mesh._clean import clean_polygons, polygonal_parts, ring_array
+from oa_mesh._pool import resolve_workers, run_tasks
 from oa_mesh._quality import quality_report, triangle_areas
 from oa_mesh._session import gmsh_session, gmsh_version
 from oa_mesh.errors import MeshError
@@ -98,6 +99,7 @@ class _PreparedPiece:
         h_default: float,
     ) -> None:
         self.piece = piece
+        self.snap = clean.snap
         path = f"pieces[{piece.id}]"
         polys, self.report = clean_polygons(piece.polygons, clean, path=f"{path}.polygons")
         cop = unary_union(polys)
@@ -183,16 +185,28 @@ def _boundary_buckets(
 
 
 def _mesh_piece(
-    gmsh: Any, prep: _PreparedPiece, fields: Sequence[SizeField], h: float, grading: float
+    gmsh: Any,
+    prep: _PreparedPiece,
+    fields: Sequence[SizeField],
+    h: float,
+    grading: float,
+    h_far: float | None = None,
 ) -> SheetMesh:
     piece = prep.piece
+    hmax = h if h_far is None else h_far
     geo = gmsh.model.geo
     pts: dict[tuple[float, float], int] = {}
     lines: dict[tuple[int, int], int] = {}
 
+    ring_alias: dict[tuple[int, int], int] = {}
+
     def point(x: float, y: float) -> int:
         k = _key(x, y)
         t = pts.get(k)
+        if t is None:
+            # Hole-mode rings come back from the shapely difference snapped to the clean grid;
+            # reuse the exact ring vertex so the hole boundary and the contact ring coincide.
+            t = ring_alias.get((round(x / prep.snap), round(y / prep.snap)))
         if t is None:
             t = int(geo.addPoint(x * _S, y * _S, 0.0))
             pts[k] = t
@@ -229,6 +243,8 @@ def _mesh_piece(
             ring_lines.append([])
             continue
         ids = [point(float(x), float(y)) for x, y in ring]
+        for (x, y), t in zip(ring.tolist(), ids, strict=True):
+            ring_alias[(round(x / prep.snap), round(y / prep.snap))] = t
         ring_pts.append(ids)
         ring_lines.append([abs(line(ids[i], ids[(i + 1) % len(ids)])) for i in range(len(ids))])
     point_ids: list[int | None] = []
@@ -274,6 +290,13 @@ def _mesh_piece(
                     tags.extend(int(geo.addPoint(x * _S, y * _S, 0.0)) for x, y in xy)
         if tags:
             field_pts.append((sf, tags))
+
+    coarse_pts: list[int] = []
+    if h_far is not None and h_far > h:
+        for poly in prep.polys:
+            for r in [poly.exterior, *poly.interiors]:
+                xy = _sample_polyline(np.asarray(r.coords), h, "h_far")
+                coarse_pts.extend(int(geo.addPoint(x * _S, y * _S, 0.0)) for x, y in xy)
 
     geo.synchronize()
     model = gmsh.model
@@ -328,7 +351,7 @@ def _mesh_piece(
     # than h; the interior size follows from graded fields around those short edges (gmsh's own
     # extension from the boundary is not grading-limited and over-refines large planes).
     gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
-    gmsh.option.setNumber("Mesh.MeshSizeMax", h * _S)
+    gmsh.option.setNumber("Mesh.MeshSizeMax", hmax * _S)
     gmsh.option.setNumber("Mesh.MeshSizeMin", 0.0)
     fld = model.mesh.field
     thr: list[int] = []
@@ -338,9 +361,9 @@ def _mesh_piece(
         t = fld.add("Threshold")
         fld.setNumber(t, "InField", d)
         fld.setNumber(t, "SizeMin", size * _S)
-        fld.setNumber(t, "SizeMax", h * _S)
+        fld.setNumber(t, "SizeMax", hmax * _S)
         fld.setNumber(t, "DistMin", 0.0)
-        fld.setNumber(t, "DistMax", (h - size) * _S / (grading - 1.0))
+        fld.setNumber(t, "DistMax", (hmax - size) * _S / (grading - 1.0))
         thr.append(t)
     for sf, tags in field_pts:
         d = fld.add("Distance")
@@ -348,9 +371,9 @@ def _mesh_piece(
         t = fld.add("Threshold")
         fld.setNumber(t, "InField", d)
         fld.setNumber(t, "SizeMin", sf.size * _S)
-        fld.setNumber(t, "SizeMax", h * _S)
+        fld.setNumber(t, "SizeMax", hmax * _S)
         fld.setNumber(t, "DistMin", 0.0)
-        fld.setNumber(t, "DistMax", (h - sf.size) * _S / (sf.grading - 1.0))
+        fld.setNumber(t, "DistMax", (hmax - sf.size) * _S / (sf.grading - 1.0))
         thr.append(t)
     # Narrow copper (traces): cap the element size at a third of the inscribed-circle diameter so
     # a 100 um trace is not meshed with 1 mm triangles.
@@ -360,10 +383,27 @@ def _mesh_piece(
         if 0 < h_poly < h:
             cf = fld.add("Constant")
             fld.setNumber(cf, "VIn", h_poly * _S)
-            fld.setNumber(cf, "VOut", h * _S)
+            fld.setNumber(cf, "VOut", hmax * _S)
             fld.setNumber(cf, "IncludeBoundary", 1)
             fld.setNumbers(cf, "SurfacesList", [surf])
             thr.append(cf)
+    if h_far is not None and h_far > h:
+        # Interior coarsening: h within 3 h of any boundary or contact, growing by ``grading`` to
+        # h_far beyond. Every feature field above is capped by h_far instead of h.
+        feat: list[int] = [t for rp in ring_pts if rp for t in rp]
+        feat += [int(p) for p in point_ids if p is not None]
+        for _sf, tags in field_pts:
+            feat.extend(tags)
+        feat += coarse_pts
+        d = fld.add("Distance")
+        fld.setNumbers(d, "PointsList", feat)
+        t = fld.add("Threshold")
+        fld.setNumber(t, "InField", d)
+        fld.setNumber(t, "SizeMin", h * _S)
+        fld.setNumber(t, "SizeMax", h_far * _S)
+        fld.setNumber(t, "DistMin", 3.0 * h * _S)
+        fld.setNumber(t, "DistMax", (3.0 * h + (h_far - h) / (grading - 1.0)) * _S)
+        thr.append(t)
     if thr:
         m = fld.add("Min")
         fld.setNumbers(m, "FieldsList", thr)
@@ -436,6 +476,25 @@ def _mesh_piece(
     )
 
 
+_ALGORITHMS = {"meshadapt": 1, "delaunay": 5, "frontal_delaunay": 6}
+Algorithm2D = Literal["meshadapt", "delaunay", "frontal_delaunay"]
+
+
+def mesh_prepared(
+    prep: _PreparedPiece,
+    fields: Sequence[SizeField],
+    h: float,
+    grading: float,
+    h_far: float | None,
+    algorithm: int,
+    threads: int,
+) -> SheetMesh:
+    """Mesh one prepared piece in its own fresh gmsh session (a pure function of the arguments)."""
+    with gmsh_session(threads=threads, algorithm2d=algorithm) as gmsh:
+        gmsh.model.add("piece")
+        return _mesh_piece(gmsh, prep, fields, h, grading, h_far)
+
+
 def mesh_copper_sheets(
     pieces: Sequence[SheetPiece],
     *,
@@ -443,6 +502,10 @@ def mesh_copper_sheets(
     size_fields: Sequence[SizeField] = (),
     clean: CleanOptions | None = None,
     grading: float = 1.3,
+    h_far: float | None = None,
+    workers: int | None = None,
+    algorithm: Algorithm2D | None = None,
+    threads: int = 1,
 ) -> tuple[SheetMesh, ...]:
     """Mesh copper pieces (polygons with holes) with embedded contact rings.
 
@@ -451,33 +514,57 @@ def mesh_copper_sheets(
     pieces:
         One mesh is returned per piece, in input order.
     h_default:
-        Maximum element size on the plane [m].
+        Maximum element size on the plane [m] (near features when ``h_far`` is set).
     size_fields:
         Refinement constraints combined with ``min``; see ``SizeField``.
     clean:
         Shapely clean-up options; see ``CleanOptions``.
     grading:
         Growth of the element size away from short boundary edges (1.2 to 1.3 is typical).
+    h_far:
+        Opt-in interior coarsening [m]: the size stays ``h_default`` within 3 x ``h_default`` of
+        any boundary or contact and grows by ``grading`` to ``h_far`` beyond. None (default) keeps
+        the uniform ``h_default`` cap.
+    workers:
+        Pieces are meshed one per task in ``workers`` separate gmsh processes (see
+        ``oa_mesh._pool``; no ``__main__`` guard needed). None reads ``OA_MESH_WORKERS``, default
+        1 = in this process. The result is identical for every worker count.
+    algorithm:
+        2D algorithm: ``frontal_delaunay`` (default), ``delaunay`` (fastest), ``meshadapt``
+        (``packing`` crashes gmsh with embedded curves and is not offered). See the README
+        benchmark table.
+    threads:
+        gmsh's own thread count per mesh (opt-in; > 1 gives up bit-reproducibility).
 
     Returns ``SheetMesh`` objects (``TriMesh2D`` subclasses) carrying ``contacts`` (contact id ->
     node indices), quality, and the cleaning report. Raises ``MeshError``.
 
-    The call owns the process-wide gmsh session (see ``oa_mesh._session``): call it from worker
-    processes; threads are serialized.
+    In-process meshing owns the process-wide gmsh session (see ``oa_mesh._session``); threads are
+    serialized, ``workers > 1`` runs the sessions in child processes.
     """
     if not h_default > 0:
         raise MeshError("h_default must be positive", code="MESH_SETUP", path="h_default")
     if not 1.0 < grading <= 2.0:
         raise MeshError("grading must be in (1, 2]", code="MESH_SETUP", path="grading")
+    if h_far is not None and not h_far >= h_default:
+        raise MeshError("h_far must be >= h_default", code="MESH_SETUP", path="h_far")
+    if algorithm is not None and algorithm not in _ALGORITHMS:
+        raise MeshError(
+            f"unknown algorithm {algorithm!r}",
+            code="MESH_SETUP",
+            path="algorithm",
+            hint=f"one of {sorted(_ALGORITHMS)}",
+        )
+    n_workers = resolve_workers(workers)
     pids = [p.id for p in pieces]
     if len(set(pids)) != len(pids):
         raise MeshError("duplicate piece ids", code="MESH_SETUP", path="pieces")
     opts = clean or CleanOptions()
     prepared = [_PreparedPiece(p, opts, size_fields, h_default) for p in pieces]
-    out: list[SheetMesh] = []
-    with gmsh_session() as gmsh:
-        for prep in prepared:
-            gmsh.clear()
-            gmsh.model.add(f"piece_{len(out)}")
-            out.append(_mesh_piece(gmsh, prep, size_fields, h_default, grading))
-    return tuple(out)
+    algo = _ALGORITHMS[algorithm or "frontal_delaunay"]
+    tasks = [
+        (prep, tuple(size_fields), h_default, grading, h_far, algo, threads) for prep in prepared
+    ]
+    if n_workers > 1 and len(tasks) > 1:
+        return tuple(run_tasks("sheet", tasks, n_workers))
+    return tuple(mesh_prepared(*t) for t in tasks)
