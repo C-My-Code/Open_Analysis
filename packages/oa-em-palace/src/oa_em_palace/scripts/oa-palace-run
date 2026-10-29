@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# oa-palace-run: run Palace in a hard resource box inside WSL/Linux.
+#
+#   usage: oa-palace-run config.json          (working directory = the job directory)
+#
+# This is the program the `wsl` (and `local`, on Linux) runner starts for the logical tool
+# "palace"; set `path` of [tools.palace] in tools.toml to it. It exists because the WSL VM has no
+# memory cap of its own and the host job object does not see inside it. Every run is wrapped in
+#
+#   systemd-run --user --scope -p MemoryMax=<MEM>G -p MemorySwapMax=0 -p CPUQuota=<CPU>%
+#
+# or, if user scopes are unavailable, `prlimit --as=<MEM GiB>`. MPI ranks are clamped to
+# OA_PALACE_MAX_NP (default 2) and the process runs at nice 19.
+#
+# Environment (all optional):
+#   OA_PALACE_HOME        install prefix                                   (~/opt/palace)
+#   OA_PALACE_ENV         conda/micromamba prefix with mpirun + libraries  (~/opt/mm/env)
+#   OA_PALACE_NP          MPI ranks                                         (1)
+#   OA_PALACE_MAX_NP      hard ceiling for OA_PALACE_NP                     (2)
+#   OA_PALACE_MEM_GB      memory limit of the whole process tree           (6)
+#   OA_PALACE_CPU_PERCENT CPU quota, 100 = one core                        (400)
+#   OA_PALACE_STAGE       "1" (default) copies a /mnt/<drive> job to ~/.cache/oa-palace and back
+#
+# On exit it prints, for the adapter to record:
+#   OA_PALACE_VERSION=<version>  OA_PALACE_WALL_S=<seconds>  OA_PALACE_PEAK_MEM_KB=<kB of the tree>
+
+set -u
+
+HOME_DIR="${OA_PALACE_HOME:-$HOME/opt/palace}"
+ENV_DIR="${OA_PALACE_ENV:-$HOME/opt/mm/env}"
+NP="${OA_PALACE_NP:-1}"
+MAX_NP="${OA_PALACE_MAX_NP:-2}"
+MEM_GB="${OA_PALACE_MEM_GB:-6}"
+CPU_PCT="${OA_PALACE_CPU_PERCENT:-400}"
+
+[ "$NP" -gt "$MAX_NP" ] 2>/dev/null && NP="$MAX_NP"
+[ "$NP" -ge 1 ] 2>/dev/null || NP=1
+
+export PATH="$ENV_DIR/bin:$HOME_DIR/bin:$PATH"
+export LD_LIBRARY_PATH="$ENV_DIR/lib:${LD_LIBRARY_PATH:-}"
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+# Open MPI on a single node: shared-memory transport only, no fabric probing
+export OMPI_MCA_btl="self,vader"
+
+PALACE_BIN="$HOME_DIR/bin/palace"
+
+peak_kb() {
+  # cgroup v2 peak of the scope we are in (kernel >= 5.19), else empty
+  local cg
+  cg="$(sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)"
+  if [ -n "$cg" ] && [ -r "/sys/fs/cgroup${cg}/memory.peak" ]; then
+    echo $(( $(cat "/sys/fs/cgroup${cg}/memory.peak") / 1024 ))
+  fi
+}
+
+if [ "${1:-}" = "--inner" ]; then
+  shift
+  t0="$(date +%s.%N)"
+  nice -n 19 "$PALACE_BIN" -np "$NP" "$@"
+  rc=$?
+  t1="$(date +%s.%N)"
+  echo "OA_PALACE_VERSION=$(cat "$HOME_DIR/VERSION" 2>/dev/null)" # runners keep only the log tail
+  echo "OA_PALACE_WALL_S=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')"
+  pk="$(peak_kb)"
+  [ -n "$pk" ] && echo "OA_PALACE_PEAK_MEM_KB=$pk"
+  exit $rc
+fi
+
+if [ ! -x "$PALACE_BIN" ]; then
+  echo "oa-palace-run: Palace not found at $PALACE_BIN (set OA_PALACE_HOME)" >&2
+  exit 127
+fi
+[ $# -ge 1 ] || { echo "usage: oa-palace-run config.json" >&2; exit 2; }
+
+echo "OA_PALACE_VERSION=$(cat "$HOME_DIR/VERSION" 2>/dev/null)"
+
+SELF="$(readlink -f "$0")"
+JOB="$(pwd -P)"
+STAGED=""
+case "$JOB" in
+  /mnt/[a-z]/*)
+    if [ "${OA_PALACE_STAGE:-1}" = "1" ]; then
+      STAGED="$HOME/.cache/oa-palace/$(echo "$JOB" | sed 's#[/ ]#_#g')"
+      rm -rf "$STAGED" && mkdir -p "$STAGED" && cp -r "$JOB"/. "$STAGED"/ && cd "$STAGED" || { echo "oa-palace-run: staging to $STAGED failed" >&2; exit 1; }
+    fi
+    ;;
+esac
+
+if systemd-run --user --scope -q true 2>/dev/null; then
+  systemd-run --user --scope -q -p "MemoryMax=${MEM_GB}G" -p MemorySwapMax=0 \
+    -p "CPUQuota=${CPU_PCT}%" "$SELF" --inner "$@"
+  rc=$?
+else
+  echo "oa-palace-run: systemd user scope unavailable, falling back to prlimit --as" >&2
+  t0="$(date +%s.%N)"
+  prlimit --as=$(( MEM_GB * 1024 * 1024 * 1024 )) nice -n 19 "$PALACE_BIN" -np "$NP" "$@"
+  rc=$?
+  echo "OA_PALACE_VERSION=$(cat "$HOME_DIR/VERSION" 2>/dev/null)"
+  echo "OA_PALACE_WALL_S=$(awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN{printf "%.2f", b-a}')"
+fi
+
+if [ -n "$STAGED" ]; then
+  # bring the results back (do not overwrite the inputs with themselves)
+  # (logs/ is written live by the runner on the host side: never overwrite it)
+  for item in "$STAGED"/* "$STAGED"/.[!.]*; do
+    [ -e "$item" ] || continue
+    [ "$(basename "$item")" = "logs" ] && continue
+    cp -r "$item" "$JOB"/
+  done
+  rm -rf "$STAGED"
+fi
+exit $rc

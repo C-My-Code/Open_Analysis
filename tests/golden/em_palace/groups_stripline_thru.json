@@ -1,0 +1,125 @@
+{
+ "boundary_bc": {
+  "xmax": "absorbing",
+  "xmin": "absorbing",
+  "ymax": "pec",
+  "ymin": "pec",
+  "zmax": "pec",
+  "zmin": "pec"
+ },
+ "content_hash": "5e9f8be0688ea51506bf2a71f16f0fe1cd83d95d744c192ca405ed238ff271ff",
+ "groups": [
+  {
+   "dim": 3,
+   "kind": "material",
+   "measure": 5.4374999999999996e-08,
+   "model_id": "FR4_generic",
+   "n_entities": 2,
+   "name": "mat:FR4_generic",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 0.000125,
+   "model_id": "cb:L1:GND",
+   "n_entities": 1,
+   "name": "cond:cb:L1:GND",
+   "net": "GND",
+   "representation": "sheet",
+   "role": "reference",
+   "tag": 100
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 5e-06,
+   "model_id": "cb:L2:SIG",
+   "n_entities": 1,
+   "name": "cond:cb:L2:SIG",
+   "net": "SIG",
+   "representation": "sheet",
+   "role": "signal",
+   "tag": 101
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 0.000125,
+   "model_id": "cb:L3:GND",
+   "n_entities": 1,
+   "name": "cond:cb:L3:GND",
+   "net": "GND",
+   "representation": "sheet",
+   "role": "reference",
+   "tag": 102
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 2.1749999999999995e-06,
+   "model_id": "P1",
+   "n_entities": 2,
+   "name": "port:P1",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1000
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 2.1749999999999995e-06,
+   "model_id": "P2",
+   "n_entities": 2,
+   "name": "port:P2",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1001
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 1.0875e-05,
+   "model_id": "ymin",
+   "n_entities": 2,
+   "name": "bc:ymin",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2002
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 1.0875e-05,
+   "model_id": "ymax",
+   "n_entities": 2,
+   "name": "bc:ymax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2003
+  }
+ ],
+ "length_unit_m": 1.0,
+ "msh_version": "4.1",
+ "ports": [
+  {
+   "group": "port:P1",
+   "kind": "wave",
+   "name": "P1"
+  },
+  {
+   "group": "port:P2",
+   "kind": "wave",
+   "name": "P2"
+  }
+ ],
+ "schema": "oa-occ-groups/1",
+ "structure_key": "st1:7f293a615d6550ebe62b33f11d3de5e0"
+}

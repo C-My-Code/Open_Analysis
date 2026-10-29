@@ -1,0 +1,161 @@
+{
+ "boundary_bc": {
+  "xmax": "absorbing",
+  "xmin": "absorbing",
+  "ymax": "absorbing",
+  "ymin": "absorbing",
+  "zmax": "absorbing",
+  "zmin": "pec"
+ },
+ "content_hash": "fc0318ab6975cb591f0075a5208ffe19baaa4be6e60b7635126868693364c61b",
+ "groups": [
+  {
+   "dim": 3,
+   "kind": "material",
+   "measure": 2.4999999999999992e-08,
+   "model_id": "FR4_generic",
+   "n_entities": 1,
+   "name": "mat:FR4_generic",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1
+  },
+  {
+   "dim": 3,
+   "kind": "material",
+   "measure": 1.29375e-07,
+   "model_id": "air",
+   "n_entities": 1,
+   "name": "mat:air",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 9.499999999999997e-06,
+   "model_id": "cb:L1:SIG",
+   "n_entities": 1,
+   "name": "cond:cb:L1:SIG",
+   "net": "SIG",
+   "representation": "sheet",
+   "role": "signal",
+   "tag": 100
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 0.000125,
+   "model_id": "cb:L2:GND",
+   "n_entities": 1,
+   "name": "cond:cb:L2:GND",
+   "net": "GND",
+   "representation": "sheet",
+   "role": "reference",
+   "tag": 101
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 7.599999999999997e-08,
+   "model_id": "P1",
+   "n_entities": 1,
+   "name": "port:P1",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1000
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 7.599999999999997e-08,
+   "model_id": "P2",
+   "n_entities": 1,
+   "name": "port:P2",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1001
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 6.098999999999999e-06,
+   "model_id": "xmin",
+   "n_entities": 3,
+   "name": "bc:xmin",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2000
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 6.098999999999999e-06,
+   "model_id": "xmax",
+   "n_entities": 3,
+   "name": "bc:xmax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2001
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 3.0875e-05,
+   "model_id": "ymin",
+   "n_entities": 2,
+   "name": "bc:ymin",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2002
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 3.0875e-05,
+   "model_id": "ymax",
+   "n_entities": 2,
+   "name": "bc:ymax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2003
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 0.000125,
+   "model_id": "zmax",
+   "n_entities": 1,
+   "name": "bc:zmax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2005
+  }
+ ],
+ "length_unit_m": 1.0,
+ "msh_version": "4.1",
+ "ports": [
+  {
+   "group": "port:P1",
+   "kind": "lumped",
+   "name": "P1"
+  },
+  {
+   "group": "port:P2",
+   "kind": "lumped",
+   "name": "P2"
+  }
+ ],
+ "schema": "oa-occ-groups/1",
+ "structure_key": "st1:865ee595ec58c11605ba04314000b020"
+}

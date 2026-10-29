@@ -1,0 +1,233 @@
+{
+ "boundary_bc": {
+  "xmax": "absorbing",
+  "xmin": "absorbing",
+  "ymax": "absorbing",
+  "ymin": "absorbing",
+  "zmax": "absorbing",
+  "zmin": "absorbing"
+ },
+ "content_hash": "a0ebd75caba80596e1453febf859c3a93d6283748be7e761a88ad1d5e10b0165",
+ "groups": [
+  {
+   "dim": 3,
+   "kind": "material",
+   "measure": 1.3040604674470329e-07,
+   "model_id": "FR4_generic",
+   "n_entities": 18,
+   "name": "mat:FR4_generic",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1
+  },
+  {
+   "dim": 3,
+   "kind": "material",
+   "measure": 3.104924405426768e-07,
+   "model_id": "air",
+   "n_entities": 2,
+   "name": "mat:air",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 4.739200775248309e-06,
+   "model_id": "cb:L1:SIG",
+   "n_entities": 2,
+   "name": "cond:cb:L1:SIG",
+   "net": "SIG",
+   "representation": "sheet",
+   "role": "signal",
+   "tag": 100
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 7.587632024505696e-07,
+   "model_id": "cb:L2:GND",
+   "n_entities": 2,
+   "name": "cond:cb:L2:GND",
+   "net": "GND",
+   "representation": "sheet",
+   "role": "reference",
+   "tag": 101
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 7.587632024505696e-07,
+   "model_id": "cb:L3:GND",
+   "n_entities": 2,
+   "name": "cond:cb:L3:GND",
+   "net": "GND",
+   "representation": "sheet",
+   "role": "reference",
+   "tag": 102
+  },
+  {
+   "dim": 2,
+   "kind": "conductor",
+   "measure": 4.739200775253284e-06,
+   "model_id": "cb:L4:SIG",
+   "n_entities": 2,
+   "name": "cond:cb:L4:SIG",
+   "net": "SIG",
+   "representation": "sheet",
+   "role": "signal",
+   "tag": 103
+  },
+  {
+   "dim": 2,
+   "kind": "via",
+   "measure": 1.6674003008927828e-06,
+   "model_id": "vb:via:SIG:1",
+   "n_entities": 12,
+   "name": "via:vb:via:SIG:1",
+   "net": "SIG",
+   "representation": "solid",
+   "role": "signal",
+   "tag": 104
+  },
+  {
+   "dim": 2,
+   "kind": "via",
+   "measure": 1.6674003008927828e-06,
+   "model_id": "vb:via:GND:1",
+   "n_entities": 12,
+   "name": "via:vb:via:GND:1",
+   "net": "GND",
+   "representation": "solid",
+   "role": "reference",
+   "tag": 105
+  },
+  {
+   "dim": 2,
+   "kind": "via",
+   "measure": 1.6674003008927828e-06,
+   "model_id": "vb:via:GND:2",
+   "n_entities": 12,
+   "name": "via:vb:via:GND:2",
+   "net": "GND",
+   "representation": "solid",
+   "role": "reference",
+   "tag": 106
+  },
+  {
+   "dim": 2,
+   "kind": "via",
+   "measure": 1.6674003008927828e-06,
+   "model_id": "vb:via:GND:3",
+   "n_entities": 12,
+   "name": "via:vb:via:GND:3",
+   "net": "GND",
+   "representation": "solid",
+   "role": "reference",
+   "tag": 107
+  },
+  {
+   "dim": 2,
+   "kind": "via",
+   "measure": 1.6674003008927828e-06,
+   "model_id": "vb:via:GND:4",
+   "n_entities": 12,
+   "name": "via:vb:via:GND:4",
+   "net": "GND",
+   "representation": "solid",
+   "role": "reference",
+   "tag": 108
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 1.764e-05,
+   "model_id": "P1",
+   "n_entities": 5,
+   "name": "port:P1",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1000
+  },
+  {
+   "dim": 2,
+   "kind": "port",
+   "measure": 1.764e-05,
+   "model_id": "P2",
+   "n_entities": 5,
+   "name": "port:P2",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 1001
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 7.35e-05,
+   "model_id": "ymin",
+   "n_entities": 5,
+   "name": "bc:ymin",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2002
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 7.35e-05,
+   "model_id": "ymax",
+   "n_entities": 5,
+   "name": "bc:ymax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2003
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 0.00015,
+   "model_id": "zmin",
+   "n_entities": 1,
+   "name": "bc:zmin",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2004
+  },
+  {
+   "dim": 2,
+   "kind": "boundary",
+   "measure": 0.00015,
+   "model_id": "zmax",
+   "n_entities": 1,
+   "name": "bc:zmax",
+   "net": null,
+   "representation": null,
+   "role": null,
+   "tag": 2005
+  }
+ ],
+ "length_unit_m": 1.0,
+ "msh_version": "4.1",
+ "ports": [
+  {
+   "group": "port:P1",
+   "kind": "wave",
+   "name": "P1"
+  },
+  {
+   "group": "port:P2",
+   "kind": "wave",
+   "name": "P2"
+  }
+ ],
+ "schema": "oa-occ-groups/1",
+ "structure_key": "st1:d2218317c5de4ac17cdafde368e9e258"
+}

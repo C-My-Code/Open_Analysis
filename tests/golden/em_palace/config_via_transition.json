@@ -1,0 +1,160 @@
+{
+  "Problem": {
+    "Type": "Driven",
+    "Verbose": 2,
+    "Output": "postpro"
+  },
+  "Model": {
+    "Mesh": "model.msh",
+    "L0": 1.0
+  },
+  "Domains": {
+    "Materials": [
+      {
+        "Attributes": [
+          1
+        ],
+        "Permittivity": 4.173535876,
+        "LossTan": 0.019862336,
+        "Permeability": 1.0
+      },
+      {
+        "Attributes": [
+          2
+        ],
+        "Permittivity": 1.0,
+        "LossTan": 0.0,
+        "Permeability": 1.0
+      }
+    ]
+  },
+  "Boundaries": {
+    "Absorbing": {
+      "Attributes": [
+        2002,
+        2003,
+        2004,
+        2005
+      ],
+      "Order": 1
+    },
+    "Conductivity": [
+      {
+        "Attributes": [
+          100
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 3.5e-05
+      },
+      {
+        "Attributes": [
+          101
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 3.5e-05
+      },
+      {
+        "Attributes": [
+          102
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 3.5e-05
+      },
+      {
+        "Attributes": [
+          103
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 3.5e-05
+      },
+      {
+        "Attributes": [
+          104
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 2.5e-05
+      },
+      {
+        "Attributes": [
+          105
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 2.5e-05
+      },
+      {
+        "Attributes": [
+          106
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 2.5e-05
+      },
+      {
+        "Attributes": [
+          107
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 2.5e-05
+      },
+      {
+        "Attributes": [
+          108
+        ],
+        "Conductivity": 58000000.0,
+        "Thickness": 2.5e-05
+      }
+    ],
+    "WavePort": [
+      {
+        "Index": 1,
+        "Attributes": [
+          1000
+        ],
+        "Mode": 1,
+        "Offset": 0.0,
+        "Excitation": 1
+      },
+      {
+        "Index": 2,
+        "Attributes": [
+          1001
+        ],
+        "Mode": 1,
+        "Offset": 0.0,
+        "Excitation": 2
+      }
+    ],
+    "WavePortPEC": {
+      "Attributes": [
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
+      ]
+    }
+  },
+  "Solver": {
+    "Order": 2,
+    "Device": "CPU",
+    "Driven": {
+      "Samples": [
+        {
+          "Type": "Linear",
+          "MinFreq": 2.0,
+          "MaxFreq": 20.0,
+          "NSample": 201
+        }
+      ]
+    },
+    "Linear": {
+      "Type": "AMS",
+      "KSPType": "GMRES",
+      "Tol": 1e-06,
+      "MaxIts": 200
+    }
+  }
+}
