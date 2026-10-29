@@ -16,7 +16,16 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-em",
+    "oa-jobs",
+    "oa-mesh",
+    "oa-network",
+    "oa-physics",
+    "numpy>=1.26",
+    "scikit-rf>=1.0",
 ]
+
+[project.entry-points."open_analysis.em_adapters"]
+palace = "oa_em_palace:PalaceAdapter"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_em_palace"]
@@ -26,3 +35,7 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-em = { workspace = true }
+oa-jobs = { workspace = true }
+oa-mesh = { workspace = true }
+oa-network = { workspace = true }
+oa-physics = { workspace = true }
