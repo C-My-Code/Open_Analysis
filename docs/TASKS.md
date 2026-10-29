@@ -1,6 +1,6 @@
 # Work Breakdown for Parallel Implementation
 
-Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 and M1 in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md), [specs/ai-integration.md](specs/ai-integration.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
+Status: v1, 2026-10-27 (AI integration added per ADR-0007; M1P added 2026-10-29 per ADR-0009/0010). This file covers M0, M1 and M1P (performance and accuracy, between the M1 features and the M1 release) in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md), [specs/ai-integration.md](specs/ai-integration.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
 
 ## Rules of engagement (every agent reads this first)
 
@@ -48,6 +48,18 @@ Status: v1, 2026-10-27 (AI integration added per ADR-0007). This file covers M0 
     - Only the agent the integrator names may run `slow` or `external` tests, such as 3D meshing, openEMS or large solves. Everyone else uses `-m "not external and not kicad and not slow"`.
     - Use oa_jobs budgets (`max_runtime_s` and `max_memory_gb`, 8 GB by default) for solver runs.
     - Before reporting done, check that no stray python, openEMS or gmsh processes from your worktree are still running, and end your own if any are.
+
+11. **One heavy/GPU token (M1P onward).** The reference machine (Ryzen 9 9950X3D 16C/32T, 47 GB, RTX 4080 SUPER 16 GB) has frozen under uncapped load.
+    - At most **3 agents** run at once, and at most **one** of them holds the token at a time. The integrator names the holder, and the holder releases the token when its block ends.
+    - Only the token holder may:
+      - use the GPU at all (`OA_RUN_GPU=1`, `gpu` marker, `OA_DEVICE=cuda`);
+      - run `slow`/`external` tests, Palace, openEMS or oa-fdtd beyond unit size;
+      - build Palace;
+      - run the `bench` profile of [BENCHMARKS.md](BENCHMARKS.md) §1.
+    - Everyone else runs on `OA_DEVICE=cpu` with rule 10's caps and queues heavy runs for their next token block.
+    - Token blocks last at most 2 hours, except the WP-511 gate run.
+    - Rust builds (`cargo`, `maturin`) use `-j 2` (`CARGO_BUILD_JOBS=2`).
+    - The rule 10 caps (2 threads, 8 GB per pytest run, oa_jobs budgets) stay in force for everyone, the token holder included, outside the `bench` profile.
 
 ---
 
@@ -857,7 +869,7 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 ### WP-303 M1 end-to-end and release. Size: M
 **Owned:** `tests/e2e/**`, `.github/workflows/release.yml`, `docs/user/**`, `packaging/**`
 
-**Deps:** WP-207, WP-209, WP-210, WP-302.
+**Deps:** WP-207, WP-209, WP-210, WP-302, and **WP-511 (M1P gate)** for the release itself. The E2E scripts can be written before M1P closes; the release cannot ship until WP-511 passes.
 
 **Deliverables:**
 - E2E scripts. Starting from `.kicad_pcb` for every WP-102 board plus `cm5_minima`, they run `oa init`, then ingest, ERC (SARIF), impedance profile, DC IR (power boards), EM (via board, openEMS), and an HTML report.
@@ -881,25 +893,329 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
   Every summary states its accuracy class, and the results match the CLI E2E results.
 - The meta-package exposes the `oa-mcp` console script.
 
-### WP-304 Performance benchmarks. Size: S
-**Owned:** `tests/benchmarks/**`, `.github/workflows/bench.yml`
+### WP-304 Benchmark harness and reporting. Size: M (expanded for M1P; was S)
+Defined in full in the M1P section below.
 
-**Deps:** WP-101, WP-104, WP-201, WP-204.
+---
+
+## M1P: performance and accuracy (between M1 features and the M1 release)
+
+Milestone definition: [ROADMAP](ROADMAP.md) "M1P". Gates: [BENCHMARKS.md](BENCHMARKS.md). Design: [ADR-0008](adr/0008-compiled-core.md) (amended), [ADR-0009](adr/0009-gpu-acceleration.md), [ADR-0010](adr/0010-gpu-fdtd-engine.md). Rule 11 (one heavy/GPU token, at most 3 agents) applies to every WP here.
+
+**Each M1P WP adds new packages and contracts.** For root-file changes, the WP writes a change request with the exact text, and the integrator applies it:
+- workspace sources;
+- import-linter `root_packages`, layers and forbidden contracts;
+- `[tool.mypy]` paths;
+- pytest markers such as `gpu`.
+
+These change requests are `docs/change-requests/<WP-ID>-root-config.md`.
+
+### Dependency graph and schedule
+
+```mermaid
+flowchart LR
+  WP304[304 Benchmark harness]
+  WP501[501 Palace accuracy + converged refs]
+  WP502[502 Palace performance + CUDA build]
+  WP503[503 oa-accel core]
+  WP504[504 oa-accel integrations]
+  WP505[505 oa-fdtd core engine]
+  WP506[506 oa-fdtd physics + ports]
+  WP507[507 oa-fdtd adapter + verification]
+  WP508[508 oa-native crate, parser, ReferenceMap]
+  WP509[509 oa-native ERC, BEM assembly, sampling]
+  WP510[510 Accuracy closure 2D + openEMS]
+  WP511[511 M1P gate run]
+  WP304 --> WP501 & WP510 & WP504 & WP508
+  WP501 --> WP502
+  WP503 --> WP504 & WP505
+  WP505 --> WP506 --> WP507
+  WP505 -. grid API .-> WP507
+  WP508 --> WP509
+  WP501 -. converged EM refs .-> WP507
+  WP502 & WP504 & WP507 & WP509 & WP510 --> WP511
+  WP511 --> WP303[303 M1 release]
+```
+
+WP-304's dependency is soft: the downstream WPs need its case and result format (`oa-bench/1`) early, so WP-304 publishes that format in its first 2 days and the others start against it.
+
+**Parallel lanes.** There are three lanes, so at most 3 agents run at once. One token is shared (rule 11).
+
+| Lane | Order | Token use |
+|---|---|---|
+| 1, GPU | WP-503 (S) → WP-505 (L) → WP-506 (L) → WP-507 (M) → WP-511 (S) | GPU for kernel tests and the FDTD verification runs. Holds the token most of the time |
+| 2, EM heavy | WP-501 (L) → WP-510 (L) → WP-502 (M) | Palace and openEMS runs, the Palace CUDA build. Token in scheduled blocks, overnight where possible |
+| 3, CPU light | WP-304 (M) → WP-508 (L) → WP-509 (M) → WP-504 (M) | Light. WP-304's baseline run and WP-504's GPU measurements need token blocks |
+
+- Can run in parallel at any time: one WP from each lane. The pairs that never collide on owned paths are 503/505/506 with 501/510/502 and with 304/508/509.
+- WP-504 and WP-509 both touch `oa_impedance/bem/`, in different files (`solver.py` vs `kernels.py`). Lane 3 runs them in sequence, so they are never concurrent.
+- Critical path: WP-503 → WP-505 → WP-506 → WP-507 → WP-511, about 24 working days at one focused agent each. Lanes 2 and 3 each take about 20 days, and token contention makes the real elapsed time longer. With the token serializing heavy work, plan for about 6 weeks.
+
+---
+
+### WP-304 Benchmark harness and reporting. Size: M
+**Owned:**
+- `tests/benchmarks/**`, except `tests/benchmarks/references/**` (owned by WP-501 and WP-510, see there);
+- `tools/bench/**`;
+- `tools/validation/**` (handed over from WP-302, which is merged);
+- `docs/validation/benchmarks/**`;
+- `.github/workflows/bench.yml`.
+
+**Deps:** WP-101, WP-104, WP-201, WP-204 (all merged). Format first, so that other WPs can start (see above).
 
 **Deliverables:**
-- pytest-benchmark or asv suites tracking:
-  - ingest time and RAM for `cm5_minima` and the Jetson demo (88 MB);
-  - geometry build;
-  - ReferenceMap;
-  - full M1 ERC;
-  - BEM per section;
-  - DC IR solve at 1e5/1e6 unknowns.
-- Stored history, with a regression alert above 20 %. A profiling report (py-spy flamegraphs) identifying Rust/PyO3 candidates for ADR-0002 review.
+- One case directory per BENCHMARKS.md id: `tests/benchmarks/cases/<ID>/case.toml`, containing:
+  - the inputs (fixture or board, generator seed);
+  - the reference (class, citation or `[verify]`, the path of the reference data under `tests/benchmarks/references/`);
+  - the accuracy, runtime and memory targets per backend and solver, copied verbatim from BENCHMARKS.md §2.
+- A runner, `tools/bench/run.py`:
+  - selects cases (`--case`, `--group`), backends (`--device cpu|cuda|rocm`) and solvers;
+  - applies the `bench` or `default` profile (BENCHMARKS.md §1), enforces the host memory cap and the CPU-load precheck, and runs cold + 3 warm repetitions;
+  - records wall time, host peak memory (job object / cgroup), GPU peak and `AccelReport`;
+  - compares accuracy against the reference with the case's metric (dB difference per frequency, % error, exact match), and writes `tests/benchmarks/results/<date>-<commit>-<host>.json` (schema `oa-bench/1`).
+- Report generation: `tools/validation/build_page.py` extended to generate `docs/validation/benchmarks/index.md` and one page per group. These hold the target and measured values per backend, pass/fail, history plots (time and accuracy per commit) and a link from each case to its references. The summary page links it.
+- Regression alert: more than 20 % slower, or an accuracy loss of more than 25 % of the tolerance, against the last passing run fails the nightly job.
+- The pre-M1P baseline run, committed as `tests/benchmarks/BASELINE.md`, with py-spy flamegraphs for B-ING-01, B-ERC-01 and B-DC-02.
 
 **Acceptance:**
-- The benchmarks run nightly.
-- A baseline table is committed in `tests/benchmarks/BASELINE.md`.
-- The Jetson ingest is < 30 s and ERC on the Jetson board < 5 min on the reference runner. Breaching either opens an issue.
+- Every BENCHMARKS.md case id has a `case.toml`. Cases whose reference is not produced yet run and report `ref-pending`, and the runner never crashes on them.
+- Runner unit tests use synthetic cases and pass on Windows and Linux without a GPU. `--device cuda` with no GPU present reports `skipped (no device)`, never `pass`.
+- The baseline run is committed and reproduces the "Today" column of BENCHMARKS.md §2 within 20 %.
+- The benchmark pages build in CI from a committed results file.
+
+### WP-501 Palace accuracy, converged EM references, and the 1.24 dB discrepancy. Size: L (heavy)
+**Owned:**
+- `packages/oa-em-palace/**`;
+- `docker/palace/**`;
+- `tests/golden/em_palace/**`;
+- `packages/oa-mesh/src/oa_mesh/occ3d/**`;
+- `tests/benchmarks/references/em/**`.
+
+**Deps:** WP-301 (merged), WP-304 (case format).
+
+**Deliverables:**
+- **Root cause and fix of the microstrip IL discrepancy.** At 10 GHz on 25 mm, Palace gives 1.24 dB against openEMS's 0.74 dB, and Pozar's closed form gives about 1.0 dB. Steps:
+  1. Decompose IL into α_c, α_d and mismatch for Palace, openEMS and the 2D BEM/FEM RLGC, using γ and Z0 extracted from S.
+  2. Make the dielectric model identical across all three (Djordjevic-Sarkar at each frequency; today Palace holds tan δ at its 5 GHz value).
+  3. Check `Boundaries.Conductivity` with `Thickness` on interior zero-thickness sheets for double-sided loss, against thick copper with an impedance boundary on every face and against the FEM α_c.
+  4. Check the wave-port `Offset` de-embedding and the modal normalization.
+  5. Run p1 → p3 and AMR convergence.
+
+  Write up the findings in `docs/change-requests/WP-501-palace-il-root-cause.md`.
+- **Converged configuration:**
+  - `Solver.Order` 2/3;
+  - `Model.Refinement` AMR to max |ΔS| ≤ 0.002 (thru) or ≤ 0.005 (via, launch, filter);
+  - curved (second-order) geometry for via barrels from `occ3d`;
+  - per-band dielectrics: Palace 0.18 has no frequency-dependent materials, so the sweep is split into bands, each evaluated at its centre and stitched, with the band count set so the DS change inside a band is ≤ 0.2 % in ε and ≤ 2 % in tan δ;
+  - surface-impedance copper with roughness: `Conductivity` with `Thickness` and an effective σ(f) per band from the `oa_physics` Hammerstad/Huray factor (documented as an approximation).
+- **Iterative solvers as default:** AMS-preconditioned GMRES with tuned tolerances; a cuDSS/MUMPS direct solve only where the memory estimate fits. A memory estimator per configuration keeps runs inside the box (6 GB default, 12 GB for B-EM-03/04/06 under the token).
+- **Converged reference data** for B-EM-01…06 in `tests/benchmarks/references/em/<ID>/`. Each holds the Touchstone, the convergence history and a `provenance.json` (Palace version, order, DOFs, ΔS history). It is regenerated only with `--update-golden`.
+- `occ3d` changes as needed: `msh_version` argument (CR WP-301 §6), curved-element export, and size fields for p2/p3. The existing WP-206 tests must stay green.
+
+**Acceptance:**
+- B-EM-01 and B-EM-02(b): Palace within 0.05 dB IL and 1 dB |S11| of reference R1 (2D RLGC cascade, produced by WP-510), with R1 and R2 agreeing within 0.02 dB. B-EM-02(a): exact lossless within 0.01 dB.
+- References exist for B-EM-03…06 with a converged ΔS history.
+- The root-cause write-up names the cause or causes with numbers, and openEMS (after WP-510) agrees with Palace within 0.05 dB on B-EM-01.
+- No Palace run exceeds its memory box (cgroup peak is recorded).
+
+### WP-502 Palace performance and GPU build (CUDA in WSL2, documented HIP). Size: M (heavy, GPU)
+**Owned:** the same paths as WP-501 (sequential after it), plus `docs/user/palace-gpu.md`.
+
+**Deps:** WP-501.
+
+**Deliverables:**
+- An adaptive fast sweep (`Driven.AdaptiveTol`) as the default for ≥ 21 points, with the tolerance set from the B-EM accuracy gates.
+- `docker/palace/install-wsl-cuda.sh` builds Palace 0.18.1 in WSL2 with:
+  - `PALACE_WITH_CUDA=ON`, `CMAKE_CUDA_ARCHITECTURES=89`, `PALACE_WITH_MAGMA=ON`;
+  - `PALACE_WITH_CUDSS=ON`, with `CUDSS_DIR` pointing at the cuDSS archive (not a wheel);
+  - the CUDA toolkit from a user-space micromamba environment (no sudo; the Windows driver provides libcuda).
+
+  The build runs under the same `systemd-run` memory/CPU scope at `make -j2`.
+- The `gpu=True` path of `PalaceAdapter`: `Solver.Device = "GPU"`, the default backend, the GPU lease, and an MPI rank per GPU (1).
+- `docs/user/palace-gpu.md`: the CUDA recipe as tested, and the HIP recipe (`PALACE_WITH_HIP=ON`, `CMAKE_HIP_ARCHITECTURES`, ROCm in WSL for the supported Radeon parts per ADR-0009 §7), marked "not tested on AMD hardware".
+
+**Acceptance:**
+- B-EM-01 Palace runtime: ≤ 300 s CPU and ≤ 90 s GPU, at the same accuracy as WP-501.
+- B-EM-03 and B-EM-06: Palace runtime gates (GPU and CPU) met.
+- GPU vs CPU Palace S-parameters agree within 1e-3 linear on B-EM-01.
+- The build script runs from a clean WSL distro, as a documented manual check.
+
+### WP-503 `oa-accel` core: device selection, memory budget, backend protocol. Size: S (GPU)
+**Owned:** `packages/oa-accel/**`, `.github/workflows/wp-503-gpu.yml`, `docs/change-requests/WP-503-*.md`.
+
+**Deps:** none (ADR-0009).
+
+**Deliverables:**
+- `oa_accel.select(policy)` implementing ADR-0009 §3: explicit argument → config → `OA_DEVICE` → `auto` with the crossover thresholds.
+- `MemoryBudget`: `OA_GPU_MEM_GB`, a pool limit, a pinned-memory limit, `estimate_bytes` helpers, and an `ACCEL_OUT_OF_MEMORY` refusal.
+- The `Backend` protocol (`dense_solve`, `sparse_solve` with CPU implementations, `raster_stencil`), `AccelReport`, and `fallback="cpu"|"error"`.
+- Extras `cuda12`, `cuda13`, `rocm`. A lazy CuPy import, so that `import oa_accel` without CuPy costs < 50 ms.
+- A `gpu` pytest marker, skipped unless `OA_RUN_GPU=1`.
+- A CR with the root-config text: layer placement next to `oa_physics`, and the forbidden contract "only `oa_accel` and `oa_fdtd.engine` import `cupy`".
+
+**Acceptance:**
+- Without CuPy, every test passes on Windows, Linux and macOS, and `auto` selects the CPU.
+- On the reference GPU:
+  - `auto` selects `cuda` above the threshold and `cpu` below it;
+  - the memory-limit refusal triggers before allocation;
+  - a forced CUDA error falls back (`fallback="cpu"`) or returns `ErrorInfo` (`fallback="error"`).
+- Dense and sparse CPU-vs-GPU agreement within ADR-0009 §5 on random SPD systems with fixed seeds.
+
+### WP-504 `oa-accel` integrations: BEM dense, DC IR/thermal sparse, raster. Size: M (GPU)
+**Owned:**
+- `packages/oa-accel/src/oa_accel/solvers/**`;
+- `packages/oa-impedance/src/oa_impedance/bem/solver.py`;
+- `packages/oa-pi/src/oa_pi/dc/solvers.py`;
+- `packages/oa-pi/src/oa_pi/reference/raster.py`.
+
+**Deps:** WP-503, WP-304.
+
+**Deliverables:**
+- BEM: batched dense solves through `Backend.dense_solve` (cuSOLVER on NVIDIA) for `solve_many`, with sections grouped by size.
+- DC IR: cuDSS via nvmath-python (SPD) and AMGX-PCG optional; CuPy CG with Jacobi as the portable path (ROCm).
+- Raster FVM: a matrix-free CuPy stencil with CG.
+- Thermal: the same sparse entry point, exposed for WP-404 (M2). No thermal solver here.
+- The crossover thresholds measured on the reference machine and written into `oa_accel` defaults, citing the WP-304 results file.
+
+**Acceptance:**
+- B-IMP-04 and B-DC-02 meet their GPU runtime targets and memory ceilings. Their CPU accuracy is unchanged (existing golden suites green).
+- GPU vs CPU within ADR-0009 §5 on B-IMP-01/02 and B-DC-01.
+- The portable path that ROCm uses (CG + Jacobi, no cuDSS or AMGX) is tested on CUDA by forcing `method="cg"`, and smoke-tested on AMD hardware if available.
+
+### WP-505 `oa-fdtd` core engine. Size: L (GPU)
+**Owned:** `packages/oa-fdtd/**` (whole package until merged), `packages/oa-mesh/src/oa_mesh/rect/**`, `tests/golden/fdtd/**`, `docs/change-requests/WP-505-*.md`.
+
+**Deps:** WP-503.
+
+**Deliverables (ADR-0010 §2, §4, §7, §8):**
+- `oa_mesh.rect`: the graded rectilinear mesher, ported from the `oa_em_openems.mesh` rules, with the copper-face lines.
+- The averaged-material edge index, the Courant time step, and the float32/float64 field store.
+- Engines:
+  - the NumPy float64 reference engine;
+  - CuPy `RawKernel` fused E and H updates with 2.5D z-marching, slab-group specialization, padded SoA layout and CUDA-graph step batching;
+  - a `dtype=float64` GPU variant.
+- PEC/PMC walls, CPML (CFS), lumped ports, Gaussian excitation, the on-device float64 running DFT, and the energy end criterion.
+- The memory estimator wired to `oa_accel.MemoryBudget`, and multi-excitation batching of the field arrays.
+- The `oa-fdtd run job.json` console script (an engine-level job format; no `oa_framework` import yet).
+
+**Acceptance:**
+- ADR-0010 §9 cases 1, 2, 3 and 7 pass on both engines. float32 GPU vs float64 is within ADR-0009 §5.
+- B-PERF-01 plain-kernel throughput ≥ 3.0 Gcells/s.
+- The NumPy engine runs every test without a GPU on Windows, Linux and macOS.
+
+### WP-506 `oa-fdtd` physics and ports: SIBC copper, conformal, ADE, mode ports, de-embedding. Size: L (GPU)
+**Owned:** `packages/oa-fdtd/src/oa_fdtd/{materials,subcell,ports,kernels}/**` and their tests, `tests/golden/fdtd_physics/**`.
+
+**Deps:** WP-505.
+
+**Deliverables (ADR-0010 §3, §5, §6):**
+- Thick-copper SIBC: finite-slab `Zs(ω)` × roughness, pole fit, recursive convolution; plus the `sheet` and `pec` models.
+- Dey-Mittra conformal PEC for via barrels and arcs, with area-fraction clipping.
+- Djordjevic-Sarkar and table dielectrics as an automatic N-pole Debye fit, with ADE kernels.
+- Quasi-TEM mode ports: templates from `oa_impedance` 2D FEM/BEM, N modes, TF/SF injection, modal V/I.
+- Reference-plane shift from measured γ, and a hook for the `oa_network` 2x-thru.
+- An optional matrix-pencil tail extrapolation.
+- The `FDTD.UNSTABLE` late-time growth detector.
+
+**Acceptance:**
+- ADR-0010 §9 cases 4, 5 and 6 pass.
+- The Debye fit meets the ε/tan δ error limits over 0.1-40 GHz for the physics library's FR-4 and low-loss laminates.
+- B-PERF-01 PCB-like throughput ≥ 1.5 Gcells/s.
+
+### WP-507 `oa-fdtd` adapter, integration and verification against openEMS. Size: M (GPU + heavy)
+**Owned:** `packages/oa-fdtd/src/oa_fdtd/adapter/**`, `packages/oa-fdtd/pyproject.toml` (entry points), `packages/oa-fdtd/tests/verification/**`, `packages/oa-fdtd/README.md`, `tests/golden/fdtd_verify/**`.
+
+**Deps:** WP-505 (start: grid API), WP-506 (acceptance), WP-501 (EM references).
+
+**Deliverables:**
+- `FdtdAdapter` (`SolverAdapter`, entry point `fdtd`): `capabilities`, `check`, `prepare` (`problem.json`, `grid.npz`, one `ExternalCommand` per batch, `Resources(gpu=True)`), and `collect` (power-wave S, Touchstone, sidecar, quality gate).
+- An `oa em --solver fdtd` end-to-end test through `oa_testkit.harness`.
+- Verification against openEMS on identical grids (ADR-0010 §9 cross-solver).
+- The README: public API, models, verification table, known gaps.
+
+**Acceptance:**
+- The openEMS identical-grid check passes (|ΔS21| ≤ 0.01 dB, |ΔS11| ≤ 1 dB above −40 dB, to 20 GHz).
+- **B-EM-01…05 accuracy and GPU runtime gates pass with oa-fdtd.** B-EM-06 is reported.
+- The quality gate passes with PQM ≥ 99 on every B-EM case.
+
+### WP-508 `oa-native` crate, KiCad S-expression parser, ReferenceMap. Size: L
+**Owned:**
+- `crates/oa-native/**` (whole crate until merged);
+- `packages/oa-native/**`;
+- `packages/oa-ingest-kicad/src/oa_ingest_kicad/sexpr.py`;
+- `packages/oa-geometry/src/oa_geometry/refmap.py`;
+- `.github/workflows/wp-508-wheels.yml`;
+- `docs/change-requests/WP-508-*.md`.
+
+**Deps:** WP-101, WP-104 (merged), WP-304. Needs the Rust toolchain installed (open question 6).
+
+**Deliverables:**
+- A PyO3/maturin crate with abi3 wheels for Windows, Linux and macOS.
+- A native S-expression tokenizer/parser returning the same token tree as `sexpr.py`.
+- Native ReferenceMap kernels: the spatial index and reference-plane queries.
+- An `OA_NATIVE=0|1|auto` switch. The pure-Python implementations stay as the oracles.
+
+**Acceptance:**
+- B-ING-01 accuracy and runtime gates: native vs Python `content_hash()` identical on every test board.
+- Wheel builds succeed for 3 OSes in CI.
+- With no wheel installed, everything still passes on Python.
+
+### WP-509 `oa-native`: ERC loops, BEM assembly, profile sampling. Size: M
+**Owned:**
+- `crates/oa-native/src/{erc,bem,sampling}/**` and `crates/oa-native/src/lib.rs` (after WP-508 merges);
+- `packages/oa-erc/src/oa_erc/engine.py` and the new `packages/oa-erc/src/oa_erc/_native.py`;
+- `packages/oa-impedance/src/oa_impedance/bem/kernels.py`;
+- `packages/oa-geometry/src/oa_geometry/sampling.py`.
+
+**Deps:** WP-508.
+
+**Deliverables:**
+- Native ERC inner loops for the rules dominating the 10k-track profile (IM-002 sampling, RP/ED/XT geometric queries) behind the existing engine interface.
+- Native BEM matrix assembly (analytic log integrals).
+- Native profile sampling.
+
+**Acceptance:**
+- B-ERC-01: exact match and runtime gates.
+- B-IMP-01 and B-IMP-02 runtime gates, with BEM results identical to the Python assembly within 1e-12 relative.
+
+### WP-510 Accuracy closure: 2D references, BEM interface, openEMS adapter. Size: L (heavy for openEMS runs)
+**Owned:**
+- `packages/oa-impedance/src/oa_impedance/bem/geometry.py`;
+- `packages/oa-impedance/src/oa_impedance/fem/**`;
+- `packages/oa-em-openems/**`;
+- `tests/golden/em_openems/**`;
+- `tests/golden/published/**`;
+- `tests/benchmarks/references/xs/**`;
+- `tests/benchmarks/references/dc/**`.
+
+**Deps:** WP-304. Coordinate with WP-509, which owns `bem/kernels.py`.
+
+**Deliverables:**
+- BEM: fix the dielectric-interface panelling behind the 0.57-0.59 % εeff gap, and the CPW box-truncation error (0.22 %). Both are FOLLOWUPS items.
+- Converged 2D references: FEM P2/P3, 3 levels, Richardson, for B-IMP-02/03 and the R1 RLGC references of B-EM-01/02. DC converged references for B-DC-01.
+- openEMS adapter:
+  - a multi-pole Debye fit (as ADR-0010 §5);
+  - a thick-copper option (copper-face mesh lines; sheets on both faces);
+  - the stripline stall fix (CFS-PML settings, or a documented Mur fallback reaching −50 dB);
+  - the MSL notch tutorial reproduction (B-EM-06b).
+- Published references: fill the Polar SI9000, Wadell and Bryant-Weiss slots, and the kicad-irdrop/padne values, **only from sources checked in this WP**. Anything else stays `[verify]`.
+
+**Acceptance:**
+- B-IMP-01, B-IMP-02 and B-IMP-03 accuracy gates pass.
+- B-EM-01 and B-EM-02 pass with openEMS (accuracy and CPU runtime).
+- The FOLLOWUPS items named above are closed.
+
+### WP-511 M1P gate run and sign-off. Size: S (heavy; holds the token for the whole run)
+**Owned:** `tests/benchmarks/results/**` and `docs/validation/benchmarks/**` (both after WP-304 merges), `docs/M1P-report.md`.
+
+**Deps:** WP-502, WP-504, WP-507, WP-509, WP-510.
+
+**Deliverables:**
+- The full benchmark run on the reference machine under the `bench` profile, plus a CPU-only run (`OA_DEVICE=cpu`) for the accuracy gates.
+- The generated benchmark pages, and a report listing every case's status, any gaps against BENCHMARKS.md, and the follow-ups.
+
+**Acceptance:**
+- Every ROADMAP M1P exit criterion holds. The report is signed off by the project owner, which unblocks WP-303's release.
 
 ---
 
@@ -919,8 +1235,8 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 | WP-410 | M2 validation (IPC-2152, JEDEC trends, Palace rings, dipole, SI cascade oracles) | `tests/golden/m2/**` | all above |
 | WP-411 | In-app AI assistant (`oa-assistant`): provider protocol, Anthropic reference provider (`claude-opus-5-5` default, keyring BYO key, off by default), server router, web assistant panel, data preview and redaction, user doc on data sent (ai-integration §11) | `packages/oa-assistant/`, `web/src/features/assistant/`, `docs/user/assistant.md` | 207, 209, 210 |
 | WP-412 | **(M3)** Surrogate dataset export (`oa-xsdataset/1`, `oa dataset export`/`sweep`) and impedance surrogate plugin (`oa-impedance-surrogate`, domain-gated, `accuracy_class="surrogate"`) (ai-integration §12) | `packages/oa-impedance-surrogate/`, `packages/oa-service/src/oa_service/dataset/` | 105, 202, 207 |
-| WP-413 | Optional GPU acceleration backend (`oa-accel`): array/sparse backend protocol with a CPU default; CUDA via CuPy first, ROCm via CuPy-ROCm through the same code; GPU paths for BEM dense solves, large sparse solves (DC IR, thermal, AC PDN) and raster solvers; Palace CUDA build in WSL2. Gated on WP-304 benchmarks; CPU fallback mandatory; ADR first | `packages/oa-accel/` | 105, 204, 301, 304 |
-| WP-414 | Compiled core per ADR-0008: `oa-native` Rust crate (PyO3/maturin) for parser, geometry/ReferenceMap, BEM assembly, raster solvers, ERC loops, each with a Python reference oracle; mypyc for typed packages; wheel builds in CI for 3 OSes; native app bundle | `crates/oa-native/`, `packages/oa-native/` | 101, 104, 105, 201, 204, 304 |
+| WP-413 | **Superseded by WP-503/WP-504 (M1P, ADR-0009).** Was: optional GPU acceleration backend (`oa-accel`): array/sparse backend protocol with a CPU default; CUDA via CuPy first, ROCm via CuPy-ROCm through the same code; GPU paths for BEM dense solves, large sparse solves (DC IR, thermal, AC PDN) and raster solvers; Palace CUDA build in WSL2. Gated on WP-304 benchmarks; CPU fallback mandatory; ADR first | `packages/oa-accel/` | 105, 204, 301, 304 |
+| WP-414 | **Superseded by WP-508/WP-509 (M1P, ADR-0008 amendment).** Was: compiled core per ADR-0008: `oa-native` Rust crate (PyO3/maturin) for parser, geometry/ReferenceMap, BEM assembly, raster solvers, ERC loops, each with a Python reference oracle; mypyc for typed packages; wheel builds in CI for 3 OSes; native app bundle | `crates/oa-native/`, `packages/oa-native/` | 101, 104, 105, 201, 204, 304 |
 
 ---
 
@@ -931,4 +1247,8 @@ Critical path: WP-000 → WP-104 → WP-205 → WP-301 → WP-302 → WP-303.
 3. **openEMS on Windows.** Which openEMS build and Python should be the default? `tools.toml` needs a canonical install recipe.
 4. **Polar SI9000 and commercial reference data.** Can users with licences contribute results for the published-reference suite?
 5. **Measured validation.** Is there a budget for the M5 VNA coupon program, or should we start one early?
-
+6. **Rust toolchain (M1P, WP-508).** May we install `rustup` (user-level, stable toolchain, MSVC target on Windows) on the reference machine and in CI? WP-508/509 cannot start without it.
+7. **GPU stack installs.** May we add `cupy-cuda12x` (about 1 GB of wheels), nvmath-python with cuDSS, and optionally `pyamgx` to the dev environment, and install a user-space CUDA toolkit and cuDSS archive inside WSL for the Palace GPU build (WP-502)?
+8. **AMD hardware.** Is any AMD GPU (Linux or WSL-supported Radeon) available for the tier-2 smoke lane, or does AMD stay "documented, untested" for M1P?
+9. **Benchmark profile.** BENCHMARKS.md §1 runs gate measurements at 8 threads and a 16 GB host cap, held by one agent with the token. Is that acceptable on the machine that froze, or should the gate use 4 threads and 12 GB (runtime targets would then be rescaled before WP-511)?
+10. **Commercial comparisons.** Do you (or contacts) hold HFSS/SIwave/HyperLynx/SI9000/Sonnet licences that permit running the BENCHMARKS.md cases and publishing results? Without them, parity is claimed only against converged and published references.
