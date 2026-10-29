@@ -6,7 +6,9 @@ import { Header } from './components/Header';
 import { LayerPanel } from './components/LayerPanel';
 import { NetBrowser } from './components/NetBrowser';
 import { Inspector } from './components/Inspector';
-import { ResultsPanel } from './components/ResultsPanel';
+import { ResultsPanel } from './features/results/ResultsPanel';
+import { SetupPanel } from './features/setup/SetupPanel';
+import { JobsPanel } from './features/jobs/JobsPanel';
 import { BoardView } from './components/BoardView';
 import { StackupView } from './components/StackupView';
 import { AssistantPanel } from './components/AssistantPanel';
@@ -24,7 +26,10 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
-    void dispatch({ type: 'project.list' }).then(() => dispatch({ type: 'project.open', path: 'sample_board' }));
+    void dispatch({ type: 'project.list' }).then(() => {
+      const first = useStore.getState().projects[0];
+      return dispatch({ type: 'project.open', path: first?.id ?? 'sample_board' });
+    });
   }, []);
 
   return (
@@ -45,8 +50,10 @@ export function App() {
           )}
           {loaded && tab === 'stackup' && <StackupView />}
         </main>
-        <div className="side right">
+        <div className="side right" data-testid="right-panel">
           <Inspector />
+          <SetupPanel />
+          <JobsPanel />
           <ResultsPanel />
         </div>
         <AssistantPanel />

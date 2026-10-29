@@ -1,95 +1,180 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Hand-written API DTOs following docs/specs/interfaces.md section 7 and 4.1.
- * SCHEMA SWITCH POINT: replace with types generated from `web/src/api/openapi.json` (WP-207) via
- * openapi-typescript; `ApiClient` below is the only seam the app depends on.
+ * API DTOs. Wire types come from `./generated/schema.d.ts`, generated from `openapi.json` by
+ * `npm run gen:api` (freshness gate: `npm run gen:api:check`, run by `npm run build`).
+ * The result manifest (`GET /results/{rid}`) is an untyped object in the OpenAPI document, so the
+ * UI-level result model below is hand-written and built by `features/results/adapt.ts`.
+ * `ApiClient` is the only seam the app depends on (mock client for dev/tests, http client for `oa serve`).
  */
-import type { Board, Diagnostic, LayerId, NetId, Vec2 } from '../types/board';
+import type { components } from './generated/schema';
+import type { Board } from '../types/board';
 
-export interface ProjectSummary {
-  id: string;
-  name: string;
-  board_hash: string;
-  diagnostics: Diagnostic[];
-}
+type S = components['schemas'];
 
-export interface NetInfo {
-  id: NetId;
-  kind: string;
-  net_class: string | null;
-  n_items: number;
-  length: number; // m
-  layers: LayerId[];
-}
+export type ProjectSummary = S['ProjectSummary'];
+export type NetInfo = S['RestNetInfo'];
+export type AnalysisInfo = S['AnalysisInfo'];
+export type Budget = S['Budget'];
+export type ProvenanceBrief = S['ProvenanceBrief'];
+/** Violation as served by `GET /results/{rid}/violations?fields=full` (WP-207: `location_m`, metres). */
+export type Violation = S['ViolationView'];
+/** `JobState` of the server; `succeeded` (not `done`) per CR WP-207-api-reconciliation. */
+export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'cached';
+export type JobStatus = Omit<S['RestJobStatus'], 'state'> & { state: JobState };
 
 export type Severity = 'info' | 'warning' | 'error';
+export type AccuracyClass = 'reference' | 'validated' | 'screening' | 'estimate' | 'unverified';
 
-export interface Violation {
-  rule_id: string;
-  severity: Severity;
+export const isTerminal = (s: JobState): boolean => s !== 'queued' && s !== 'running';
+
+export interface ValidityFlag {
+  code: string;
+  ok: boolean;
   message: string;
-  nets: NetId[];
-  layers: LayerId[];
-  items: string[];
-  location: Vec2; // metres, board frame
-  measured?: number | null;
-  limit?: number | null;
-  unit?: string | null;
-  fix_hint?: string | null;
-  fingerprint: string;
 }
 
-export interface ViolationSet {
+export interface Provenance {
+  analysis: string;
+  analysis_version: string;
+  board_hash: string;
+  setup_hash: string;
+  physics_hash?: string | null;
+  inputs_hash?: string | null;
+  solver?: string | null;
+  solver_version?: string | null;
+  config?: Record<string, unknown>;
+}
+
+interface ItemBase {
+  id: string;
+  title: string;
+  /** Always shown next to the item (ai-integration section 4.1). */
+  accuracy_class: AccuracyClass | null;
+  validity_flags: ValidityFlag[];
+}
+
+export interface ViolationSet extends ItemBase {
   kind: 'violations';
   rules_run: string[];
   violations: Violation[];
 }
 
-/** RasterGrid2D + one scalar field (interfaces.md 4.1 FieldPiece, simplified to one field). */
-export interface FieldResult {
-  kind: 'field';
-  layer: LayerId;
+/** One scalar field on a regular grid (TriMesh2D pieces are rasterised in the adapter). */
+export interface FieldGrid {
   name: string;
   unit: string;
-  origin: Vec2; // metres
+  layer: string | null;
+  net: string | null;
+  origin: [number, number]; // metres
   dx: number;
   dy: number;
   nx: number;
   ny: number;
-  values: number[]; // row-major, row 0 = lowest y
-  clim_hint?: [number, number];
+  values: number[]; // row-major, row 0 = lowest y, NaN outside the mesh
+  clim_hint: [number, number] | null;
+  log_scale: boolean;
 }
 
-export interface ProfileResult {
-  kind: 'profile';
-  net: NetId | [NetId, NetId];
-  s: number[]; // m
+export interface FieldResult extends ItemBase {
+  kind: 'field';
+  fields: FieldGrid[];
+}
+
+export interface ProfileEvent {
+  kind: string;
+  s: number; // m
+  item: string | null;
+  message: string;
+}
+
+export interface ProfileQuantity {
   name: string;
   unit: string;
   values: number[];
-  target?: number;
-  tolerance?: number;
 }
 
-export type ResultItem = ViolationSet | FieldResult | ProfileResult;
+export interface ProfileResult extends ItemBase {
+  kind: 'profile';
+  net: string | [string, string];
+  s: number[]; // m
+  quantities: ProfileQuantity[];
+  events: ProfileEvent[];
+  target: number | null;
+  tolerance: number | null;
+}
+
+export interface QualityReport {
+  verdict: 'pass' | 'warn' | 'fail';
+  pqm: number;
+  rqm: number;
+  cqm: number;
+  max_singular_value: number;
+  reciprocity_max_err: number;
+  dc: string;
+  f_min: number;
+  f_max: number;
+  n_freqs: number;
+  fixes_applied: string[];
+  notes: string[];
+}
+
+export interface NetworkResult extends ItemBase {
+  kind: 'network';
+  freqs: number[]; // Hz
+  port_names: string[];
+  /** S[f][i][j] flattened as f*P*P + i*P + j. */
+  s_re: number[];
+  s_im: number[];
+  quality: QualityReport | null;
+}
+
+export interface TableResult extends ItemBase {
+  kind: 'table';
+  columns: { name: string; unit: string | null }[];
+  rows: unknown[][];
+}
+
+export interface ScalarsResult extends ItemBase {
+  kind: 'scalars';
+  values: { name: string; value: number; unit: string; limit: number | null; status: string | null }[];
+}
+
+export interface OtherResult extends ItemBase {
+  kind: 'artifact' | 'other';
+}
+
+export type ResultItem = ViolationSet | FieldResult | ProfileResult | NetworkResult | TableResult | ScalarsResult | OtherResult;
 
 export interface ResultBundle {
   id: string;
   status: 'ok' | 'warning' | 'failed_quality' | 'error';
   summary: string;
+  accuracy_class: AccuracyClass | null;
+  provenance: Provenance | null;
+  diagnostics: { severity: string; code: string; message: string }[];
   items: ResultItem[];
 }
 
-export interface JobStatus {
-  id: string;
-  state: 'queued' | 'running' | 'done' | 'failed';
+export interface JobRequest {
   analysis: string;
-  result_id: string | null;
+  config?: Record<string, unknown>;
+  budget?: Budget | null;
 }
 
-export interface AnalysisInfo {
-  kind: string;
-  title: string;
+/** Result of a dry run (`analysis.run` with `dry_run`): validity plus the PlanEstimate. */
+export interface DryRun {
+  valid: boolean;
+  diagnostics: { severity?: string; code?: string; message: string; path?: string | null }[];
+  estimate: {
+    tasks?: number;
+    est_seconds?: number;
+    est_peak_memory_gb?: number;
+    cpus?: number;
+    external?: boolean;
+    within_budget?: boolean;
+    reasons?: string[];
+    warnings?: string[];
+  } | null;
 }
 
 /** The only surface the UI uses to reach a backend. Implemented by `mockClient` and `httpClient`. */
@@ -99,6 +184,9 @@ export interface ApiClient {
   getBoard(pid: string): Promise<Board>;
   listNets(pid: string, query?: string): Promise<NetInfo[]>;
   listAnalyses(): Promise<AnalysisInfo[]>;
-  createJob(pid: string, analysis: string): Promise<JobStatus>;
+  dryRun(pid: string, req: JobRequest): Promise<DryRun>;
+  createJob(pid: string, req: JobRequest): Promise<JobStatus>;
+  getJob(jid: string): Promise<JobStatus>;
+  cancelJob(jid: string): Promise<JobStatus>;
   getResult(rid: string): Promise<ResultBundle>;
 }
