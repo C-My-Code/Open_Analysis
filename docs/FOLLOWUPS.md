@@ -120,3 +120,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] Schema-lint ratchet: a baseline of about 580 schema fields without descriptions, in other WPs' schemas. Burn it down.
 - [ ] BundleSummary is 8854 B with spaced JSON; it fits the cap only when compact. Enforce compact output or trim it.
 - [ ] oa-service has no progress hook; MCP progress polls running jobs instead.
+
+## Validation (WP-302)
+- [ ] Empty [verify] slots: Polar SI9000, Wadell tables, Bryant-Weiss, and a TNT-MMTL/atlc cross-check. Pozar Example 3.6 is [verify]. Fill these only from checked sources.
+- [ ] Pending: Palace (4 slots, WP-301), the openEMS tutorial reproductions, and the kicad-irdrop/padne DC IR oracle.
+- [ ] Only 100 of the 248 passes have an independent reference. The rest are self-computed or in-repo cross-solver. Raise the independent share.
+- [ ] Add mkdocs nav and ROADMAP links to docs/validation (CR WP-302).
