@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-IMP-01"
+title = "Exact 2D cross-sections"
+group = "impedance"
+spec = "docs/BENCHMARKS.md#b-imp-01-exact-2d-cross-sections"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: Z0 <= 0.05 %. Runtime: <= 20 ms per section (CPU). Memory: 200 MB. Today: 0.001-0.22 %; 16-39 ms"
+
+[reference]
+class = "analytic"
+citation = "Cohn 1954 (exact conformal map); 60 ln(b/a) coax; CPW conformal map (Ghione-Naldi 1984); locked in tests/golden/impedance_bem"
+data = "tests/golden/impedance_bem"
+
+[[sub]]
+id = "sections"
+title = "Cohn stripline sweep, CPW, coax, wire over plane, two-wire; one BEM solve per section"
+runner = "imp01_sections"
+heavy = false
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0.05
+accuracy_unit = "% max error vs exact"
+time_max_s = 0.02
+time_per = "section"
+mem_max_mb = 200

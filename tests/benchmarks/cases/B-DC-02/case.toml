@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-DC-02"
+title = "DC IR scale"
+group = "dc-ir"
+spec = "docs/BENCHMARKS.md#b-dc-02-dc-ir-scale"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: as B-DC-01. Runtime: 3e5: <= 5 s CPU; 1e6: <= 15 s / <= 8 s. Memory: 4 GB host, 4 GB GPU. Today: 3e5 in 10.5 s"
+
+[reference]
+class = "converged"
+citation = "power_plane board refined to 3e5 / 1e6 unknowns; as B-DC-01"
+data = ""
+
+[[sub]]
+id = "n3e5_cpu"
+title = "power_plane refined to 3e5 unknowns, end to end (CPU)"
+runner = "dc02_scale_3e5"
+heavy = true
+devices = ["cpu"]
+
+[sub.targets.cpu]
+time_max_s = 5.0
+time_per = "run"
+mem_max_mb = 4096
+
+[[sub]]
+id = "n1e6"
+title = "power_plane refined to 1e6 unknowns, end to end"
+runner = "dc02_scale_1e6"
+heavy = true
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+time_max_s = 15
+time_per = "run"
+mem_max_mb = 4096
+
+[sub.targets.cuda]
+time_max_s = 8
+time_per = "run"
+gpu_mem_max_mb = 4096
+
+[[sub]]
+id = "raster1e7"
+title = "raster reference at 1e7 cells, solve only"
+pending = "pending"
+owner = "WP-504"
+reason = "runner not written; GPU path (oa-accel) not implemented"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+time_max_s = 60
+time_per = "run"
+
+[sub.targets.cuda]
+time_max_s = 10
+time_per = "run"

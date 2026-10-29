@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-03"
+title = "Differential via transition, 8 layers, to 40 GHz"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-03-differential-via-transition-8-layers-01-40-ghz"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: SDD21 <= 0.1 dB to 20 GHz, <= 0.25 dB to 40 GHz; SDD11 <= 1.5 dB above -30 dB. Runtime: FDTD <= 5 min GPU; Palace <= 20 min GPU / <= 60 min CPU. Memory: 8 GB GPU; Palace 12 GB. Today: not run"
+
+[reference]
+class = "converged"
+citation = "Palace p3 AMR (max dS <= 0.005) cross-checked by oa-fdtd; IEEE 370 fixture [verify]"
+data = "tests/benchmarks/references/em/B-EM-03"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-03"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "palace"
+title = "palace on B-EM-03"
+pending = "ref-pending"
+owner = "WP-501"
+reason = "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]

@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# WP-304: benchmark harness. On every change: the harness self-test and the benchmark pages built
+# from the committed results files (no solver runs). Nightly, on a self-hosted runner that holds
+# the heavy/GPU token (labels: self-hosted, oa-bench): the light cases against the last passing
+# run; more than 20 % slower or an accuracy loss of more than 25 % of the tolerance fails the job.
+name: bench
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/bench/**"
+      - "tests/benchmarks/**"
+      - "docs/validation/benchmarks/**"
+
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Harness self-test
+        run: uv run pytest tools/bench -q
+      - name: Build the benchmark pages from the committed results
+        run: uv run python tools/validation/build_page.py --out "$RUNNER_TEMP/validation"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-pages
+          path: ${{ runner.temp }}/validation
+
+  nightly:
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, oa-bench]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Run the light benchmark cases and check for regressions
+        run: uv run python tools/bench/run.py --profile bench --check-regression
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: tests/benchmarks/results

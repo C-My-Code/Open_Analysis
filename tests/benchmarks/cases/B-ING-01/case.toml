@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-ING-01"
+title = "Ingest and ReferenceMap at scale"
+group = "ingest"
+spec = "docs/BENCHMARKS.md#b-ing-01-ingest-and-referencemap-at-scale"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: counts exact, areas <= 0.5 %. Runtime: Jetson parse <= 2.5 s; RefMap 50k <= 3 s. Memory: 3 GB. Today: 9.9 s; 51 s"
+
+[reference]
+class = "analytic"
+citation = "WP-102 expected.yaml; pcbnew-extracted golden for cm5_minima (tests/golden/ingest_kicad)"
+data = "tests/golden/ingest_kicad/cm5_minima"
+
+[[sub]]
+id = "wp102_parse"
+title = "KiCad parse of the 11 WP-102 boards vs expected.yaml (counts exact)"
+runner = "ing_wp102"
+heavy = false
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "failed findings (exact)"
+
+[[sub]]
+id = "cm5_parse"
+title = "cm5_minima parse"
+runner = "ing_cm5"
+heavy = true
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "error diagnostics"
+time_max_s = 1.0
+time_per = "run"
+mem_max_mb = 3072
+
+[[sub]]
+id = "jetson_parse"
+title = "88 MB Jetson demo board parse (KICAD_DEMOS)"
+runner = "ing_jetson"
+heavy = true
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "error diagnostics"
+time_max_s = 2.5
+time_per = "run"
+mem_max_mb = 3072
+
+[[sub]]
+id = "refmap50k"
+title = "ReferenceMap on a 50k-track board"
+pending = "pending"
+owner = "WP-508"
+reason = "50k-track generator and the native ReferenceMap are not implemented"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0.5
+accuracy_unit = "% area"
+time_max_s = 3
+time_per = "run"
+mem_max_mb = 3072

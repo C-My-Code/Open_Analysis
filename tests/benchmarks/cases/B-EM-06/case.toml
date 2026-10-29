@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-06"
+title = "High-Q filters (10 GHz hairpin; MSL notch)"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-06-high-q-filters"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: f_c <= 0.2 %; passband IL <= 0.1 dB; BW <= 1 %. Runtime: Palace fast sweep <= 10 min GPU / <= 30 min CPU; FDTD <= 15 min GPU. Memory: 12 GB. Today: not run"
+
+[reference]
+class = "converged"
+citation = "Palace p3 adaptive fast sweep; openEMS MSL notch tutorial; Hong-Lancaster [verify]"
+data = "tests/benchmarks/references/em/B-EM-06"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-06"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "palace"
+title = "palace on B-EM-06"
+pending = "ref-pending"
+owner = "WP-501"
+reason = "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
