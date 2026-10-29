@@ -7,7 +7,9 @@
  *
  * Targets use stable ids: net names, refdes, item ids, rule ids, layer ids (see `Ref`).
  */
-import type { ApiClient, ResultBundle } from '../api/types';
+import type { ApiClient, Budget, JobStatus, ResultBundle, Severity } from '../api/types';
+import { isTerminal } from '../api/types';
+import { finiteRange } from '../features/results/rasterize';
 import { mockClient } from '../mock/mockClient';
 import { buildIndex } from '../geometry/boardIndex';
 import { buildRenderModel } from '../geometry/render';
@@ -40,7 +42,15 @@ export type Command =
   | { type: 'theme.set'; theme: Theme }
   | { type: 'overlay.add'; overlay: Overlay }
   | { type: 'overlay.remove'; id: string }
-  | { type: 'analysis.run'; analysis: string }
+  | { type: 'view.zoomToPoint'; point: [number, number]; spanMm?: number }
+  | { type: 'analysis.list' }
+  | { type: 'budget.set'; budget: Budget }
+  | { type: 'setup.set'; analysis: string; config: Record<string, unknown> }
+  | { type: 'setup.waive'; fingerprint: string; reason: string }
+  | { type: 'analysis.dryRun'; analysis: string; config?: Record<string, unknown>; budget?: Budget | null }
+  | { type: 'analysis.run'; analysis: string; config?: Record<string, unknown>; budget?: Budget | null }
+  | { type: 'job.refresh'; jobId: string }
+  | { type: 'job.cancel'; jobId: string }
   | { type: 'result.show'; resultId: string }
   | { type: 'settings.setAssistantEnabled'; enabled: boolean }
   | { type: 'assistant.setOpen'; open: boolean };
@@ -83,24 +93,38 @@ function requireRef(r: Ref): void {
 
 function showResult(rid: string, bundle: ResultBundle): void {
   const overlays = get().overlays.filter((o) => !o.id.startsWith(`${rid}:`));
-  bundle.items.forEach((item, n) => {
-    const id = `${rid}:${n}`;
+  bundle.items.forEach((item) => {
     if (item.kind === 'violations') {
       const markers: MarkerPoint[] = item.violations.map((v) => ({
-        id: v.fingerprint, location: v.location, severity: v.severity, label: `${v.rule_id}: ${v.message}`,
-        rule_id: v.rule_id, nets: v.nets, items: v.items,
+        id: v.fingerprint, location: v.location_m as [number, number], severity: v.severity as Severity,
+        label: `${v.rule_id}: ${v.message}`, rule_id: v.rule_id, nets: v.nets, items: v.items,
       }));
-      overlays.push({ kind: 'markers', id, title: 'Violations', markers });
+      overlays.push({ kind: 'markers', id: `${rid}:${item.id}`, title: 'Violations', markers });
     } else if (item.kind === 'field') {
-      overlays.push({
-        kind: 'heatmap', id, title: `${item.name} (${item.layer})`, layer: item.layer, origin: item.origin,
-        dx: item.dx, dy: item.dy, nx: item.nx, ny: item.ny, values: item.values, unit: item.unit,
-        clim: item.clim_hint ?? [Math.min(...item.values), Math.max(...item.values)], opacity: 0.8,
+      item.fields.forEach((f, n) => {
+        overlays.push({
+          kind: 'heatmap', id: `${rid}:${item.id}:${n}`, title: `${f.name}${f.layer ? ` (${f.layer})` : ''}`, layer: f.layer ?? 'L1',
+          origin: f.origin, dx: f.dx, dy: f.dy, nx: f.nx, ny: f.ny, values: f.values, unit: f.unit,
+          clim: f.clim_hint ?? finiteRange(f.values), opacity: 0.8,
+        });
       });
     }
   });
   set({ results: { ...get().results, [rid]: bundle }, activeResultId: rid, overlays });
 }
+
+function upsertJob(job: JobStatus): void {
+  set({ jobs: [...get().jobs.filter((j) => j.id !== job.id), job] });
+}
+
+/** Terminal job: show its result when it succeeded. */
+async function settleJob(job: JobStatus): Promise<void> {
+  upsertJob(job);
+  set({ status: `Job ${job.analysis}: ${job.state}` });
+  if (job.state === 'succeeded' && job.result_id) showResult(job.result_id, await client.getResult(job.result_id));
+}
+
+const configFor = (analysis: string, config?: Record<string, unknown>) => config ?? get().setupDrafts[analysis] ?? {};
 
 type Handlers = { [K in CommandType]: (c: Extract<Command, { type: K }>) => unknown | Promise<unknown> };
 
@@ -123,6 +147,8 @@ const handlers: Handlers = {
       settings: prev.settings,
       assistantOpen: prev.assistantOpen,
       projects: prev.projects,
+      analyses: prev.analyses,
+      jobBudget: prev.jobBudget,
       viewport: prev.viewport,
       projectId: summary.id,
       board, index, render, layerStyle,
@@ -210,13 +236,50 @@ const handlers: Handlers = {
   'overlay.remove': ({ id }) => {
     set({ overlays: get().overlays.filter((o) => o.id !== id) });
   },
-  'analysis.run': async ({ analysis }) => {
+  'view.zoomToPoint': ({ point, spanMm = 4 }) => {
     const s = requireBoard();
-    const job = await client.createJob(s.projectId!, analysis);
-    set({ jobs: [...get().jobs.filter((j) => j.id !== job.id), job] });
-    if (job.state === 'done' && job.result_id) {
-      showResult(job.result_id, await client.getResult(job.result_id));
-    }
+    const [x, y] = [point[0] * 1e3, point[1] * 1e3];
+    set({ viewState: fitBounds([x, y, x, y], s.viewport, 0.6, spanMm) });
+  },
+  'analysis.list': async () => {
+    const analyses = await client.listAnalyses();
+    set({ analyses });
+    return analyses;
+  },
+  'budget.set': ({ budget }) => set({ jobBudget: budget }),
+  'setup.set': ({ analysis, config }) => {
+    set({ setupDrafts: { ...get().setupDrafts, [analysis]: config } });
+  },
+  'setup.waive': ({ fingerprint, reason }) => {
+    // Dry-run only: the waiver is added to the in-memory ERC setup; nothing is written to disk.
+    const draft = get().setupDrafts.erc ?? {};
+    const waivers = [...((draft.waivers as unknown[] | undefined) ?? []), { fingerprint, reason }];
+    set({ setupDrafts: { ...get().setupDrafts, erc: { ...draft, waivers } } });
+    return waivers.length;
+  },
+  'analysis.dryRun': async ({ analysis, config, budget }) => {
+    const s = requireBoard();
+    const dry = await client.dryRun(s.projectId!, { analysis, config: configFor(analysis, config), budget });
+    set({ dryRun: { analysis, ...dry } });
+    return dry;
+  },
+  'analysis.run': async ({ analysis, config, budget }) => {
+    const s = requireBoard();
+    const job = await client.createJob(s.projectId!, { analysis, config: configFor(analysis, config), budget });
+    if (isTerminal(job.state)) await settleJob(job);
+    else upsertJob(job);
+    return job;
+  },
+  'job.refresh': async ({ jobId }) => {
+    const job = await client.getJob(jobId);
+    const prev = get().jobs.find((j) => j.id === jobId);
+    if (isTerminal(job.state) && (!prev || !isTerminal(prev.state))) await settleJob(job);
+    else upsertJob(job);
+    return job;
+  },
+  'job.cancel': async ({ jobId }) => {
+    const job = await client.cancelJob(jobId);
+    upsertJob(job);
     return job;
   },
   'result.show': async ({ resultId }) => {
@@ -277,7 +340,15 @@ export const commandCatalog: Record<CommandType, CommandSpec> = {
   'theme.set': { description: 'Colour theme', params: { theme: 'light|dark' } },
   'overlay.add': { description: 'Add a markers/heatmap/polylines overlay (metres)', params: { overlay: 'Overlay' } },
   'overlay.remove': { description: 'Remove an overlay by id', params: { id: 'string' } },
-  'analysis.run': { description: 'Run an analysis on the open board and show its result', params: { analysis: 'kind e.g. erc, pi.dc' } },
+  'view.zoomToPoint': { description: 'Zoom to a board point (metres)', params: { point: '[x_m, y_m]', spanMm: 'number?' } },
+  'analysis.list': { description: 'List analyses with their config schemas', params: {} },
+  'budget.set': { description: 'Set the job budget (max_runtime_s, max_memory_gb) used by dry runs and runs', params: { budget: '{max_runtime_s?, max_memory_gb?}' } },
+  'setup.set': { description: 'Set the in-memory setup (config) draft of an analysis', params: { analysis: 'kind', config: 'object per config schema' } },
+  'setup.waive': { description: 'Add a waiver to the ERC setup draft (dry-run only, nothing is written)', params: { fingerprint: 'string', reason: 'string' } },
+  'analysis.dryRun': { description: 'Validate a setup and estimate cost/budget without running', params: { analysis: 'kind', config: 'object?', budget: 'Budget?' } },
+  'analysis.run': { description: 'Run an analysis on the open board (job); its result is shown when it succeeds', params: { analysis: 'kind e.g. erc, pi.dc', config: 'object? (default: setup draft)', budget: '{max_runtime_s?, max_memory_gb?}?' } },
+  'job.refresh': { description: 'Poll one job', params: { jobId: 'string' } },
+  'job.cancel': { description: 'Cancel a queued or running job', params: { jobId: 'string' } },
   'result.show': { description: 'Show a result bundle as overlays', params: { resultId: 'string' } },
   'settings.setAssistantEnabled': { description: 'Enable the Assistant panel slot', params: { enabled: 'boolean' } },
   'assistant.setOpen': { description: 'Expand or collapse the Assistant panel', params: { open: 'boolean' } },

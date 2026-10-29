@@ -23,8 +23,10 @@ export function heatmapRgba(values: number[], nx: number, ny: number, clim: [num
   const span = clim[1] - clim[0] || 1;
   for (let j = 0; j < ny; j++) {
     for (let i = 0; i < nx; i++) {
-      const [r, g, b] = viridis((values[j * nx + i]! - clim[0]) / span);
+      const v = values[j * nx + i]!;
       const o = ((ny - 1 - j) * nx + i) * 4;
+      if (!Number.isFinite(v)) continue; // outside the mesh: transparent
+      const [r, g, b] = viridis((v - clim[0]) / span);
       out[o] = r; out[o + 1] = g; out[o + 2] = b; out[o + 3] = 255;
     }
   }

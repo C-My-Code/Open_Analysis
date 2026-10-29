@@ -26,7 +26,29 @@ npm run typecheck && npm run lint && npm test && npm run build   # build output:
 - Assistant: `AssistantPanel` is a placeholder slot (no LLM calls), hidden unless "Enable Assistant panel" is set.
 - Units: Board JSON is metres, Y up; the view uses mm world units (`M_TO_MM`), mm/mil is display-only.
 
-## Not done yet (vs TASKS.md WP-110)
+## WP-209: setup forms, jobs, result viewers
 
-Arrow geometry decoding, MSW server, Playwright smoke test, Lighthouse/200k-polygon benchmarks,
-OpenAPI client generation, and the offline-network build check.
+- `src/api/generated/schema.d.ts` is generated from `src/api/openapi.json` (`npm run gen:api`); `npm run build` runs
+  the freshness gate `npm run gen:api:check`. Wire DTOs in `src/api/types.ts` alias the generated types. The result
+  manifest is an untyped object in OpenAPI, so `src/features/results/adapt.ts` builds the UI-level `ResultBundle`
+  (arrays come from the `.npy` endpoint, violations from the paged `/violations` endpoint, TriMesh fields are
+  rasterised for the heatmap overlay).
+- `src/features/setup`: RJSF forms generated from the `/analyses` config schemas (impedance.xsection,
+  impedance.profile, erc, pi.dc), a NetSelector datalist widget, an "Edit as JSON" fallback, dry run and budget.
+  Waivers added from the violation list go into the in-memory ERC setup only (dry run); nothing is written.
+- `src/features/jobs`: jobs panel (progress, cancel, budget). Jobs are polled with `job.refresh`; the `/events` WebSocket is not used yet.
+- `src/features/results`: profile (Plotly, discontinuity markers cross-probe to board items), violations (board
+  markers, remediation, waivers), field heatmap overlay with legend, S-parameters (dB/phase, quality badge, failed_quality
+  banner), tables, scalars. accuracy_class and provenance are shown on every bundle and item.
+- Client selection (`src/main.tsx`): a `#token=` fragment (as printed by `oa serve`) or `?api=http` uses the real API,
+  `?api=mock` or neither uses the fixture mock.
+- Tests: `npm test` (Vitest; MSW mock server in `tests/features/msw.ts`, jsdom component tests).
+  `npm run build && npm run test:e2e` runs the Playwright smoke test (one Chromium, one worker) against a real
+  `oa serve` on 127.0.0.1 with `tests/boards/kicad10/microstrip`; set `OA_BIN` if `oa` is not on PATH.
+  First time: `npx playwright install chromium`.
+
+## Not done yet
+
+Arrow geometry decoding (the server has `/board/layers/{layer}/geometry|tracks` and `/board/drills`, but the UI still
+loads `/board/full`), the WebSocket job feed, TDR and Smith views, 3D region preview, port picker, export buttons,
+Lighthouse/200k-polygon benchmarks, and the offline-network build check. Arrow IPC is decoded only for non-inline tables.

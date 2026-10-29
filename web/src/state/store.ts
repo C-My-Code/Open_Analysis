@@ -9,7 +9,7 @@ import type { BoardIndex } from '../geometry/boardIndex';
 import type { RenderModel } from '../geometry/render';
 import type { Units } from '../geometry/units';
 import type { Overlay } from '../overlays/types';
-import type { JobStatus, ProjectSummary, ResultBundle } from '../api/types';
+import type { AnalysisInfo, Budget, DryRun, JobStatus, ProjectSummary, ResultBundle } from '../api/types';
 
 /** Stable, human/agent-addressable reference. `id` is a net name, refdes, item id, rule id or layer id. */
 export type Ref =
@@ -58,6 +58,11 @@ export interface AppState {
   results: Record<string, ResultBundle>;
   activeResultId: string | null;
   jobs: JobStatus[];
+  analyses: AnalysisInfo[];
+  /** In-memory setup (config) drafts per analysis kind; sent with `analysis.run`. */
+  setupDrafts: Record<string, Record<string, unknown>>;
+  dryRun: (DryRun & { analysis: string }) | null;
+  jobBudget: Budget;
   viewState: ViewState;
   viewport: { w: number; h: number };
   netQuery: string;
@@ -106,6 +111,10 @@ export const initialState = (): AppState => ({
   results: {},
   activeResultId: null,
   jobs: [],
+  analyses: [],
+  setupDrafts: {},
+  dryRun: null,
+  jobBudget: { allow_external: true },
   viewState: { target: [0, 0, 0], zoom: 4 },
   viewport: { w: 800, h: 600 },
   netQuery: '',
