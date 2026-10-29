@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-ERC-01"
+title = "ERC exactness and scale"
+group = "erc"
+spec = "docs/BENCHMARKS.md#b-erc-01-erc-exactness-and-scale"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: exact match. Runtime: combined <= 0.5 s; 10k <= 3 s; 100k <= 30 s. Memory: 2 GB. Today: 1.8 s; 34.9 s; -"
+
+[reference]
+class = "analytic"
+citation = "tests/boards/kicad10/*/expected.yaml (constructed by tools/boardgen, independent of the rule engine)"
+data = "tests/boards/kicad10/combined/expected.yaml"
+
+[[sub]]
+id = "combined"
+title = "WP-102 combined board, all M1 rules (parse + rules)"
+runner = "erc_combined"
+heavy = false
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "mismatches (exact)"
+time_max_s = 0.5
+time_per = "run"
+mem_max_mb = 2048
+
+[[sub]]
+id = "tracks10k"
+title = "10k-track synthetic board, IM-002 on every net"
+pending = "pending"
+owner = "WP-509"
+reason = "synthetic board generator and native ERC path not implemented"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "mismatches"
+time_max_s = 3
+time_per = "run"
+mem_max_mb = 2048
+
+[[sub]]
+id = "tracks100k"
+title = "100k-track synthetic board, fixed seed"
+pending = "pending"
+owner = "WP-509"
+reason = "synthetic board generator and native ERC path not implemented"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "mismatches"
+time_max_s = 30
+time_per = "run"
+mem_max_mb = 2048
+
+[[sub]]
+id = "native_vs_python"
+title = "native ERC path equals Python path"
+pending = "pending"
+owner = "WP-509"
+reason = "oa-native ERC not implemented"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0
+accuracy_unit = "mismatches"

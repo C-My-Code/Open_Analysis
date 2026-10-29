@@ -17,9 +17,12 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+BENCH_RESULTS = REPO / "tests" / "benchmarks" / "results"
+sys.path.insert(0, str(REPO / "tools" / "bench"))
 AREAS = {
     "impedance": ("Impedance (closed form, BEM, FEM)", "impedance"),
     "dc-ir": ("DC IR drop", "dc-ir"),
@@ -197,7 +200,7 @@ def summary_md(rows: list[dict]) -> str:  # type: ignore[type-arg]
     return "\n".join(lines)
 
 
-def build(results: Path, out: Path) -> None:
+def build(results: Path, out: Path, bench_results: Path | None = None) -> None:
     doc = json.loads(results.read_text(encoding="utf-8"))
     cases: list[dict] = doc["cases"]  # type: ignore[type-arg]
     out.mkdir(parents=True, exist_ok=True)
@@ -259,6 +262,11 @@ def build(results: Path, out: Path) -> None:
         ]
     else:
         index.append("None in this run.")
+    import bench_report  # WP-304: Performance section and the benchmarks pages
+
+    bdir = BENCH_RESULTS if bench_results is None else bench_results
+    index += ["", *bench_report.performance_section(bdir)]
+    bench_report.build(bdir, out / "benchmarks")
     index += [
         "",
         "## Known limits of this page",

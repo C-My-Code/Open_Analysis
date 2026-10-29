@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-05"
+title = "2.4 GHz antennas (patch, IFA)"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-05-24-ghz-antennas"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: f_res <= 0.5 % (converged), <= 1 % (published); S11 min <= 1 dB. Runtime: FDTD <= 60 s GPU; openEMS <= 10 min. Memory: 4 GB GPU. Today: not run"
+
+[reference]
+class = "converged"
+citation = "openEMS Simple Patch Antenna tutorial; Palace converged; TI DN007 [verify]"
+data = "tests/benchmarks/references/em/B-EM-05"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-05"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "openems"
+title = "openems on B-EM-05"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated"
+devices = ["cpu"]
+
+[sub.targets.cpu]

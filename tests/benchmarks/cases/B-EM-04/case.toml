@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-04"
+title = "CPWG launch with via fence, to 40 GHz"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-04-cpwg-launch-01-40-ghz"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: |S21| <= 0.1 dB; |S11| <= 2 dB above -25 dB. Runtime: FDTD <= 3 min GPU; Palace <= 15 min GPU. Memory: 6 GB GPU; Palace 12 GB. Today: not run"
+
+[reference]
+class = "converged"
+citation = "as B-EM-03; vendor end-launch note [verify, none selected]"
+data = "tests/benchmarks/references/em/B-EM-04"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-04"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "palace"
+title = "palace on B-EM-04"
+pending = "ref-pending"
+owner = "WP-501"
+reason = "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]

@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-01"
+title = "Microstrip thru 25 mm, to 20 GHz"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-01-microstrip-thru-25-mm-01-20-ghz"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: IL <= 0.05 dB; |S11| <= 1 dB to -30 dB. Runtime: FDTD <= 10 s GPU; Palace <= 300 s CPU / <= 90 s GPU; openEMS <= 60 s. Memory: 2 GB GPU; Palace 6 GB. Today: IL 0.74 dB (openEMS) vs 1.24 dB (Palace)"
+
+[reference]
+class = "converged"
+citation = "R1 2D RLGC cascade and R2 Palace p3 AMR, agreeing within 0.02 dB"
+data = "tests/benchmarks/references/em/B-EM-01"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-01"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "palace"
+title = "palace on B-EM-01"
+pending = "ref-pending"
+owner = "WP-501"
+reason = "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "openems"
+title = "openems on B-EM-01"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated"
+devices = ["cpu"]
+
+[sub.targets.cpu]

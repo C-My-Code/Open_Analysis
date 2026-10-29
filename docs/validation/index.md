@@ -37,6 +37,29 @@ Generated 2026-10-29T13:13:28+00:00 from commit `0cc834dc47ea` (worktree-agent-a
 
 None in this run.
 
+## Performance
+
+Benchmark gates of [docs/BENCHMARKS.md](../BENCHMARKS.md), run by `tools/bench/run.py` (schema `oa-bench/1`). Details, targets per backend and history: [benchmarks](benchmarks/index.md). `pass` needs accuracy, runtime and memory inside the targets; `pending`, `ref-pending`, `verify`, `ready` and `skipped` never count as passes.
+
+| Case | Title | Status | Sub-cases |
+|---|---|---|---|
+| [B-DC-01](index.md#b-dc-01) | DC IR accuracy | **partial** | 1 of 3 pass |
+| [B-DC-02](index.md#b-dc-02) | DC IR scale | **ready** | 0 of 3 pass |
+| [B-EM-01](index.md#b-em-01) | Microstrip thru 25 mm, to 20 GHz | **ref-pending** | 0 of 3 pass |
+| [B-EM-02](index.md#b-em-02) | Stripline thru: exact lossless + lossy FR-4 | **ref-pending** | 0 of 3 pass |
+| [B-EM-03](index.md#b-em-03) | Differential via transition, 8 layers, to 40 GHz | **ref-pending** | 0 of 2 pass |
+| [B-EM-04](index.md#b-em-04) | CPWG launch with via fence, to 40 GHz | **ref-pending** | 0 of 2 pass |
+| [B-EM-05](index.md#b-em-05) | 2.4 GHz antennas (patch, IFA) | **ref-pending** | 0 of 2 pass |
+| [B-EM-06](index.md#b-em-06) | High-Q filters (10 GHz hairpin; MSL notch) | **ref-pending** | 0 of 2 pass |
+| [B-ERC-01](index.md#b-erc-01) | ERC exactness and scale | **partial** | 1 of 4 pass |
+| [B-IMP-01](index.md#b-imp-01) | Exact 2D cross-sections | **fail** | 0 of 1 pass |
+| [B-IMP-02](index.md#b-imp-02) | SI9000-class structure set (24) | **ref-pending** | 0 of 1 pass |
+| [B-IMP-03](index.md#b-imp-03) | Frequency-dependent RLGC and loss | **ref-pending** | 0 of 1 pass |
+| [B-IMP-04](index.md#b-imp-04) | Batch throughput, 1000 sections x 50 f | **pending** | 0 of 1 pass |
+| [B-ING-01](index.md#b-ing-01) | Ingest and ReferenceMap at scale | **partial** | 1 of 4 pass |
+| [B-PERF-01](index.md#b-perf-01) | FDTD kernel throughput | **pending** | 0 of 1 pass |
+
+
 ## Known limits of this page
 
 - Published-reference tables (Polar SI9000 app notes, Wadell worked examples, Bryant-Weiss, TNT-MMTL/atlc) are listed as `[verify]` slots: no value was typed from memory without a checkable source.

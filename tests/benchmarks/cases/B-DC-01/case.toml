@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-DC-01"
+title = "DC IR accuracy"
+group = "dc-ir"
+spec = "docs/BENCHMARKS.md#b-dc-01-dc-ir-accuracy"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: <= 0.1 % analytic; <= 1 % converged; <= 3 % published. Today: passes (kicad-irdrop not run)"
+
+[reference]
+class = "analytic"
+citation = "R = Rs L / W (strip); annulus; via barrel; converged power_plane (Richardson); kicad-irdrop 3.04 mOhm / padne 2.97 mOhm [verify]"
+data = "tests/boards/kicad10/power_strip/expected.yaml"
+
+[[sub]]
+id = "power_strip"
+title = "WP-102 power_strip board vs analytic strip resistance"
+runner = "dc01_power_strip"
+heavy = false
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0.1
+accuracy_unit = "% error vs analytic"
+
+[[sub]]
+id = "power_plane_converged"
+title = "power_plane, 4 refinement levels, Richardson"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "converged reference not produced yet"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 1.0
+accuracy_unit = "% vs converged"
+
+[[sub]]
+id = "kicad_irdrop"
+title = "kicad-irdrop 4-layer board vs 3.04 / 2.97 mOhm"
+pending = "verify"
+owner = "WP-510"
+reason = "published values are [verify]: not checked against the repositories"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 3.0
+accuracy_unit = "% vs published"

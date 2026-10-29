@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-IMP-04"
+title = "Batch throughput, 1000 sections x 50 f"
+group = "impedance"
+spec = "docs/BENCHMARKS.md#b-imp-04-batch-throughput-impedance-profile-scale"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: as B-IMP-02. Runtime: <= 20 s / <= 5 s. Memory: 4 GB host, 4 GB GPU. Today: ~16-39 s static only"
+
+[reference]
+class = "converged"
+citation = "each result vs its CPU float64 single-section result; GPU vs CPU <= 1e-10 (ADR-0009 section 5)"
+data = ""
+
+[[sub]]
+id = "batch"
+title = "ImpedanceService.solve_many, 1000 x 50 f"
+pending = "pending"
+owner = "WP-504"
+reason = "batch case generator and the oa-accel path (solve_many on GPU) are not implemented"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+time_max_s = 20
+time_per = "run"
+mem_max_mb = 4096
+
+[sub.targets.cuda]
+time_max_s = 5
+time_per = "run"
+gpu_mem_max_mb = 4096

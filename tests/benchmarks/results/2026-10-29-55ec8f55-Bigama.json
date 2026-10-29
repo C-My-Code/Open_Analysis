@@ -1,0 +1,830 @@
+{
+ "schema": "oa-bench/1",
+ "generated": "2026-10-29T14:35:24+00:00",
+ "profile": {
+  "name": "bench",
+  "threads": 8,
+  "mem_gb": 16,
+  "gpu_mem_gb": 12,
+  "reps_warm": 3,
+  "threads_env": "8",
+  "cpu_load_check": "skipped",
+  "cpu_load_pct": null,
+  "allow_heavy": false,
+  "device": "cpu"
+ },
+ "machine": {
+  "host": "Bigama",
+  "os": "Windows 11 10.0.26300",
+  "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+  "logical_cores": 32,
+  "ram_gb": 47.1,
+  "python": "3.13.14",
+  "libs": {
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "psutil": "7.2.2"
+  },
+  "gpu": null,
+  "commit": "55ec8f553eeba06398e3027c7aa705485d876cad",
+  "branch": "worktree-agent-aa1de8c30448bdf16",
+  "dirty": true
+ },
+ "accel_report": null,
+ "summary": {
+  "status_counts": {
+   "pass": 3,
+   "ref-pending": 11,
+   "verify": 1,
+   "ready": 4,
+   "pending": 12,
+   "fail": 1
+  },
+  "case_status": {
+   "B-DC-01": "partial",
+   "B-DC-02": "ready",
+   "B-EM-01": "ref-pending",
+   "B-EM-02": "ref-pending",
+   "B-EM-03": "ref-pending",
+   "B-EM-04": "ref-pending",
+   "B-EM-05": "ref-pending",
+   "B-EM-06": "ref-pending",
+   "B-ERC-01": "partial",
+   "B-IMP-01": "fail",
+   "B-IMP-02": "ref-pending",
+   "B-IMP-03": "ref-pending",
+   "B-IMP-04": "pending",
+   "B-ING-01": "partial"
+  }
+ },
+ "results": [
+  {
+   "case": "B-DC-01",
+   "sub": "power_strip",
+   "title": "WP-102 power_strip board vs analytic strip resistance",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "R = Rs L / W (strip); annulus; via barrel; converged power_plane (Richardson); kicad-irdrop 3.04 mOhm / padne 2.97 mOhm [verify]",
+    "data": "tests/boards/kicad10/power_strip/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 0.1,
+    "accuracy_unit": "% error vs analytic"
+   },
+   "owner": "",
+   "reason": "",
+   "measured": {
+    "threads": 8,
+    "rss_start_mb": 22.5078125,
+    "accuracy": 0.01857214411138397,
+    "units": 1,
+    "time_cold_s": 4.5212061000001995,
+    "time_warm_s": [
+     0.03998929999943357,
+     0.039111899999625166,
+     0.038723900000150024
+    ],
+    "time_median_s": 0.039111899999625166,
+    "time_per_unit_s": 0.039111899999625166,
+    "peak_rss_mb": 118.28515625,
+    "gpu_peak_mb": null,
+    "detail": {
+     "R_ohm": 0.0049270232583306095,
+     "expected_ohm": 0.004926108374384236,
+     "case": "strip_end_to_end"
+    }
+   },
+   "status": "pass",
+   "checks": [
+    {
+     "name": "accuracy",
+     "value": 0.01857214411138397,
+     "limit": 0.1,
+     "unit": "% error vs analytic",
+     "ok": true
+    }
+   ]
+  },
+  {
+   "case": "B-DC-01",
+   "sub": "power_plane_converged",
+   "title": "power_plane, 4 refinement levels, Richardson",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "R = Rs L / W (strip); annulus; via barrel; converged power_plane (Richardson); kicad-irdrop 3.04 mOhm / padne 2.97 mOhm [verify]",
+    "data": "tests/boards/kicad10/power_strip/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 1.0,
+    "accuracy_unit": "% vs converged"
+   },
+   "owner": "WP-510",
+   "reason": "converged reference not produced yet",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-DC-01",
+   "sub": "kicad_irdrop",
+   "title": "kicad-irdrop 4-layer board vs 3.04 / 2.97 mOhm",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "R = Rs L / W (strip); annulus; via barrel; converged power_plane (Richardson); kicad-irdrop 3.04 mOhm / padne 2.97 mOhm [verify]",
+    "data": "tests/boards/kicad10/power_strip/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 3.0,
+    "accuracy_unit": "% vs published"
+   },
+   "owner": "WP-510",
+   "reason": "published values are [verify]: not checked against the repositories",
+   "status": "verify"
+  },
+  {
+   "case": "B-DC-02",
+   "sub": "n3e5_cpu",
+   "title": "power_plane refined to 3e5 unknowns, end to end (CPU)",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "power_plane board refined to 3e5 / 1e6 unknowns; as B-DC-01",
+    "data": ""
+   },
+   "targets": {
+    "time_max_s": 5.0,
+    "time_per": "run",
+    "mem_max_mb": 4096
+   },
+   "owner": "",
+   "reason": "ready to run: heavy case, needs the heavy token and --allow-heavy",
+   "status": "ready"
+  },
+  {
+   "case": "B-DC-02",
+   "sub": "n1e6",
+   "title": "power_plane refined to 1e6 unknowns, end to end",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "power_plane board refined to 3e5 / 1e6 unknowns; as B-DC-01",
+    "data": ""
+   },
+   "targets": {
+    "time_max_s": 15,
+    "time_per": "run",
+    "mem_max_mb": 4096
+   },
+   "owner": "",
+   "reason": "ready to run: heavy case, needs the heavy token and --allow-heavy",
+   "status": "ready"
+  },
+  {
+   "case": "B-DC-02",
+   "sub": "raster1e7",
+   "title": "raster reference at 1e7 cells, solve only",
+   "group": "dc-ir",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "power_plane board refined to 3e5 / 1e6 unknowns; as B-DC-01",
+    "data": ""
+   },
+   "targets": {
+    "time_max_s": 60,
+    "time_per": "run"
+   },
+   "owner": "WP-504",
+   "reason": "runner not written; GPU path (oa-accel) not implemented",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-01",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-01",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "R1 2D RLGC cascade and R2 Palace p3 AMR, agreeing within 0.02 dB",
+    "data": "tests/benchmarks/references/em/B-EM-01"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-01",
+   "sub": "palace",
+   "title": "palace on B-EM-01",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "R1 2D RLGC cascade and R2 Palace p3 AMR, agreeing within 0.02 dB",
+    "data": "tests/benchmarks/references/em/B-EM-01"
+   },
+   "targets": {},
+   "owner": "WP-501",
+   "reason": "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-01",
+   "sub": "openems",
+   "title": "openems on B-EM-01",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "R1 2D RLGC cascade and R2 Palace p3 AMR, agreeing within 0.02 dB",
+    "data": "tests/benchmarks/references/em/B-EM-01"
+   },
+   "targets": {},
+   "owner": "WP-510",
+   "reason": "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-02",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-02",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Cohn exact formula (lossless); R1/R2 (lossy); Rautio 1994 [verify pages]",
+    "data": "tests/benchmarks/references/em/B-EM-02"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-02",
+   "sub": "palace",
+   "title": "palace on B-EM-02",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Cohn exact formula (lossless); R1/R2 (lossy); Rautio 1994 [verify pages]",
+    "data": "tests/benchmarks/references/em/B-EM-02"
+   },
+   "targets": {},
+   "owner": "WP-501",
+   "reason": "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-02",
+   "sub": "openems",
+   "title": "openems on B-EM-02",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Cohn exact formula (lossless); R1/R2 (lossy); Rautio 1994 [verify pages]",
+    "data": "tests/benchmarks/references/em/B-EM-02"
+   },
+   "targets": {},
+   "owner": "WP-510",
+   "reason": "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-03",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-03",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Palace p3 AMR (max dS <= 0.005) cross-checked by oa-fdtd; IEEE 370 fixture [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-03"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-03",
+   "sub": "palace",
+   "title": "palace on B-EM-03",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Palace p3 AMR (max dS <= 0.005) cross-checked by oa-fdtd; IEEE 370 fixture [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-03"
+   },
+   "targets": {},
+   "owner": "WP-501",
+   "reason": "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-04",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-04",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "as B-EM-03; vendor end-launch note [verify, none selected]",
+    "data": "tests/benchmarks/references/em/B-EM-04"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-04",
+   "sub": "palace",
+   "title": "palace on B-EM-04",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "as B-EM-03; vendor end-launch note [verify, none selected]",
+    "data": "tests/benchmarks/references/em/B-EM-04"
+   },
+   "targets": {},
+   "owner": "WP-501",
+   "reason": "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-05",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-05",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "openEMS Simple Patch Antenna tutorial; Palace converged; TI DN007 [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-05"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-05",
+   "sub": "openems",
+   "title": "openems on B-EM-05",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "openEMS Simple Patch Antenna tutorial; Palace converged; TI DN007 [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-05"
+   },
+   "targets": {},
+   "owner": "WP-510",
+   "reason": "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-EM-06",
+   "sub": "oa_fdtd",
+   "title": "oa-fdtd on B-EM-06",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Palace p3 adaptive fast sweep; openEMS MSL notch tutorial; Hong-Lancaster [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-06"
+   },
+   "targets": {},
+   "owner": "WP-505/506/507",
+   "reason": "oa-fdtd does not exist yet",
+   "status": "pending"
+  },
+  {
+   "case": "B-EM-06",
+   "sub": "palace",
+   "title": "palace on B-EM-06",
+   "group": "em",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "Palace p3 adaptive fast sweep; openEMS MSL notch tutorial; Hong-Lancaster [verify]",
+    "data": "tests/benchmarks/references/em/B-EM-06"
+   },
+   "targets": {},
+   "owner": "WP-501",
+   "reason": "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-ERC-01",
+   "sub": "combined",
+   "title": "WP-102 combined board, all M1 rules (parse + rules)",
+   "group": "erc",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "tests/boards/kicad10/*/expected.yaml (constructed by tools/boardgen, independent of the rule engine)",
+    "data": "tests/boards/kicad10/combined/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "mismatches (exact)",
+    "time_max_s": 0.5,
+    "time_per": "run",
+    "mem_max_mb": 2048
+   },
+   "owner": "",
+   "reason": "",
+   "measured": {
+    "threads": 8,
+    "rss_start_mb": 22.69140625,
+    "accuracy": 0.0,
+    "units": 1,
+    "time_cold_s": 3.7604151000005004,
+    "time_warm_s": [
+     0.40909150000061345,
+     0.39109629999984463,
+     0.3902026999994632
+    ],
+    "time_median_s": 0.39109629999984463,
+    "time_per_unit_s": 0.39109629999984463,
+    "peak_rss_mb": 462.93359375,
+    "gpu_peak_mb": null,
+    "detail": {
+     "violations": 25,
+     "missed": 0,
+     "extra": 0,
+     "forbidden": 0,
+     "known_gap_im002_filtered": 9
+    }
+   },
+   "status": "pass",
+   "checks": [
+    {
+     "name": "accuracy",
+     "value": 0.0,
+     "limit": 0.0,
+     "unit": "mismatches (exact)",
+     "ok": true
+    },
+    {
+     "name": "time per run",
+     "value": 0.39109629999984463,
+     "limit": 0.5,
+     "unit": "s",
+     "ok": true
+    },
+    {
+     "name": "host peak memory",
+     "value": 462.93359375,
+     "limit": 2048.0,
+     "unit": "MB",
+     "ok": true
+    }
+   ]
+  },
+  {
+   "case": "B-ERC-01",
+   "sub": "tracks10k",
+   "title": "10k-track synthetic board, IM-002 on every net",
+   "group": "erc",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "tests/boards/kicad10/*/expected.yaml (constructed by tools/boardgen, independent of the rule engine)",
+    "data": "tests/boards/kicad10/combined/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "mismatches",
+    "time_max_s": 3,
+    "time_per": "run",
+    "mem_max_mb": 2048
+   },
+   "owner": "WP-509",
+   "reason": "synthetic board generator and native ERC path not implemented",
+   "status": "pending"
+  },
+  {
+   "case": "B-ERC-01",
+   "sub": "tracks100k",
+   "title": "100k-track synthetic board, fixed seed",
+   "group": "erc",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "tests/boards/kicad10/*/expected.yaml (constructed by tools/boardgen, independent of the rule engine)",
+    "data": "tests/boards/kicad10/combined/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "mismatches",
+    "time_max_s": 30,
+    "time_per": "run",
+    "mem_max_mb": 2048
+   },
+   "owner": "WP-509",
+   "reason": "synthetic board generator and native ERC path not implemented",
+   "status": "pending"
+  },
+  {
+   "case": "B-ERC-01",
+   "sub": "native_vs_python",
+   "title": "native ERC path equals Python path",
+   "group": "erc",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "tests/boards/kicad10/*/expected.yaml (constructed by tools/boardgen, independent of the rule engine)",
+    "data": "tests/boards/kicad10/combined/expected.yaml"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "mismatches"
+   },
+   "owner": "WP-509",
+   "reason": "oa-native ERC not implemented",
+   "status": "pending"
+  },
+  {
+   "case": "B-IMP-01",
+   "sub": "sections",
+   "title": "Cohn stripline sweep, CPW, coax, wire over plane, two-wire; one BEM solve per section",
+   "group": "impedance",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "Cohn 1954 (exact conformal map); 60 ln(b/a) coax; CPW conformal map (Ghione-Naldi 1984); locked in tests/golden/impedance_bem",
+    "data": "tests/golden/impedance_bem"
+   },
+   "targets": {
+    "accuracy_max": 0.05,
+    "accuracy_unit": "% max error vs exact",
+    "time_max_s": 0.02,
+    "time_per": "section",
+    "mem_max_mb": 200
+   },
+   "owner": "",
+   "reason": "",
+   "measured": {
+    "threads": 8,
+    "rss_start_mb": 22.58203125,
+    "accuracy": 0.231740628744026,
+    "units": 12,
+    "time_cold_s": 1.4382720000003246,
+    "time_warm_s": [
+     0.20865229999981239,
+     0.20647720000033587,
+     0.22200800000064191
+    ],
+    "time_median_s": 0.20865229999981239,
+    "time_per_unit_s": 0.017387691666651033,
+    "peak_rss_mb": 126.8359375,
+    "gpu_peak_mb": null,
+    "detail": {
+     "worst_section": "cpw.er1",
+     "error_pct": {
+      "cohn.w0.1": 0.0442,
+      "cohn.w0.25": 0.05045,
+      "cohn.w0.5": 0.05445,
+      "cohn.w1": 0.04426,
+      "cohn.w2": 0.03202,
+      "cpw.er1": 0.23174,
+      "cpw.er9.8": 0.22271,
+      "coax_lnba1_air": 0.0057,
+      "coax_lnba1_er2p1": 0.00571,
+      "wire_over_plane_h2r": 0.12437,
+      "wire_over_plane_h5r": 0.08898,
+      "two_wire_D2p5d": 0.02395
+     }
+    }
+   },
+   "status": "fail",
+   "checks": [
+    {
+     "name": "accuracy",
+     "value": 0.231740628744026,
+     "limit": 0.05,
+     "unit": "% max error vs exact",
+     "ok": false
+    },
+    {
+     "name": "time per section",
+     "value": 0.017387691666651033,
+     "limit": 0.02,
+     "unit": "s",
+     "ok": true
+    },
+    {
+     "name": "host peak memory",
+     "value": 126.8359375,
+     "limit": 200.0,
+     "unit": "MB",
+     "ok": true
+    }
+   ]
+  },
+  {
+   "case": "B-IMP-02",
+   "sub": "set24",
+   "title": "24 PCB cross-sections against converged FEM",
+   "group": "impedance",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "2D FEM P2/P3 Richardson-extrapolated; BEM at 4x density as second method; published SI9000/Wadell slots are [verify]",
+    "data": "tests/benchmarks/references/impedance/B-IMP-02"
+   },
+   "targets": {
+    "accuracy_max": 0.5,
+    "accuracy_unit": "% Z0 vs converged",
+    "time_max_s": 0.03,
+    "time_per": "section",
+    "mem_max_mb": 300
+   },
+   "owner": "WP-510",
+   "reason": "converged FEM references and the 24-structure generator are not produced yet (accuracy closure 2D)",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-IMP-03",
+   "sub": "rlgc",
+   "title": "R(f), alpha_c, alpha_d, DS round trip, Huray",
+   "group": "impedance",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "Bessel round wire; Djordjevic-Sarkar round trip; converged eddy-current FEM; Huray curve is [verify] (Simonovich, DesignCon 2015)",
+    "data": "tests/benchmarks/references/impedance/B-IMP-03"
+   },
+   "targets": {
+    "accuracy_max": 1.0,
+    "accuracy_unit": "% R(f)",
+    "time_max_s": 0.5,
+    "time_per": "section",
+    "mem_max_mb": 500
+   },
+   "owner": "WP-510",
+   "reason": "converged eddy-current FEM references not produced yet",
+   "status": "ref-pending"
+  },
+  {
+   "case": "B-IMP-04",
+   "sub": "batch",
+   "title": "ImpedanceService.solve_many, 1000 x 50 f",
+   "group": "impedance",
+   "device": "cpu",
+   "reference": {
+    "class": "converged",
+    "citation": "each result vs its CPU float64 single-section result; GPU vs CPU <= 1e-10 (ADR-0009 section 5)",
+    "data": ""
+   },
+   "targets": {
+    "time_max_s": 20,
+    "time_per": "run",
+    "mem_max_mb": 4096
+   },
+   "owner": "WP-504",
+   "reason": "batch case generator and the oa-accel path (solve_many on GPU) are not implemented",
+   "status": "pending"
+  },
+  {
+   "case": "B-ING-01",
+   "sub": "wp102_parse",
+   "title": "KiCad parse of the 11 WP-102 boards vs expected.yaml (counts exact)",
+   "group": "ingest",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "WP-102 expected.yaml; pcbnew-extracted golden for cm5_minima (tests/golden/ingest_kicad)",
+    "data": "tests/golden/ingest_kicad/cm5_minima"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "failed findings (exact)"
+   },
+   "owner": "",
+   "reason": "",
+   "measured": {
+    "threads": 8,
+    "rss_start_mb": 22.671875,
+    "accuracy": 0.0,
+    "units": 11,
+    "time_cold_s": 0.22377159999996366,
+    "time_warm_s": [
+     0.17947589999675984,
+     0.1758549000005587,
+     0.17595319999873027
+    ],
+    "time_median_s": 0.17595319999873027,
+    "time_per_unit_s": 0.015995745454430024,
+    "peak_rss_mb": 97.52734375,
+    "gpu_peak_mb": null,
+    "detail": {
+     "parse_s": {
+      "combined": 0.0901,
+      "cpwg": 0.0065,
+      "diff_pair": 0.0049,
+      "microstrip": 0.0025,
+      "microstrip_v9": 0.0025,
+      "power_plane": 0.0207,
+      "power_strip": 0.0012,
+      "power_two_layer_vias": 0.0019,
+      "split_plane": 0.0223,
+      "stripline": 0.0041,
+      "via_transition": 0.0192
+     }
+    }
+   },
+   "status": "pass",
+   "checks": [
+    {
+     "name": "accuracy",
+     "value": 0.0,
+     "limit": 0.0,
+     "unit": "failed findings (exact)",
+     "ok": true
+    }
+   ]
+  },
+  {
+   "case": "B-ING-01",
+   "sub": "cm5_parse",
+   "title": "cm5_minima parse",
+   "group": "ingest",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "WP-102 expected.yaml; pcbnew-extracted golden for cm5_minima (tests/golden/ingest_kicad)",
+    "data": "tests/golden/ingest_kicad/cm5_minima"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "error diagnostics",
+    "time_max_s": 1.0,
+    "time_per": "run",
+    "mem_max_mb": 3072
+   },
+   "owner": "",
+   "reason": "ready to run: heavy case, needs the heavy token and --allow-heavy",
+   "status": "ready"
+  },
+  {
+   "case": "B-ING-01",
+   "sub": "jetson_parse",
+   "title": "88 MB Jetson demo board parse (KICAD_DEMOS)",
+   "group": "ingest",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "WP-102 expected.yaml; pcbnew-extracted golden for cm5_minima (tests/golden/ingest_kicad)",
+    "data": "tests/golden/ingest_kicad/cm5_minima"
+   },
+   "targets": {
+    "accuracy_max": 0,
+    "accuracy_unit": "error diagnostics",
+    "time_max_s": 2.5,
+    "time_per": "run",
+    "mem_max_mb": 3072
+   },
+   "owner": "",
+   "reason": "ready to run: heavy case, needs the heavy token and --allow-heavy",
+   "status": "ready"
+  },
+  {
+   "case": "B-ING-01",
+   "sub": "refmap50k",
+   "title": "ReferenceMap on a 50k-track board",
+   "group": "ingest",
+   "device": "cpu",
+   "reference": {
+    "class": "analytic",
+    "citation": "WP-102 expected.yaml; pcbnew-extracted golden for cm5_minima (tests/golden/ingest_kicad)",
+    "data": "tests/golden/ingest_kicad/cm5_minima"
+   },
+   "targets": {
+    "accuracy_max": 0.5,
+    "accuracy_unit": "% area",
+    "time_max_s": 3,
+    "time_per": "run",
+    "mem_max_mb": 3072
+   },
+   "owner": "WP-508",
+   "reason": "50k-track generator and the native ReferenceMap are not implemented",
+   "status": "pending"
+  }
+ ]
+}

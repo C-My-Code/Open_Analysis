@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-IMP-02"
+title = "SI9000-class structure set (24)"
+group = "impedance"
+spec = "docs/BENCHMARKS.md#b-imp-02-si9000-class-structure-set"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: Z0 <= 0.5 %, Zdiff <= 1 %, eeff <= 0.3 %. Runtime: <= 30 ms SE / <= 60 ms diff (CPU). Memory: 300 MB. Today: eeff up to 0.59 % off FEM"
+
+[reference]
+class = "converged"
+citation = "2D FEM P2/P3 Richardson-extrapolated; BEM at 4x density as second method; published SI9000/Wadell slots are [verify]"
+data = "tests/benchmarks/references/impedance/B-IMP-02"
+
+[[sub]]
+id = "set24"
+title = "24 PCB cross-sections against converged FEM"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "converged FEM references and the 24-structure generator are not produced yet (accuracy closure 2D)"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 0.5
+accuracy_unit = "% Z0 vs converged"
+time_max_s = 0.03
+time_per = "section"
+mem_max_mb = 300

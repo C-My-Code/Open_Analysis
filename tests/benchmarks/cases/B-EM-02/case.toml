@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-EM-02"
+title = "Stripline thru: exact lossless + lossy FR-4"
+group = "em"
+spec = "docs/BENCHMARKS.md#b-em-02-stripline-thru"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: exact: |S21| <= 0.01 dB, phase <= 0.5 deg; lossy as B-EM-01. Runtime: FDTD <= 10 s GPU; Palace <= 300 s / <= 90 s. Memory: as B-EM-01. Today: openEMS stalls at -33 dB"
+
+[reference]
+class = "converged"
+citation = "Cohn exact formula (lossless); R1/R2 (lossy); Rautio 1994 [verify pages]"
+data = "tests/benchmarks/references/em/B-EM-02"
+
+[[sub]]
+id = "oa_fdtd"
+title = "oa-fdtd on B-EM-02"
+pending = "pending"
+owner = "WP-505/506/507"
+reason = "oa-fdtd does not exist yet"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "palace"
+title = "palace on B-EM-02"
+pending = "ref-pending"
+owner = "WP-501"
+reason = "converged Palace reference and converged configuration not produced yet; Palace stays CPU-only (no CUDA in WSL, M1P decisions)"
+devices = ["cpu", "cuda"]
+
+[sub.targets.cpu]
+
+[sub.targets.cuda]
+
+[[sub]]
+id = "openems"
+title = "openems on B-EM-02"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "reference R1 (2D RLGC cascade) not produced yet; the openEMS adapter exists but is not gated"
+devices = ["cpu"]
+
+[sub.targets.cpu]

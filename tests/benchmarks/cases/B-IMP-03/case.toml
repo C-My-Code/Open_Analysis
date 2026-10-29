@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+schema = "oa-bench-case/1"
+id = "B-IMP-03"
+title = "Frequency-dependent RLGC and loss"
+group = "impedance"
+spec = "docs/BENCHMARKS.md#b-imp-03-frequency-dependent-rlgc-and-loss"
+# BENCHMARKS.md section 2, copied verbatim
+targets_text = "Accuracy: R(f) <= 1 %, alpha <= 2 %. Runtime: <= 0.5 s per section, 50 freqs (CPU). Memory: 500 MB. Today: partly covered"
+
+[reference]
+class = "analytic"
+citation = "Bessel round wire; Djordjevic-Sarkar round trip; converged eddy-current FEM; Huray curve is [verify] (Simonovich, DesignCon 2015)"
+data = "tests/benchmarks/references/impedance/B-IMP-03"
+
+[[sub]]
+id = "rlgc"
+title = "R(f), alpha_c, alpha_d, DS round trip, Huray"
+pending = "ref-pending"
+owner = "WP-510"
+reason = "converged eddy-current FEM references not produced yet"
+devices = ["cpu"]
+
+[sub.targets.cpu]
+accuracy_max = 1.0
+accuracy_unit = "% R(f)"
+time_max_s = 0.5
+time_per = "section"
+mem_max_mb = 500
