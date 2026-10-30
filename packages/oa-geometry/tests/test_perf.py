@@ -33,6 +33,7 @@ def _run(n_nets: int, segs: int) -> tuple[int, dict[str, float]]:
     return len(board.tracks), {"board": t_board, "build+copper": t_build, "reference_map": t_ref}
 
 
+@pytest.mark.perf
 def test_10k_tracks_build_and_reference_map_under_10s() -> None:
     n, t = _run(2000, 5)
     print(f"\n[perf] {n} tracks: {t}")
