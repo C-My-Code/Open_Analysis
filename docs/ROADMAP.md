@@ -169,7 +169,9 @@ Validation gates: the accuracy columns of BENCHMARKS.md §2 are the gates. They 
 
 ---
 
-## M2: Signal integrity (linear), AC PDN (lumped), thermal, Q3D-lite, EMI estimates, KiCad live link
+## M2: Signal integrity (linear), AC PDN (lumped), thermal, Q3D-lite, EMC pre-compliance, KiCad live link
+
+M2 starts after the M1P gate (WP-511).
 
 Scope:
 - **SI (linear):**
@@ -191,7 +193,21 @@ Scope:
   - FasterCap (C) and FastHenry2 (R(f), L(f)) adapters for vias, via arrays, connector footprints and decap mounting loops.
   - Palace electrostatic/magnetostatic reference.
   - π-section SPICE export with passivity and `validity_fmax`.
-- **EMI:** rules EM-007/009/010/012/013 plus the remaining P2 ERC rules. Closed-form DM/CM radiated estimates per net with FCC/CISPR overlays. openEMS NF2FF far field (gain, efficiency) for antennas.
+- **EMI rules:** EM-007/009/010/012/013 plus the remaining P2 ERC rules (WP-407).
+- **EMC pre-compliance (MIL-STD-461, CISPR, FCC, DO-160)** ([ADR-0011](adr/0011-emc-compliance-prediction.md); WP-420 to WP-426 and WP-506 Part B; this replaces the WP-406 "EMI estimates" sketch):
+  - Limit-line library:
+    - MIL-STD-461G and 461H CE101/CE102/RE101/RE102 by platform, and FCC Part 15, shipped with citations;
+    - CISPR 32, CISPR 25 and DO-160 Section 21 as user-entered templates.
+  - Noise-source extraction (clock and data edges from SI/IBIS, switching regulators from the PI power tree, Hockanson CM mechanisms) with culprit ranking tied to nets, structures and ERC violations.
+  - CE102/CE101 conducted prediction: LISN, power-lead MTL, input filter, PDN and sources.
+  - RE102/RE101 fast screening.
+  - A full-wave RE102 bench on oa-fdtd:
+    - the standard ground-plane bench, the 2 m harness 5 cm above the plane as thin wires and an MTLN hybrid, antennas at 1 m;
+    - segmented runs to 18 GHz on a 16 GB GPU;
+    - NF2FF and near-zone transforms for the 3 m and 10 m commercial sites;
+    - reciprocity transfer functions for what-if analysis.
+  - Margin-vs-frequency reports with uncertainty bands, plus `emc.*` MCP/CLI commands.
+  - Antenna NF2FF gain and efficiency come from the same oa-fdtd NF2FF.
 - **Platform:**
   - KiCad IPC plugin (thin): snapshot the board, open the UI, cross-probe and highlight.
   - Static HTML reports.
@@ -203,6 +219,11 @@ Exit criteria:
 - On a 4-layer FPGA-rail board, the PDN Z(f) shows the target crossover. Electro-thermal DC IR converges and reports ΔT.
 - A via-array extraction exports a SPICE subcircuit that ngspice simulates, and the result matches the openEMS S-params up to `validity_fmax`.
 - The KiCad plugin round-trip works on Windows and Linux.
+- **EMC pre-compliance (MIL-STD-461, CISPR, FCC, DO-160):**
+  - On a WP-102 board with a clock intent and a buck converter, `oa emc screen`, `oa emc conducted --standard mil461g --test ce102` and `oa emc bench --standard mil461g --test re102` (and their MCP tools) each produce a margin-vs-frequency result against the selected limit, with an uncertainty band, a worst-offender ranking (net or structure), an accuracy class and provenance.
+  - The full 461 RE102 bench (2 MHz-18 GHz) finishes within the B-EMC-07 runtime and memory gates on the reference machine.
+  - Every B-EMC case in [BENCHMARKS.md](BENCHMARKS.md) §5 has status `pass`, or `[verify]` with its reason recorded.
+  - Every output carries the "prediction, not certification" disclaimer (ADR-0011 §1).
 
 Validation gates:
 - **SI:**
@@ -227,8 +248,14 @@ Validation gates:
 - **EMI:**
   - Hertzian and half-wave dipole far field ≤ 0.5 dB.
   - DM/CM closed forms implementation-locked to Ott/Paul.
-  - openEMS patch NF2FF gain within 0.5-1 dB of the published design.
+  - openEMS patch NF2FF gain within 0.5-1 dB of the published design; oa-fdtd NF2FF within 0.5 dB of openEMS (B-EMC-06).
   - EMI rule boards exact.
+- **EMC (BENCHMARKS.md §5):**
+  - Limit lines exact to the cited figures (B-EMC-01).
+  - LISN and conducted circuit vs analytic and ngspice ≤ 0.1 dB (B-EMC-03).
+  - Thin wire over a ground plane: resonances ≤ 1 %, E at 1 m ≤ 1 dB (B-EMC-05).
+  - RE102 bench oa-fdtd vs openEMS ≤ 0.5 dB to 1 GHz (B-EMC-07).
+  - Published measured cases ≤ 10 dB gate, ≤ 6 dB target (B-EMC-08, [verify] until checked).
 
 ---
 
@@ -243,7 +270,7 @@ Scope:
   - Physics-based via model with backdrill what-if.
   - 3D-extracted Touchstone cascading (de-embedded, rational-fitted).
 - **Generalized 3D extraction regions:** connectors, plane necks, decap mounting loops fed into PDN; frequency-dependent RL fitting with passivity.
-- **EMI field-based:** TL-current dipole sum with images; cavity edge radiation from PDN plane voltages; per-net emission reports at 3 m/10 m.
+- **EMI field-based:** TL-current dipole sum with images; cavity edge radiation from PDN plane voltages; per-net emission reports at 3 m/10 m. *(Pulled forward into M2 by ADR-0011: WP-421 and WP-423. M3 keeps refinement: a field-solved PDN cavity model and an absorber-lined room model.)*
 - **Thermal:** Elmer 3D reference mode (`fem3d`), heatsink and fixed-T regions.
 - **Solvers:** EMerge adapter (optional Windows-native FEM), Palace eigenmode, AMR-driven convergence studies, automatic convergence reports.
 - **Scale:** `ssh-slurm` and cloud-batch runners; farming openEMS and oa-fdtd excitations and sweeps across nodes; multi-GPU oa-fdtd. The Rust (PyO3) core and GPU backend themselves moved into M1P (ADR-0008, ADR-0009).
