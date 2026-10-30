@@ -286,7 +286,8 @@ def diff_via(
     half: str = "odd",
     straight: bool = False,
     cpw: float | None = None,
-    r_anti: float = 0.4e-3,
+    r_anti: float = 0.3e-3,
+    cage_deg: tuple[float, ...] = (0.0, 40.0, 54.0, 68.0, 82.0, 98.0, 112.0, 126.0, 140.0, 180.0),
 ) -> EMProblem:
     """Differential via L1 -> L8 through 1.6 mm (0.25 mm drill, antipads, return vias).
 
@@ -364,7 +365,7 @@ def diff_via(
         )
         ring = [  # stitching vias on a half circle of radius 1.1 mm about the pair centre
             (1.1e-3 * math.cos(math.radians(t)), 1.1e-3 * math.sin(math.radians(t)))
-            for t in (0.0, 45.0, 67.5, 90.0, 112.5, 135.0, 180.0)
+            for t in cage_deg
         ]
         for k, (dx, y) in enumerate(ring):
             vias.append(
