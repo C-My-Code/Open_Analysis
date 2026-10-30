@@ -275,7 +275,7 @@ def diff_via(
     non-local modal load (oa-fdtd loads each mode port with a local sheet, which cannot be
     orthogonal for two modes on the same plane). ``stub`` [m] extends the plated span below L8
     (a via stub); ``straight`` replaces the via by a straight L1 line (calibration).
-    Return vias at (+-0.9 mm, 0.4 mm) and (0, 1.2 mm).
+    Return vias at (+-0.6 mm, 1.1 mm).
     """
     cop, die = _stack8()
     z_bot, z_top = 0.0, cop[-1][1]
@@ -322,7 +322,7 @@ def diff_via(
                 plating=25e-6,
             )
         )
-        for k, (dx, y) in enumerate([(-0.9e-3, y_sig), (0.9e-3, y_sig), (0.0, 1.2e-3)]):
+        for k, (dx, y) in enumerate([(-0.6e-3, 1.1e-3), (0.6e-3, 1.1e-3)]):
             vias.append(
                 ViaBody(
                     id=f"vb:G{k}",
