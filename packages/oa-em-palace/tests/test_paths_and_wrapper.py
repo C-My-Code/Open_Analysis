@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from oa_em_palace import discovery, host_to_wsl, wsl_to_host
@@ -46,7 +48,9 @@ def test_is_drvfs() -> None:
     assert is_drvfs("/mnt/d/job") and not is_drvfs("/home/km/job") and not is_drvfs("/mnt/wsl/x")
 
 
-def test_wsl_runner_command_line_for_palace(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_wsl_runner_command_line_for_palace() -> None:
+    # The WSL runner only runs on a Windows host, so the workdir is a Windows path on every OS
+    # (pytest's tmp_path is a POSIX path on Linux/macOS CI and has no drive letter to translate).
     tools = ToolsConfig(
         {
             "palace": {
@@ -60,12 +64,12 @@ def test_wsl_runner_command_line_for_palace(tmp_path) -> None:  # type: ignore[n
     cmd = ExternalCommand(
         program="palace",
         args=("config.json",),
-        workdir=tmp_path,
+        workdir=Path("D:\\work\\palace job"),
         env={"OA_PALACE_NP": "2", "OA_PALACE_MEM_GB": "8"},
     )
     argv = runner._argv(cmd, runner.resolve("palace"))
     assert argv[:3] == ["wsl.exe", "-d", "Ubuntu"]
-    assert argv[3] == "--cd" and argv[4].startswith("/mnt/")
+    assert argv[3:5] == ["--cd", "/mnt/d/work/palace job"]
     tail = argv[argv.index("--") + 1 :]
     assert tail[0] == "env" and "OA_PALACE_NP=2" in tail
     assert tail[-2:] == ["/home/km/opt/palace/bin/oa-palace-run", "config.json"]

@@ -276,6 +276,18 @@ def test_openapi_committed_in_sync() -> None:
     assert path.read_text(encoding="utf-8") == render()
 
 
+def test_openapi_independent_of_python_status_phrases(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Python 3.13 renamed the 422 phrase; the document must not follow the interpreter."""
+    import http.client
+
+    from oa_server.openapi import render
+
+    expected = render()
+    monkeypatch.setitem(http.client.responses, 422, "Unprocessable Entity")  # Python <= 3.12
+    assert render() == expected
+    assert "Unprocessable Entity" not in expected
+
+
 def test_openapi_has_no_board_full_surprises() -> None:
     from oa_server.openapi import build_openapi
 
