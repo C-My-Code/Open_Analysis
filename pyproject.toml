@@ -25,6 +25,7 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 oa-accel = { workspace = true }
+oa-devguard = { workspace = true }
 oa-native = { workspace = true }
 oa-assistant = { workspace = true }
 oa-cli = { workspace = true }
@@ -70,6 +71,7 @@ dev = [
     "types-PyYAML",
     "lxml-stubs",
     "oa-accel",
+    "oa-devguard",
     "oa-native",
     "oa-assistant",
     "oa-cli",

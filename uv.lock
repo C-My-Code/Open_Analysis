@@ -54,6 +54,7 @@ members = [
     "oa-accel",
     "oa-assistant",
     "oa-cli",
+    "oa-devguard",
     "oa-em",
     "oa-em-openems",
     "oa-em-palace",
@@ -2580,6 +2581,11 @@ requires-dist = [
 provides-extras = ["serve"]
 
 [[package]]
+name = "oa-devguard"
+version = "0.1.0"
+source = { editable = "packages/oa-devguard" }
+
+[[package]]
 name = "oa-em"
 version = "0.1.0"
 source = { editable = "packages/oa-em" }
@@ -3329,6 +3335,7 @@ dev = [
     { name = "oa-accel" },
     { name = "oa-assistant" },
     { name = "oa-cli" },
+    { name = "oa-devguard" },
     { name = "oa-em" },
     { name = "oa-em-openems" },
     { name = "oa-em-palace" },
@@ -3377,6 +3384,7 @@ dev = [
     { name = "oa-accel", editable = "packages/oa-accel" },
     { name = "oa-assistant", editable = "packages/oa-assistant" },
     { name = "oa-cli", editable = "packages/oa-cli" },
+    { name = "oa-devguard", editable = "packages/oa-devguard" },
     { name = "oa-em", editable = "packages/oa-em" },
     { name = "oa-em-openems", editable = "packages/oa-em-openems" },
     { name = "oa-em-palace", editable = "packages/oa-em-palace" },
