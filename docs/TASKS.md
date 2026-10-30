@@ -1,6 +1,6 @@
 # Work Breakdown for Parallel Implementation
 
-Status: v1, 2026-10-27 (AI integration added per ADR-0007; M1P added 2026-10-29 per ADR-0009/0010). This file covers M0, M1 and M1P (performance and accuracy, between the M1 features and the M1 release) in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md), [specs/ai-integration.md](specs/ai-integration.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
+Status: v1, 2026-10-27 (AI integration added per ADR-0007; M1P added 2026-10-29 per ADR-0009/0010; M2 EMC WPs 420-426 and WP-506 Part B added 2026-10-29 per ADR-0011). This file covers M0, M1 and M1P (performance and accuracy, between the M1 features and the M1 release) in full detail and sketches M2 at the end. Contracts: [specs/board-model.md](specs/board-model.md), [specs/interfaces.md](specs/interfaces.md), [specs/ai-integration.md](specs/ai-integration.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md). Gates: [ROADMAP.md](ROADMAP.md).
 
 ## Rules of engagement (every agent reads this first)
 
@@ -1122,6 +1122,39 @@ WP-304's dependency is soft: the downstream WPs need its case and result format 
 - The Debye fit meets the ε/tan δ error limits over 0.1-40 GHz for the physics library's FR-4 and low-loss laminates.
 - B-PERF-01 PCB-like throughput ≥ 1.5 Gcells/s.
 
+**Part B, M2 (EMC, [ADR-0011](adr/0011-emc-compliance-prediction.md) §5b). Added 2026-10-29.** It starts only after the WP-511 M1P gate and does not gate M1P, WP-507 or WP-511.
+- **Owned (additional):** `packages/oa-fdtd/src/oa_fdtd/{nf2ff,probes,wires,templates}/**` and their tests, and `tests/golden/fdtd_emc/**`.
+- **Deps:** WP-507 merged.
+
+Deliverables:
+- **NF2FF on the GPU (Huygens surface):**
+  - a closed Huygens box with decimated surface sampling (≤ λ/10 at f_max);
+  - a frequency-domain mode: on-device float64 DFT of the tangential E/H at the requested frequencies, giving far-field E_θ/E_φ, directivity, gain and radiated power;
+  - a time-domain near-zone mode: the exact 1/R and 1/R² Kirchhoff/Stratton-Chu sum to a few observation points per time step, for many frequencies at finite distance (the 1 m MIL antenna);
+  - free-space and PEC half-space (image) Green's functions;
+  - memory accounted in the estimator.
+- **Near-field sampling:** point E/H time series and DFT; plane (2D) sampling with decimation and aperture averaging (antenna apertures); field dumps for the viewer.
+- **Thin wires over a ground plane:**
+  - the Holland-Simpson thin-wire model (radius below the cell size), with lumped R/L/C loads and ports on segments, and junctions to PEC planes;
+  - an insulated-wire correction;
+  - a bundle as a common-mode thin wire coupled to an internal MTL (multiwire/MTLN hybrid; p.u.l. matrices supplied by the caller);
+  - shield transfer impedance Z_t(f).
+- **Huygens source injection** (equivalent-source replay): fields recorded on a box in one run are injected in another, on a different grid (ADR-0011 §5b.3 hybrid L2).
+- **Large-domain bench template** `templates.bench(standard, params)`:
+  - the MIL-STD-461G/H, CISPR 25 (component) and CISPR 32/FCC tabletop geometries;
+  - a finite ground plane with bond straps, harness routing per ADR-0011 §2.3, LISN ports and antenna reference points;
+  - graded coarse air with fine cells at the harness and EUT;
+  - CFS-CPML settings for the low band;
+  - a segment planner (S1-S4) with memory and runtime estimates against `oa_accel.MemoryBudget`, and spectral stitching with an overlap check.
+- **Reciprocity mode:** Hertzian-dipole excitation at observation points, recording voltages and fields at source sites.
+
+Acceptance:
+- B-EMC-05 (thin wire) and B-EMC-06 (NF2FF and near-zone) pass.
+- Huygens injection reproduces the direct run within 0.2 dB at the observation points on a dipole-in-box case.
+- The bench template builds every listed standard. Its memory estimate lies within 0.8-1.25× of the measured peak (ADR-0009 §4).
+
+**Size effect:** Part A stays L and is unchanged. Part B is **L (8-10 days)**: NF2FF M, thin wire and MTLN M-L, template and injection M. WP-506 as a whole is therefore XL across two milestones, which is why Part B is split out and scheduled after the M1P gate. To avoid reopening the M1P kernels later, Part A reserves the probe and Huygens hook points in the kernel step loop (no-op when unused, about +1 day inside Part A's L).
+
 ### WP-507 `oa-fdtd` adapter, integration and verification against openEMS. Size: M (GPU + heavy)
 **Owned:** `packages/oa-fdtd/src/oa_fdtd/adapter/**`, `packages/oa-fdtd/pyproject.toml` (entry points), `packages/oa-fdtd/tests/verification/**`, `packages/oa-fdtd/README.md`, `tests/golden/fdtd_verify/**`.
 
@@ -1228,7 +1261,7 @@ WP-304's dependency is soft: the downstream WPs need its case and result format 
 | WP-403 | AC PDN lumped (`oa-pi/ac_lumped`), cap library, target Z | `packages/oa-pi/src/oa_pi/ac/` | 204, 106 |
 | WP-404 | Thermal layered FVM + electro-thermal (`oa-thermal`) | `packages/oa-thermal/` | 204 (`pdn` service) |
 | WP-405 | Quasi-static extraction (`oa-qs`): FasterCap, FastHenry2, Palace ES/MS adapters, π-SPICE export | `packages/oa-qs/` | 104, 206, 107 |
-| WP-406 | EMI estimates (`oa-emi`): DM/CM closed forms, limits, openEMS NF2FF post-processing | `packages/oa-emi/` | 401, 108 |
+| WP-406 | **Superseded by WP-420 to WP-426 (ADR-0011).** Was: EMI estimates (`oa-emi`): DM/CM closed forms, limits, openEMS NF2FF post-processing. Its closed forms are WP-423; limits are WP-420; NF2FF moves into oa-fdtd (WP-506 Part B), and openEMS NF2FF stays as the cross-check in WP-426 | `packages/oa-emi/` | 401, 108 |
 | WP-407 | Remaining P2 ERC/EMI rules | `packages/oa-erc/src/oa_erc/rules_p2/` | 201 |
 | WP-408 | KiCad IPC plugin (thin) + cross-probe endpoints | `packages/oa-kicad-plugin/` | 207 |
 | WP-409 | HTML report export | `web/src/report/`, `packages/oa-results/src/oa_results/io/html.py` | 209 |
@@ -1236,7 +1269,178 @@ WP-304's dependency is soft: the downstream WPs need its case and result format 
 | WP-411 | In-app AI assistant (`oa-assistant`): provider protocol, Anthropic reference provider (`claude-opus-5-5` default, keyring BYO key, off by default), server router, web assistant panel, data preview and redaction, user doc on data sent (ai-integration §11) | `packages/oa-assistant/`, `web/src/features/assistant/`, `docs/user/assistant.md` | 207, 209, 210 |
 | WP-412 | **(M3)** Surrogate dataset export (`oa-xsdataset/1`, `oa dataset export`/`sweep`) and impedance surrogate plugin (`oa-impedance-surrogate`, domain-gated, `accuracy_class="surrogate"`) (ai-integration §12) | `packages/oa-impedance-surrogate/`, `packages/oa-service/src/oa_service/dataset/` | 105, 202, 207 |
 | WP-413 | **Superseded by WP-503/WP-504 (M1P, ADR-0009).** Was: optional GPU acceleration backend (`oa-accel`): array/sparse backend protocol with a CPU default; CUDA via CuPy first, ROCm via CuPy-ROCm through the same code; GPU paths for BEM dense solves, large sparse solves (DC IR, thermal, AC PDN) and raster solvers; Palace CUDA build in WSL2. Gated on WP-304 benchmarks; CPU fallback mandatory; ADR first | `packages/oa-accel/` | 105, 204, 301, 304 |
+| WP-420 | EMC limit-line library and standards model (ADR-0011 §2) | `packages/oa-emi/src/oa_emi/limits/**` (+ see detail) | 000 |
+| WP-421 | EMC noise-source extraction and culprit ranking (ADR-0011 §3) | `packages/oa-emi/src/oa_emi/sources/**` | 420, 401, 403 |
+| WP-422 | CE102/CE101 conducted prediction (ADR-0011 §4) | `packages/oa-emi/src/oa_emi/conducted/**` | 420, 421, 403, 106 |
+| WP-423 | RE102/RE101 screening estimator (ADR-0011 §5a) | `packages/oa-emi/src/oa_emi/radiated/**` | 420, 421 |
+| WP-424 | Full-wave RE102 bench on oa-fdtd (ADR-0011 §5b) | `packages/oa-emi/src/oa_emi/bench/**` | 421, 506 Part B, 507 |
+| WP-425 | EMC report, UI and MCP/CLI commands (ADR-0011 §6) | `packages/oa-service/src/oa_service/emc/**`, `web/src/features/emc/**`, `packages/oa-emi/src/oa_emi/report/**` | 422, 423, 424, 409, 210 |
+| WP-426 | EMC validation (analytic, cross-solver, published measured) | `tests/golden/emc_validation/**`, `docs/validation/emc/**` | 420-425 |
 | WP-414 | **Superseded by WP-508/WP-509 (M1P, ADR-0008 amendment).** Was: compiled core per ADR-0008: `oa-native` Rust crate (PyO3/maturin) for parser, geometry/ReferenceMap, BEM assembly, raster solvers, ERC loops, each with a Python reference oracle; mypyc for typed packages; wheel builds in CI for 3 OSes; native app bundle | `crates/oa-native/`, `packages/oa-native/` | 101, 104, 105, 201, 204, 304 |
+
+---
+
+## M2: EMC compliance prediction (ADR-0011). Detailed 2026-10-29
+
+Design: [ADR-0011](adr/0011-emc-compliance-prediction.md). Benchmarks: [BENCHMARKS.md](BENCHMARKS.md) §5 (B-EMC-01…09). These WPs replace WP-406.
+
+**Package ownership.** All of `oa-emi` is split by subpackage:
+- `packages/oa-emi/pyproject.toml`, `src/oa_emi/__init__.py` and `src/oa_emi/model.py` (the shared payloads `EmcSource`, `EmcPrediction`, `UncertaintyBudget`, `LimitLine`) belong to **WP-420**. Later WPs request entry points or dependencies through a `docs/change-requests/WP-42x-*.md` that the integrator applies.
+- `packages/oa-emi/README.md` belongs to **WP-425**. WP-420 to WP-424 each document their area in `packages/oa-emi/docs/<area>.md`, which the README links to.
+
+**Layering.**
+- `oa_emi` imports neither other analyses nor `oa_fdtd`. It reaches SI, PI, impedance and qs data through services, and oa-fdtd through its engine job format (ADR-0011 §5b.8).
+- WP-420 adds an import-linter contract for this, through the integrator's root config.
+
+**Schedule.**
+- Start: WP-420 right after M1P. WP-421 and WP-423 can start once WP-420's `model.py` exists. WP-421 then needs WP-401's `si.net_currents` service.
+- Critical path: WP-506 Part B → WP-424 → WP-426.
+- GPU token: WP-424, WP-426 and WP-506 Part B need it for verification runs (rule 11).
+
+### WP-420 EMC limit-line library and standards model. Size: M
+**Owned:** `packages/oa-emi/src/oa_emi/limits/**`, `packages/oa-emi/src/oa_emi/data/limits/**`, `packages/oa-emi/src/oa_emi/model.py`, `packages/oa-emi/src/oa_emi/__init__.py`, `packages/oa-emi/pyproject.toml`, `packages/oa-emi/docs/limits.md`, `tests/golden/emc_limits/**`, `schemas/oa-limits-1.json`.
+
+**Deps:** WP-000 (M2 start).
+
+**Deliverables (ADR-0011 §2):**
+- The `LimitLine` model and the `oa-limits/1` TOML schema: segments, interpolation, relaxations, detector, RBW table, distance, source citation with page and figure, `digitised` and `verify` flags, and a licence field.
+- Distance scaling with a near-field refusal.
+- Packaged data:
+  - **MIL-STD-461G**: CE101-4, CE102 with voltage relaxations, RE101-1, RE102-1…4, Table II RBWs. Every breakpoint cites its figure and printed page.
+  - **MIL-STD-461H**: its own ID. Values are copied from 461G and flagged `verify` until checked against the official 461H text, which this WP obtains from ASSIST; the CE101 20 kHz extension is included.
+  - **FCC Part 15**: §15.107 (Class A/B, QP/average), §15.109 (3 m and 10 m), the §15.33(b)(1) scan-range rule and the §15.35 detectors.
+- Schema-complete templates without values for CISPR 32, CISPR 25 and DO-160 Section 21 (ADR-0011 §2.4).
+- The remaining figures CE101-1/2/3 and RE101-2, digitised and flagged.
+- The `emc.limits` and `emc.limits.validate` command implementations (service functions; the adapters are WP-425).
+
+**Acceptance:**
+- Every breakpoint printed on a figure is encoded exactly (B-EMC-01).
+- Digitised points are flagged and checked against a second independent digitisation within 0.5 dB.
+- The FCC µV/m to dBµV/m conversions are exact to 0.01 dB.
+- A user limit file round-trips, and invalid files give `EMC.LIMIT_FILE_INVALID` with a path.
+- `LimitLine` fields carry descriptions with units.
+
+### WP-421 EMC noise-source extraction and culprit ranking. Size: L
+**Owned:** `packages/oa-emi/src/oa_emi/sources/**`, `packages/oa-emi/docs/sources.md`, `tests/golden/emc_sources/**`, `docs/change-requests/WP-421-*.md`.
+
+**Deps:** WP-420 (model), WP-401 (needs the `si.net_currents(net, f)` service; file a change request on day 1 and use the I = V/|Z₀| fallback until it lands), WP-403 (`pdn` rails, cap library, plane-voltage map). WP-405 is optional (L_p,ret, C_sw).
+
+**Deliverables (ADR-0011 §3):**
+- Trapezoidal sources from the exact Fourier series, with clock frequency and duty from intent and edges from IBIS.
+- PRBS/data densities and the spread-spectrum approximation.
+- Switching-regulator DM and CM sources from the PI power tree plus user parameters. Datasheet defaults are proposed, never invented, and missing data gives `EMC.SOURCE_PARAM_MISSING`.
+- Hockanson current- and voltage-driven CM sources at cable attachments.
+- Board-intrinsic equivalent dipole sets: the TL-dipole sum and cavity edge currents.
+- Geometry mapping and ERC cross-links (`culprit_id`).
+- The receiver model (ADR-0011 §3.6).
+- The ranking table.
+- `emc.sources`.
+
+**Acceptance:**
+- B-EMC-02 passes.
+- On every WP-102 board with a clock intent, the top culprit is a net carrying that clock, or a structure the ERC flags on it.
+- Ranking order is deterministic.
+- Every `EmcSource` carries `accuracy` and `assumptions`.
+
+### WP-422 CE102/CE101 conducted prediction. Size: M
+**Owned:** `packages/oa-emi/src/oa_emi/conducted/**`, `packages/oa-emi/docs/conducted.md`, `tests/golden/emc_conducted/**`, `docs/change-requests/WP-422-*.md`.
+
+**Deps:** WP-420, WP-421, WP-403 (input-rail Z(f), cap library), WP-106 (`oa_network`).
+
+**Deliverables (ADR-0011 §4):**
+- LISN models: 461G Fig. 6, 50 µH/50 Ω, 5 µH [verify CISPR 25], and user networks.
+- A power-lead MTL over the plane (p.u.l. from the `impedance` service).
+- Filter import (Touchstone/SPICE) with parasitics.
+- Nodal solve per frequency, with CM/DM decomposition.
+- LISN-port voltage (CE102, commercial) and lead current (CE101).
+- The filter-resonance and Middlebrook stability warnings.
+- The `emc.conducted` analysis and command function.
+
+**Acceptance:**
+- B-EMC-03 passes: LISN impedance vs analytic ≤ 0.1 dB; a buck converter with filter vs an ngspice netlist ≤ 0.1 dB; runtime ≤ 2 s.
+- Results carry `accuracy_class="estimate"` with the ADR-0011 §1.4 band.
+
+### WP-423 RE102/RE101 screening estimator. Size: M
+**Owned:** `packages/oa-emi/src/oa_emi/radiated/**`, `packages/oa-emi/docs/radiated.md`, `tests/golden/emc_screen/**`.
+
+**Deps:** WP-420, WP-421.
+
+**Deliverables (ADR-0011 §5a):**
+- DM small-loop and TL-dipole-sum radiation with images.
+- The CM cable-antenna model for the bench harness.
+- RE101 Biot-Savart with loop-sensor flux averaging.
+- Two-ray ground reflection and height scan for the 3 m and 10 m commercial sites (research 07 §3.4).
+- The deliberate over-prediction bias, and `emc.screen`.
+
+**Acceptance:**
+- B-EMC-04 passes: closed forms implementation-locked to Ott/Paul; dipole fields vs analytic ≤ 0.1 dB; the TL-dipole sum vs oa-fdtd NF2FF on the microstrip-over-finite-plane case ≤ 3 dB DM; 1000 nets ≤ 30 s CPU.
+- The screening prediction is ≥ the full-wave bench prediction minus 3 dB on every B-EMC-07 variant. This checks the bias.
+
+### WP-424 Full-wave RE102 bench on oa-fdtd. Size: L (GPU)
+**Owned:** `packages/oa-emi/src/oa_emi/bench/**`, `packages/oa-emi/docs/bench.md`, `tests/golden/emc_bench/**`, `docs/change-requests/WP-424-*.md`.
+
+**Deps:** WP-421, WP-506 Part B, WP-507 (job path), WP-108 (openEMS, for the cross-check).
+
+**Deliverables (ADR-0011 §5b):**
+- Scene building from the board, enclosure description and harness description into the oa-fdtd bench template job.
+- The L1/L2 board-representation choice, with the board-level run and Huygens recording for L2.
+- Port bookkeeping for the bench network.
+- Reciprocity-mode selection.
+- Segment jobs through `oa_jobs` with the GPU lease.
+- Stitching and the quasi-static low-frequency extension.
+- Antenna observation models (point, aperture average, explicit rod).
+- Frequency-domain attachment of the LISN and filter networks.
+- `emc.radiated_bench` (item pair: `3d_full_wave` field solution plus the `estimate` prediction).
+- `emc.whatif` evaluation from stored transfer functions.
+
+**Acceptance:**
+- B-EMC-07 passes:
+  - oa-fdtd vs openEMS on the resolved-wire bench ≤ 0.5 dB;
+  - the full MIL-STD-461 RE102 bench ≤ 45 min GPU and within 12 GB;
+  - segment overlap ≤ 0.5 dB.
+- `emc.whatif` reproduces a full re-run within 0.1 dB when only the source spectra change, in ≤ 5 s.
+
+### WP-425 EMC report, UI and MCP/CLI commands. Size: M
+**Owned:** `packages/oa-service/src/oa_service/emc/**`, `web/src/features/emc/**`, `packages/oa-emi/src/oa_emi/report/**`, `packages/oa-emi/README.md`, `docs/user/emc.md`, `docs/agents/emc.md`.
+
+**Deps:** WP-422, WP-423, WP-424, WP-409 (HTML report), WP-210 (MCP), WP-207 (CLI/server).
+
+**Deliverables (ADR-0011 §6):**
+- The `CommandSpec`s for the seven `emc.*` commands, generated into the CLI, REST and MCP.
+- `EmcPrediction.summary()` within the caps.
+- Web views:
+  - margin vs frequency with the limit and uncertainty band;
+  - stacked source contributions;
+  - a culprit table that cross-probes to the board viewer;
+  - a setup editor for the harness, enclosure and converter parameters;
+  - a provenance panel.
+- An HTML report section with the fixed disclaimer.
+- An agent guide.
+
+**Acceptance:**
+- The ai-integration contract tests pass for every `emc.*` command: envelope, ErrorInfo, deterministic order, summary caps.
+- MCP end-to-end: an agent runs screen → conducted → bench → whatif on a WP-102 board through `oa_testkit.harness`.
+- Every report shows the disclaimer, the limit source and its licence flag.
+
+### WP-426 EMC validation. Size: L (GPU + heavy)
+**Owned:** `tests/golden/emc_validation/**`, `docs/validation/emc/**`, `tests/benchmarks/cases/emc/**`.
+
+**Deps:** WP-420 to WP-425.
+
+**Deliverables:**
+- B-EMC-08 published measured-vs-simulated cases, each built from the paper's stated geometry (**[verify]** each before it gates):
+  - Hockanson et al., IEEE TEMC 38(4), 1996 (board with attached cable, current- and voltage-driven CM);
+  - C. R. Paul, "A comparison of the contributions of common-mode and differential-mode currents in radiated emissions", IEEE TEMC 31(2), 1989;
+  - Shim and Hubing, IEEE TEMC 47(4), 2005 (voltage-driven sources with attached cables).
+- The IEEE Std 1597.1-2008 Feature Selective Validation (FSV) metric for curve comparison, implemented independently from the standard's definitions.
+- The uncertainty-budget calibration that replaces the ADR-0011 §1.3 design values with measured statistics (the median and 90th percentile of |predicted − measured|).
+- The B-EMC-09 end-to-end runs.
+- Optional, owner-dependent (open question 13): our own pre-compliance measurements of a WP-102 board in a 461-style bench.
+
+**Acceptance:**
+- B-EMC-01…09 have status `pass`, or `[verify]` with the reason recorded.
+- The published validation page shows predicted vs measured with FSV grades and the calibrated bands.
+- The calibrated band is at least as wide as the observed 90th-percentile error.
 
 ---
 
@@ -1252,3 +1456,7 @@ WP-304's dependency is soft: the downstream WPs need its case and result format 
 8. **AMD hardware.** Is any AMD GPU (Linux or WSL-supported Radeon) available for the tier-2 smoke lane, or does AMD stay "documented, untested" for M1P?
 9. **Benchmark profile.** BENCHMARKS.md §1 runs gate measurements at 8 threads and a 16 GB host cap, held by one agent with the token. Is that acceptable on the machine that froze, or should the gate use 4 threads and 12 GB (runtime targets would then be rescaled before WP-511)?
 10. **Commercial comparisons.** Do you (or contacts) hold HFSS/SIwave/HyperLynx/SI9000/Sonnet licences that permit running the BENCHMARKS.md cases and publishing results? Without them, parity is claimed only against converged and published references.
+11. **EMC limit licensing (ADR-0011 §2.4).** May we ship numeric CISPR 32, CISPR 25 and DO-160 Section 21 limit values as data, or do they stay user-entered templates? MIL-STD-461 (Distribution A) and FCC Part 15 (47 CFR) are shipped either way.
+12. **Target standards and platforms.** Which MIL-STD-461 revision(s) and platform curves matter to you first: 461G or 461H; aircraft, ground, ship or submarine; internal or external? Do you also need CISPR 25 or DO-160 in M2, or only MIL and FCC/CISPR 32?
+13. **Measured EMC data.** Can you get pre-compliance measurements (a LISN plus a rod, biconical or horn, or a lab slot) of one or two of our test boards in a 461-style bench? Published measured-vs-simulated cases cover only simple boards. Calibrating the uncertainty bands on real products needs our own data.
+14. **Commercial EMC tools.** Do you or your contacts hold Ansys EMC Plus or CST Cable Studio licences that permit running B-EMC-07 and publishing the comparison?

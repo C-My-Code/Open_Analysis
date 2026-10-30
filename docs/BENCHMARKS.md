@@ -1,6 +1,6 @@
 # Benchmarks (M1P gate)
 
-Status: v1, 2026-10-29. This file is the benchmark specification that gates milestone **M1P** ([ROADMAP](ROADMAP.md)) and through it the M1 release. The harness that runs it, records results and publishes them is WP-304 ([TASKS](TASKS.md)). GPU design: [ADR-0009](adr/0009-gpu-acceleration.md); FDTD engine: [ADR-0010](adr/0010-gpu-fdtd-engine.md).
+Status: v1, 2026-10-29 (§5, the M2 EMC cases, added the same day per ADR-0011). This file is the benchmark specification that gates milestone **M1P** ([ROADMAP](ROADMAP.md)) and through it the M1 release. The harness that runs it, records results and publishes them is WP-304 ([TASKS](TASKS.md)). GPU design: [ADR-0009](adr/0009-gpu-acceleration.md); FDTD engine: [ADR-0010](adr/0010-gpu-fdtd-engine.md).
 
 Goal set by the project owner: results **as good as or better than** the commercial incumbents (Ansys HFSS/SIwave/Q3D, Siemens HyperLynx, Polar SI9000, Sonnet), with openEMS and Palace as the open baselines, using the user's GPU where it helps.
 
@@ -255,5 +255,94 @@ Rule 10's defaults (2 threads, 8 GB) still apply to all other tests. The harness
 - **AMD GPUs.** They are tier 2 (ADR-0009 §7): reported, not gated, and there is no sparse direct solver on ROCm from Python.
 - **Commercial comparison numbers** are not published until a licensed user contributes them with permission.
 
-## 5. Changing this file
+## 5. M2: EMC pre-compliance cases (ADR-0011)
+
+These cases gate **M2**, not M1P. They use the same reference machine, `bench` profile, measurement protocol and honesty rules as §1. Design: [ADR-0011](adr/0011-emc-compliance-prediction.md). Work packages: WP-420 to WP-426 and WP-506 Part B. "Accuracy" here is the agreement of our numbers with the reference. The prediction's uncertainty against a real lab test is a separate quantity, reported per ADR-0011 §1.4 and calibrated by B-EMC-08.
+
+| ID | Case | Reference | Accuracy gate | Runtime gate | Memory ceiling | Today |
+|---|---|---|---|---|---|---|
+| B-EMC-01 | Limit-line library exactness | published (MIL-STD-461G figures; 47 CFR 15.107/15.109) | labelled breakpoints exact; digitised ≤ 0.5 dB between two digitisations; FCC conversions ≤ 0.01 dB | lookup ≤ 1 ms | - | not built |
+| B-EMC-02 | Source spectra | analytic (trapezoid Fourier series; PRBS density) | line amplitudes ≤ 0.01 dB; envelope corners exact | ≤ 1 ms per net, 1000 nets ≤ 2 s CPU | 500 MB | not built |
+| B-EMC-03 | Conducted (CE102/CE101, FCC 15.107) circuit | analytic (461G Fig. 6 LISN); ngspice netlist oracle | LISN impedance ≤ 0.1 dB; buck + filter vs ngspice ≤ 0.1 dB, phase ≤ 1° | ≤ 2 s CPU per lead, 10 kHz-10 MHz | 1 GB | not built |
+| B-EMC-04 | Radiated screening | analytic (Hertzian dipole, small loop); converged (oa-fdtd NF2FF) | closed forms ≤ 0.1 dB; TL-dipole sum vs NF2FF ≤ 3 dB DM | 1000 nets ≤ 30 s CPU | 2 GB | not built |
+| B-EMC-05 | Thin wire over ground plane | analytic (MTL theory); converged (resolved-wire openEMS); NEC-2 oracle **[verify licence/build]** | wire-current resonances ≤ 1 %; current ≤ 0.5 dB; E at 1 m ≤ 1 dB vs resolved wire | ≤ 2 min GPU | 2 GB GPU | not built |
+| B-EMC-06 | NF2FF and near-zone transform | analytic (Hertzian and half-wave dipole far and near fields); published (B-EM-05a patch) | far field ≤ 0.5 dB; field at 1 m ≤ 0.2 dB; patch gain ≤ 0.5 dB vs openEMS NF2FF | ≤ 60 s GPU per case | 4 GB GPU | not built |
+| B-EMC-07 | MIL-STD-461 RE102 bench, canonical | converged (oa-fdtd fine grid) cross-checked by openEMS on the resolved-wire variant | oa-fdtd vs openEMS ≤ 0.5 dB to 1 GHz; segment overlap ≤ 0.5 dB; grid-halving change ≤ 0.5 dB | 2 MHz-18 GHz, 2 positions, both polarisations ≤ 45 min GPU | 12 GB GPU, 16 GB host | not built |
+| B-EMC-08 | Published measured cases | measured **[verify]** (Hockanson 1996; Paul 1989; Shim and Hubing 2005) | ≤ 6 dB (target), ≤ 10 dB (gate) at measured peaks; FSV (IEEE 1597.1) grade "fair" or better | as B-EMC-07 | as B-EMC-07 | not built |
+| B-EMC-09 | End to end on WP-102 boards | (runtime and determinism case) | bitwise-identical repeat runs; culprit order stable | screen ≤ 30 s; conducted ≤ 10 s; bench ≤ 60 min | 12 GB GPU | not built |
+
+### B-EMC-01 Limit-line library
+- **Cases:**
+  - MIL-STD-461G CE101-4, CE102 (with all five voltage relaxations), RE101-1 and RE102-1…4. Each value printed on the figure is checked exactly. Values read off grid lines are flagged `digitised` and `verify`.
+  - FCC §15.109(a)/(b) µV/m converted to dBµV/m.
+  - FCC §15.107(a)/(b), including the log-frequency slope from 0.15 to 0.5 MHz.
+- **Reference:** the figure and printed page cited in each `case.toml`. MIL-STD-461H entries are `[verify]` until checked against the official 461H text.
+
+### B-EMC-02 Source spectra
+- **Cases:** a 100 MHz clock, 50 % duty, t_r = t_f = 0.5 ns and 2 ns; asymmetric edges; 33 % duty; a PRBS-7 at 1 Gb/s; a spread-spectrum clock (0.5 % down-spread). The SSC case is checked against the time-domain FFT of a modulated waveform with a stated approximation tolerance of ≤ 2 dB.
+- **Reference:** analytic. Each case is the exact Fourier series of the stated waveform.
+
+### B-EMC-03 Conducted circuit
+- **Cases:**
+  1. |Z_LISN(f)| of the 461G Fig. 6 network from 10 kHz to 10 MHz, vs its analytic impedance. 461G Fig. 7 is the published plot, used for a visual cross-check only.
+  2. A 12 V → 3.3 V buck at 400 kHz with a π input filter (stated L, C, ESR and ESL), with the LISN and 2 m leads as an MTL. The same netlist runs in ngspice (an `external` oracle).
+  3. The FCC 15.107 network variant of case 2.
+- **Reference:** analytic and ngspice. A published measured CE102 case for a stated converter is **[verify]: none selected yet**, and the case does not gate on measurement.
+
+### B-EMC-04 Radiated screening
+- **Cases:**
+  - a Hertzian dipole and a small loop over an infinite PEC plane at 1 m and 3 m;
+  - a 10 cm microstrip, 50 Ω, over a 10 × 5 cm finite ground plane, matched and open terminations, 30 MHz-3 GHz. The screening TL-dipole sum is compared with oa-fdtd NF2FF (B-EMC-06 settings).
+- **Reference:** analytic and converged. Research 07 §5.4 already sets the ±3 dB DM target, with "trend" for CM.
+
+### B-EMC-05 Thin wire over a ground plane
+- **Cases:**
+  - one 1 mm-radius wire, 2 m long, 5 cm over an infinite and a finite (2.5 × 1 m) PEC plane; 50 Ω at both ends and 50 Ω/open variants; 1-500 MHz;
+  - a 3-wire bundle (MTLN hybrid) with an imbalanced termination.
+- **Reference:**
+  - MTL theory (exact for the infinite plane in the TEM approximation) for currents;
+  - openEMS with the wire resolved (staircased, ≥ 4 cells across) for the radiated field;
+  - NEC-2 as an optional `external` oracle **[verify licence and Windows build]**.
+- **Accuracy:** resonance frequencies ≤ 1 %; current magnitude ≤ 0.5 dB; E at 1 m ≤ 1 dB against the resolved-wire reference.
+
+### B-EMC-06 NF2FF and near-zone transform
+- **Cases:**
+  - a Hertzian dipole and a half-wave dipole: far-field patterns, plus the exact near field at 1 m (time-domain near-zone mode);
+  - a dipole over an infinite PEC plane (image Green's function);
+  - the B-EM-05a patch: gain and pattern, vs openEMS `nf2ff` on the same structure.
+- **Reference:** analytic (Balanis ch. 4, ch. 6); openEMS NF2FF (converged).
+- **Accuracy:** far field ≤ 0.5 dB (the existing M2 EMI gate); field at 1 m ≤ 0.2 dB; patch gain ≤ 0.5 dB vs openEMS, and ≤ 1 dB vs the tutorial's published value.
+
+### B-EMC-07 MIL-STD-461 RE102 bench, canonical
+- **Structure:** the ADR-0011 §2.3 bench:
+  - a 2.5 × 1.0 m PEC plane;
+  - a 20 × 15 × 8 cm metal EUT box bonded to the plane, with one 5 cm slot aperture;
+  - one 2 m harness of 3 wires at 5 cm height, 10 cm from the front edge, LISN ports at the far end;
+  - a CM source of 1 V behind 50 Ω at the box connector;
+  - antenna reference points 1 m from the front edge, two positions, both polarisations.
+- **Reference (converged):** oa-fdtd at half the cell size in every segment (change ≤ 0.5 dB). openEMS on the resolved-wire variant to 1 GHz; above 1 GHz openEMS is for information only (cost).
+- **Runtime:** the whole 2 MHz-18 GHz plan (S1-S4) ≤ 45 min on the RTX 4080 SUPER, of which S1+S2 take ≤ 10 min. Planning numbers are in ADR-0011 §5b.7. No commercial runtime is quoted.
+
+### B-EMC-08 Published measured cases
+- **Candidates** (each **[verify]**: geometry stated fully enough to rebuild, and data readable from the paper's figures):
+  - D. M. Hockanson, J. L. Drewniak, T. H. Hubing, T. P. Van Doren, F. Sha, M. J. Wilhelm, "Investigation of fundamental EMI source mechanisms driving common-mode radiation from printed circuit boards with attached cables", *IEEE Trans. EMC* 38(4), 1996 [verify pages and authors];
+  - C. R. Paul, "A comparison of the contributions of common-mode and differential-mode currents in radiated emissions", *IEEE Trans. EMC* 31(2), 1989 [verify pages];
+  - H. W. Shim, T. H. Hubing, "Model for estimating radiated emissions from a printed circuit board with attached cables due to voltage-driven sources", *IEEE Trans. EMC* 47(4), 2005 [verify pages].
+- **Accuracy:**
+  - at the measured emission peaks: ≤ 6 dB target, ≤ 10 dB gate;
+  - FSV (IEEE Std 1597.1-2008) global grade "fair" or better.
+
+  Data digitised from figures carries its digitisation uncertainty in the tolerance.
+- **Our own measurements** (TASKS open question 13) become B-EMC-08m once they exist.
+
+### B-EMC-09 End to end
+- **Cases:** the WP-102 boards with clock intents and one buck converter. Run `emc.screen`, `emc.conducted` (461G CE102, 28 V) and `emc.bench` (L2 hybrid, S1-S2 only in the gate, full plan reported).
+- **Accuracy:** deterministic. Repeat runs give bitwise-identical results on the same device, and culprit ordering is stable.
+- **Runtime:** screen ≤ 30 s; conducted ≤ 10 s; bench S1-S2 ≤ 15 min, full ≤ 60 min.
+
+### Parity statement (EMC)
+- Ansys EMC Plus, HFSS/SIwave and CST Studio Suite with Cable Studio publish no reproducible accuracy or runtime numbers for these cases that we could find [verify]. We compare against analytic, converged and published-measured references only.
+- A licensed user may contribute runs with permission (TASKS open question 14).
+
+## 6. Changing this file
 Targets may be **tightened** at any time. Loosening a target needs an ADR amendment that records the measured evidence and the project owner's sign-off. References marked [verify] become gating only in the commit that adds the checked citation to the case's `case.toml`.
