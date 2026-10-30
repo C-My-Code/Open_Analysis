@@ -23,6 +23,7 @@ import pytest
 
 from oa_em_openems import OpenEMSAdapter
 from oa_model.em import EMProblem, EMWavePort
+from oa_model.materials import DielectricMaterial, DjordjevicSarkar
 from oa_model.setup import AnalysisSetup
 from oa_results.quality import QualityCriteria, QualityReport
 from oa_testkit import builders
@@ -64,6 +65,14 @@ def _problem() -> EMProblem:
     f_max = float(os.environ.get("OA_OE_FMAX", "10e9"))
     n_pts = int(os.environ.get("OA_OE_NPTS", "41"))
     p = microstrip_thru_problem(f_max=f_max, n_points=n_pts)
+    # canonical dielectric (docs/BENCHMARKS.md B-EM-01): Djordjevic-Sarkar, not the fixture's constant
+    mats = tuple(
+        m.model_copy(update={"model": DjordjevicSarkar(dk=4.3, df=0.02, f_ref=1e9)})
+        if isinstance(m, DielectricMaterial)
+        else m
+        for m in p.structure.materials
+    )
+    p = p.model_copy(update={"structure": p.structure.model_copy(update={"materials": mats})})
     expert: dict[str, Any] = {
         "openems.conductor_model": os.environ.get("OA_OE_MODEL", "skin"),
     }
