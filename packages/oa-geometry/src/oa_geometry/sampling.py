@@ -31,6 +31,8 @@ import numpy as np
 import numpy.typing as npt
 import shapely
 
+from oa_geometry._native import RingSet
+from oa_geometry._native import kernels as _kernels
 from oa_geometry._shapes import path_points, polygons_of
 from oa_geometry.errors import UnknownItem
 from oa_geometry.models import ReferenceSpan, RefInfo, RoutedSegment, XsSample
@@ -141,6 +143,43 @@ def _clip(lines: object, geoms: object) -> object:
     return res
 
 
+def _native_u_intervals(
+    lines: object,
+    geoms: object,
+    centers: F64,
+    normals: F64,
+    out: list[list[tuple[float, float]]],
+) -> bool:
+    """``_u_intervals`` through the compiled cut kernel (closed-set segment/polygon clipping, the
+    same point set as ``shapely.intersection``); fills `out`, False when it is not available."""
+    kern = _kernels()
+    if kern is None:
+        return False
+    if isinstance(geoms, shapely.Geometry):
+        uniq = np.empty(1, dtype=object)
+        uniq[0] = geoms
+        gi = np.zeros(len(lines), dtype=np.int64)  # type: ignore[arg-type]
+    else:
+        ids = np.fromiter((id(g) for g in geoms), dtype=np.int64, count=len(geoms))  # type: ignore[arg-type]
+        _, first, inv = np.unique(ids, return_index=True, return_inverse=True)
+        uniq = np.asarray(geoms, dtype=object)[first]
+        gi = inv.astype(np.int64)
+    rs = RingSet(uniq)
+    segs = np.ascontiguousarray(shapely.get_coordinates(lines).reshape(-1, 2, 2))
+    own, xy = kern.cut_intervals(segs, gi, rs.xy, rs.ring_start, rs.geom_start)
+    own = np.asarray(own, dtype=np.intp)
+    if len(own) == 0:
+        return True
+    xy = np.asarray(xy).reshape(-1, 2, 2)
+    d = xy - centers[own][:, None, :]
+    u = d[:, :, 0] * normals[own][:, None, 0] + d[:, :, 1] * normals[own][:, None, 1]
+    lo, hi = u.min(axis=1), u.max(axis=1)
+    for o, a_, b_ in zip(own.tolist(), lo.tolist(), hi.tolist(), strict=True):
+        if b_ - a_ > MIN_INTERVAL:
+            out[o].append((a_, b_))
+    return True
+
+
 def _u_intervals(
     lines: object, geoms: object, centers: F64, normals: F64
 ) -> list[list[tuple[float, float]]]:
@@ -149,6 +188,9 @@ def _u_intervals(
     k = len(lines)  # type: ignore[arg-type]
     out: list[list[tuple[float, float]]] = [[] for _ in range(k)]
     if k == 0:
+        return out
+    nat = _native_u_intervals(lines, geoms, centers, normals, out)
+    if nat:
         return out
     inter = _clip(lines, geoms)
     parts, src = shapely.get_parts(inter, return_index=True)
