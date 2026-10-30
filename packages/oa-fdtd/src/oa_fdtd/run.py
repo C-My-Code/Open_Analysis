@@ -127,7 +127,8 @@ def run(
             raise ModelError(
                 "FDTD_UNSTABLE",
                 f"field energy is not finite after {done} steps",
-                hint="Lower the Courant number, check for a PEC/material corner or refine the mesh.",
+                hint="Lower the Courant number, check for a PEC/material corner or refine the "
+                "mesh.",
             )
         if done * c.dt > t_quiet:
             e_min = min(e_min, e) if e > 0 else e_min
