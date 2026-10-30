@@ -166,3 +166,11 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - CPML is validated at normal incidence only.
 - ROCm is untested on hardware.
 - Measured: 6.0 Gcells/s f32 and 3.2 f64 on 256^3 with CPML (target >= 3).
+
+## EMC decisions (user, 2026-10-29)
+- Limit data: ship MIL-STD-461 and FCC Part 15 curves. For CISPR 32/25 and DO-160, ship citations and a template only; users enter the values.
+- MIL-STD-461 scope, all in M2: RE102, CE102, RE101 and CE101.
+- RE102 platforms: all of them (aircraft AF/Navy, ground Army/Navy/AF, ships and submarines, space).
+- No user pre-compliance measurements and no commercial-tool licences for now. Calibrate only against published measured-vs-simulated cases, and keep the uncertainty bands conservative.
+- 461G is verified from its PDF. 461H (17 Apr 2026) stays [verify] until the official text is obtained.
+- ARCHITECTURE.md still lists EMI under M3/M4; update it to M2 per ADR-0011.

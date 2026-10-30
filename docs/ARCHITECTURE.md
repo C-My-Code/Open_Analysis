@@ -263,7 +263,7 @@ A CI job (`license-audit`, WP-000) runs `reuse lint` and `pip-licenses` against 
 | AC PDN | M2-M3 | `oa-pi` | lumped ladder (M2) → 2D Helmholtz FEM per cavity + port reduction (M3) | analytic cavity (Lei/Okoshi) |
 | Quasi-static 3D RLC (Q3D-class) | M2-M4 | `oa-qs` | FasterCap (C), FastHenry2 (R(f), L(f)) behind `ExtractionAdapter`; Palace electrostatic/magnetostatic reference (WSL/Docker); in-house PEEC (M4) | analytic via/wire formulas, Palace examples |
 | Thermal | M2-M3 | `oa-thermal` | layered 2.5D FVM (pyamg) + Picard electro-thermal with DC IR; Elmer 3D reference (M3) | analytic slab/fin/spreading, IPC-2152, JEDEC 2s2p trends |
-| EMI estimates | M2-M4 | `oa-emi` | Ott/Paul DM/CM closed forms with Hockanson CM mechanisms (M2); TL-current dipole sum + cavity edge radiation (M3); NF2FF from full wave with a chamber model (M4) | dipole analytic, openEMS NF2FF, published measurements |
+| EMI estimates | M2 (ADR-0011) | `oa-emi` | Ott/Paul DM/CM closed forms with Hockanson CM mechanisms (M2); TL-current dipole sum + cavity edge radiation (M3); NF2FF from full wave with a chamber model (M4) | dipole analytic, openEMS NF2FF, published measurements |
 | Hybrid board extraction (SIwave SYZ class) | M4-M5 | `oa-syz` | 2D TL + cavity planes + physics-based via models + network stitching | openEMS/Palace on cut regions |
 
 ### 6.1 Quasi-static, thermal and EMI integration (from research report 07)
@@ -281,7 +281,7 @@ A CI job (`license-audit`, WP-000) runs `reuse lint` and `pip-licenses` against 
 - **EMI** is split into three tiers, and each tier is labelled in the UI as screening, not compliance prediction:
   1. **Rules** (M1/M2): EMI rules E1–E13 are the same rule engine as ERC, aliased (interfaces.md §3.6), so a split crossing is reported once whether you run "ERC" or "EMI".
   2. **Estimates** (M2): per-net DM/CM field at 3 m and 10 m against FCC/CISPR overlays. Harmonic currents come from the SI engine, with a trapezoidal-spectrum fallback.
-  3. **Field-based** (M3-M4): a TL-current dipole sum needing SI currents, cavity edge radiation needing PI plane voltages, and NF2FF from full-wave runs (openEMS `nf2ff` first, then our own transform).
+  3. **Field-based** (M2 per ADR-0011; previously M3-M4): a TL-current dipole sum needing SI currents, cavity edge radiation needing PI plane voltages, and NF2FF from full-wave runs (openEMS `nf2ff` first, then our own transform).
 
 ## 7. Web UI architecture
 
