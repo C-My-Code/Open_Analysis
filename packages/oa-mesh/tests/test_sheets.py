@@ -297,6 +297,7 @@ def test_export_meshio_and_vtu(tmp_path: object) -> None:
     assert len(back.points) == len(m.nodes.array)
 
 
+@pytest.mark.perf
 def test_perf_200_holes_under_5s() -> None:
     """Acceptance: 40 x 30 mm plane with 200 random holes meshes in < 5 s."""
     w, h = 40e-3, 30e-3

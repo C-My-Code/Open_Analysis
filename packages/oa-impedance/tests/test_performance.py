@@ -38,6 +38,7 @@ def _median_s(fn: Callable[[], object], n: int = 9) -> float:
     return statistics.median(ts)
 
 
+@pytest.mark.perf
 @pytest.mark.parametrize("pair", [False, True], ids=["single", "pair"])
 def test_bem_median_under_50ms(pair: bool) -> None:
     # shared CI machines: best of three medians (the budget is about the algorithm, not the load)
@@ -46,6 +47,7 @@ def test_bem_median_under_50ms(pair: bool) -> None:
     assert med < BUDGET_S
 
 
+@pytest.mark.perf
 def test_closed_form_quick_under_1ms() -> None:
     svc = ImpedanceServiceImpl()
     xs = _xs.microstrip(1.0, 4.3)

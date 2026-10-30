@@ -108,11 +108,16 @@ if sys.platform == "win32" and _MEM_GB > 0:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    if os.environ.get("OA_RUN_SLOW") == "1":
-        return
-    skip = pytest.mark.skip(
+    run_slow = os.environ.get("OA_RUN_SLOW") == "1"
+    run_perf = os.environ.get("OA_RUN_PERF") == "1"
+    skip_slow = pytest.mark.skip(
         reason="slow test: set OA_RUN_SLOW=1 to run (see docs/TASKS.md rule 10)"
     )
+    skip_perf = pytest.mark.skip(
+        reason="wall-clock timing test: set OA_RUN_PERF=1 on known hardware (see tools/bench)"
+    )
     for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip)
+        if "slow" in item.keywords and not run_slow:
+            item.add_marker(skip_slow)
+        if "perf" in item.keywords and not run_perf:
+            item.add_marker(skip_perf)

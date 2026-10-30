@@ -51,6 +51,8 @@ def install() -> bool:
 
 
 def _limit_memory_windows(limit_gb: float) -> bool:
+    if sys.platform != "win32":  # also lets mypy skip the Windows-only ctypes API on other OSes
+        return False
     import ctypes
     from ctypes import wintypes
 

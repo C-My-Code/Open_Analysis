@@ -47,6 +47,7 @@ def test_negative_fixture_in_tolerance_microstrip() -> None:
     assert _ids(tb.microstrip_board(width=0.38e-3), intent=_Z50) == []
 
 
+@pytest.mark.perf
 def test_all_rules_on_10k_tracks_under_60s() -> None:
     board = many_tracks_board(1000, 10)
     assert len(board.tracks) == 10_000

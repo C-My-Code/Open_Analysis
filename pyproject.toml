@@ -118,6 +118,7 @@ markers = [
     "golden: compares against committed golden data",
     "external: needs an external tool (openEMS, Palace, ...)",
     "slow: long-running test",
+    "perf: wall-clock timing assertion; runs only with OA_RUN_PERF=1 (benchmarks own speed)",
     "kicad: needs KiCad installed",
     "gpu: needs a GPU and OA_RUN_GPU=1",
 ]
