@@ -8,6 +8,7 @@ import math
 from collections import defaultdict
 from collections.abc import Iterable
 
+import numpy as np
 import shapely
 from pydantic import Field
 from shapely import STRtree
@@ -67,36 +68,64 @@ class ParallelCoupling(ErcRule):
                     (net, s.id, s.width, shapely.LineString([s.seg.start, s.seg.end]))
                 )
         cos_min = math.cos(math.radians(cfg.max_angle_deg))
+        net_id: dict[str, int] = {}
         for layer in sorted(by_layer):
             items = by_layer[layer]
-            lines = [it[3] for it in items]
+            lines = np.empty(len(items), dtype=object)
+            lines[:] = [it[3] for it in items]
+            nid = np.array([net_id.setdefault(it[0], len(net_id)) for it in items], dtype=np.intp)
+            pids = {d: k for k, d in enumerate(sorted(set(pair_of.values())))}
+            pid = np.array([pids[pair_of[it[0]]] if it[0] in pair_of else -1 for it in items])
+            wid = np.array([it[2] for it in items])
             tree = STRtree(lines)
             acc: dict[tuple[str, str], list[tuple[float, tuple[float, float], float, str, str]]]
             acc = defaultdict(list)
-            for i, (net, sid, w, ln) in enumerate(items):
-                reach = cfg.spacing_factor * w
-                # bbox query: the envelope of the round buffer is the bounds grown by the radius
-                bx0, by0, bx1, by1 = ln.bounds
-                rr = reach * 2
-                for j in tree.query(shapely.box(bx0 - rr, by0 - rr, bx1 + rr, by1 + rr)):
-                    j = int(j)
-                    if j <= i:
-                        continue
-                    net2, sid2, w2, ln2 = items[j]
-                    if net2 == net or (net in pair_of and pair_of[net] == pair_of.get(net2)):
-                        continue
-                    if abs(_dir(ln) @ _dir(ln2)) < cos_min:
-                        continue
-                    cc = cfg.spacing_factor * max(w, w2)
-                    zone = ln2.buffer(cc, cap_style="flat")
-                    inter = ln.intersection(zone)
-                    length = inter.length
-                    if length <= 0:
-                        continue
-                    edge_gap = max(ln.distance(ln2) - (w + w2) / 2, 0.0)
-                    c = inter.centroid
+            # candidate pairs in bulk: bbox query (the envelope of the round buffer is the
+            # bounds grown by the radius), then the cheap filters as array operations
+            rr = (cfg.spacing_factor * wid * 2)[:, None]
+            bnd = shapely.bounds(lines)
+            boxes = shapely.box(
+                bnd[:, 0] - rr[:, 0],
+                bnd[:, 1] - rr[:, 0],
+                bnd[:, 2] + rr[:, 0],
+                bnd[:, 3] + rr[:, 0],
+            )
+            qi, ti = tree.query(boxes)
+            order = np.argsort(qi, kind="stable")
+            qi, ti = qi[order], ti[order]
+            keep = (ti > qi) & (nid[qi] != nid[ti]) & ~((pid[qi] >= 0) & (pid[qi] == pid[ti]))
+            qi, ti = qi[keep], ti[keep]
+            co = shapely.get_coordinates(lines).reshape(-1, 2, 2)
+            dv = co[:, 1, :] - co[:, 0, :]
+            nrm = np.sqrt(dv[:, 0] * dv[:, 0] + dv[:, 1] * dv[:, 1])
+            dirs = np.where(nrm[:, None] > 0, dv / np.where(nrm > 0, nrm, 1.0)[:, None], dv)
+            cosv = np.abs(dirs[qi, 0] * dirs[ti, 0] + dirs[qi, 1] * dirs[ti, 1])
+            keep = ~(cosv < cos_min)
+            qi, ti = qi[keep], ti[keep]
+            if len(qi):
+                cc = cfg.spacing_factor * np.maximum(wid[qi], wid[ti])
+                zone = shapely.buffer(lines[ti], cc, cap_style="flat")
+                inter = shapely.intersection(lines[qi], zone)
+                length = shapely.length(inter)
+                pos = length > 0
+                qi, ti, inter, length = qi[pos], ti[pos], inter[pos], length[pos]
+                gap = np.maximum(
+                    shapely.distance(lines[qi], lines[ti]) - (wid[qi] + wid[ti]) / 2, 0.0
+                )
+                cen = shapely.get_coordinates(shapely.centroid(inter))
+                for m, (i, j) in enumerate(zip(qi.tolist(), ti.tolist(), strict=True)):
+                    net, sid = items[i][0], items[i][1]
+                    net2, sid2 = items[j][0], items[j][1]
                     key = (min(net, net2), max(net, net2))
-                    acc[key].append((length, (c.x, c.y), edge_gap, sid, sid2))
+                    acc[key].append(
+                        (
+                            float(length[m]),
+                            (float(cen[m, 0]), float(cen[m, 1])),
+                            float(gap[m]),
+                            sid,
+                            sid2,
+                        )
+                    )
             for (a, b), parts in sorted(acc.items()):
                 total = sum(p[0] for p in parts)
                 if total <= cfg.max_length:
@@ -141,12 +170,3 @@ class ParallelCoupling(ErcRule):
                         evidence={"min_edge_spacing_m": gap, "segments": len(parts)},
                     ),
                 )
-
-
-def _dir(line: shapely.LineString):  # type: ignore[no-untyped-def]
-    import numpy as np
-
-    (x0, y0), (x1, y1) = line.coords[0], line.coords[-1]
-    v = np.array([x1 - x0, y1 - y0])
-    n = np.linalg.norm(v)
-    return v / n if n else v

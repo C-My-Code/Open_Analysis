@@ -611,7 +611,12 @@ def _compute_spans(
     if not rows:
         rows = [(0.0, total, None, None)]
     return tuple(
-        ReferenceSpan(s_start=a * scale, s_end=min(b * scale, piece.seg.length), above=ra, below=rb)
+        ReferenceSpan.model_construct(  # computed floats, no validation needed
+            s_start=float(a * scale),
+            s_end=float(min(b * scale, piece.seg.length)),
+            above=ra,
+            below=rb,
+        )
         for a, b, ra, rb in rows
     )
 

@@ -12,6 +12,7 @@ import threading
 from collections import OrderedDict
 from collections.abc import MutableMapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from dataclasses import asdict
 from typing import Literal
 
@@ -21,6 +22,7 @@ from oa_impedance import methods as _methods
 from oa_impedance import topology as topo_mod
 from oa_impedance._dielectric import eps_at
 from oa_impedance.bem import MeshParams, solve_bem
+from oa_impedance.bem.solver import batch as _bem_batch
 from oa_impedance.errors import ImpedanceUnsupported
 from oa_impedance.modal import modal_decomposition
 from oa_model.arrays import Floats, NDArray
@@ -221,6 +223,9 @@ def closed_form_result(
     )
 
 
+_SMALL_BATCH = 8  # fewer uncached sections than this: no GPU start-up for small sections
+
+
 class ImpedanceServiceImpl:
     """``impedance`` service: closed forms, BEM and plug-in methods, with an LRU cache.
 
@@ -316,16 +321,18 @@ class ImpedanceServiceImpl:
                 out[k] = hit
             else:
                 todo.append((k, xs))
-        if len(todo) > 1 and self.max_workers > 1:
-            with ThreadPoolExecutor(max_workers=min(self.max_workers, len(todo))) as ex:
-                futs = [(k, ex.submit(self._compute, xs, fs, method)) for k, xs in todo]
-                for k, fut in futs:
-                    out[k] = fut.result()
+        # BLAS limit and device-pool release once per batch, not per section
+        with _bem_batch(small=len(todo) < _SMALL_BATCH) if todo else nullcontext():
+            if len(todo) > 1 and self.max_workers > 1:
+                with ThreadPoolExecutor(max_workers=min(self.max_workers, len(todo))) as ex:
+                    futs = [(k, ex.submit(self._compute, xs, fs, method)) for k, xs in todo]
+                    for k, fut in futs:
+                        out[k] = fut.result()
+                        self._put(k, out[k])
+            else:
+                for k, xs in todo:
+                    out[k] = self._compute(xs, fs, method)
                     self._put(k, out[k])
-        else:
-            for k, xs in todo:
-                out[k] = self._compute(xs, fs, method)
-                self._put(k, out[k])
         return [out[k] for k in keys]
 
     def quick(self, xs: CrossSection) -> ImpedanceResult:

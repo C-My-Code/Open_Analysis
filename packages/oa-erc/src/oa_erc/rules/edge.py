@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import itertools
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from typing import Any
 
+import numpy as np
 import shapely
 import shapely.ops
 from pydantic import Field
@@ -164,17 +166,24 @@ class NearBoardEdge(ErcRule):
                 for i in run.intervals:
                     if i.ref is not None:
                         h_by_seg[i.seg.id] = min(h_by_seg.get(i.seg.id, math.inf), i.ref.distance)
-            for seg in geo.segments(net):
+            segs = geo.segments(net)
+            dist = _edge_distances(boundary, segs)
+            for seg, (d_start, d_end, d_line) in zip(segs, dist, strict=True):
                 limit = max(cfg.min_distance, cfg.h_factor * h_by_seg.get(seg.id, 0.0))
-                line = _trim_launch(
-                    shapely.LineString([seg.seg.start, seg.seg.end]),
-                    boundary,
-                    seg.width,
-                    limit + seg.width + cfg.launch_length,
-                )
-                if line is None:
-                    continue
-                d = boundary.distance(line) - seg.width / 2
+                if d_start <= seg.width / 2 + 1e-6 or d_end <= seg.width / 2 + 1e-6:
+                    # a trace end touches the outline: trim the edge launch
+                    line = _trim_launch(
+                        shapely.LineString([seg.seg.start, seg.seg.end]),
+                        boundary,
+                        seg.width,
+                        limit + seg.width + cfg.launch_length,
+                    )
+                    if line is None:
+                        continue
+                    d = boundary.distance(line) - seg.width / 2
+                else:
+                    line = shapely.LineString([seg.seg.start, seg.seg.end])
+                    d = d_line - seg.width / 2
                 if d >= limit:
                     continue
                 p = nearest_points(line, boundary)[0]
@@ -240,6 +249,21 @@ class NearBoardEdge(ErcRule):
                 evidence={"distance_m": d},
             ),
         )
+
+
+def _edge_distances(
+    boundary: shapely.geometry.base.BaseGeometry, segs: Sequence[Any]
+) -> list[tuple[float, float, float]]:
+    """(distance of the start, of the end, of the whole straight segment) to ``boundary`` for
+    every segment, in three array calls instead of per-segment shapely objects."""
+    if not segs:
+        return []
+    xy = np.array([(*s.seg.start, *s.seg.end) for s in segs], dtype=float)
+    a = shapely.distance(boundary, shapely.points(xy[:, 0:2]))
+    b = shapely.distance(boundary, shapely.points(xy[:, 2:4]))
+    lines = shapely.linestrings(xy.reshape(-1, 2, 2))
+    c = shapely.distance(boundary, lines)
+    return list(zip(a.tolist(), b.tolist(), c.tolist(), strict=True))
 
 
 def _trim_launch(

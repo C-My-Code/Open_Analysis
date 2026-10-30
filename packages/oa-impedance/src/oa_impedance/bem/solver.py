@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 import threading
 from collections.abc import Iterator
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -64,6 +64,7 @@ __all__ = [
     "ITERATIVE_MAX_PANELS",
     "BemGeometry",
     "BemSolution",
+    "batch",
     "dense_peak_bytes",
     "prepare",
     "solve_bem",
@@ -110,11 +111,68 @@ _DEV_LOCK = threading.Lock()
 _DEV_FRACTION = 0.8  # share of the device budget the concurrent BEM solves may hold
 
 
+_ST_LOCK = threading.Lock()
+_ST_DEPTH = 0
+_ST_CTX: Any = None
+_BATCH_DEPTH = 0
+_SMALL_BATCH_CPU = (
+    0  # open ``batch(small=True)`` contexts: a few sections do not repay GPU start-up
+)
+_SMALL_BATCH_N = 1500  # panels below which a small batch stays on the host (device 'auto' only)
+_BATCH_DEV: dict[int, Any] = {}  # backends whose pool free is deferred to the end of a batch
+
+
+def _enter_single_thread() -> None:
+    global _ST_DEPTH, _ST_CTX
+    with _ST_LOCK:
+        _ST_DEPTH += 1
+        if _ST_DEPTH == 1 and threadpool_limits is not None:
+            _ST_CTX = threadpool_limits(limits=1)
+
+
+def _exit_single_thread() -> None:
+    global _ST_DEPTH, _ST_CTX
+    with _ST_LOCK:
+        _ST_DEPTH -= 1
+        if _ST_DEPTH == 0 and _ST_CTX is not None:
+            _ST_CTX.restore_original_limits()
+            _ST_CTX = None
+
+
 @contextmanager
 def _single_thread() -> Iterator[None]:
-    ctx: Any = threadpool_limits(limits=1) if threadpool_limits is not None else nullcontext()
-    with ctx:
+    """BLAS limited to one thread. Re-entrant and shared by concurrent solves: the (slow,
+    process-global) limit is set by the first one in and restored by the last one out."""
+    _enter_single_thread()
+    try:
         yield
+    finally:
+        _exit_single_thread()
+
+
+@contextmanager
+def batch(*, small: bool = False) -> Iterator[None]:
+    """Many solves in a row (``solve_many``): the BLAS limit is set once, and the device memory
+    pool is returned to the driver once at the end instead of after every section. ``small``:
+    the batch has only a few sections, so with ``OA_DEVICE=auto`` the sections of fewer than
+    ``_SMALL_BATCH_N`` panels stay on the host (the first CUDA call costs about 0.8 s)."""
+    global _BATCH_DEPTH, _SMALL_BATCH_CPU
+    _enter_single_thread()
+    with _ST_LOCK:
+        _BATCH_DEPTH += 1
+        _SMALL_BATCH_CPU += small
+    try:
+        yield
+    finally:
+        with _ST_LOCK:
+            _BATCH_DEPTH -= 1
+            _SMALL_BATCH_CPU -= small
+            pending = list(_BATCH_DEV.values()) if _BATCH_DEPTH == 0 else []
+            if pending:
+                _BATCH_DEV.clear()
+        for be in pending:
+            be.xp.get_default_memory_pool().free_all_blocks()
+        _exit_single_thread()
 
 
 @dataclass
@@ -174,7 +232,8 @@ def dense_device_bytes(n: int, *, complex_: bool = False) -> int:
 
 def _device_backend(n: int, est: int) -> Backend | None:
     """The GPU backend when ``oa_accel`` selects it for a dense system of order ``n``."""
-    if os.environ.get("OA_DEVICE", "auto").strip().lower() == "cpu":
+    spec = os.environ.get("OA_DEVICE", "auto").strip().lower()
+    if spec == "cpu" or (spec == "auto" and _SMALL_BATCH_CPU > 0 and n < _SMALL_BATCH_N):
         return None
     from oa_accel import DevicePolicy, Problem, select
     from oa_accel.solvers import THRESHOLDS
@@ -635,8 +694,14 @@ def _solve_bem(
             geo.reserved_dev = 0
             geo.P = geo.D = None  # free the device matrices
             # return the blocks to the driver: on Windows the CuPy pool counts as committed
-            # memory of the process (a job-object cap then fails unrelated host allocations)
-            geo.be.xp.get_default_memory_pool().free_all_blocks()
+            # memory of the process (a job-object cap then fails unrelated host allocations);
+            # inside a ``batch()`` this happens once, when the batch ends
+            with _ST_LOCK:
+                deferred = _BATCH_DEPTH > 0
+                if deferred:
+                    _BATCH_DEV[id(geo.be)] = geo.be
+            if not deferred:
+                geo.be.xp.get_default_memory_pool().free_all_blocks()
 
 
 def _solve_prepared(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:

@@ -4,6 +4,7 @@
 
 use pyo3::prelude::*;
 
+mod bem;
 mod clip;
 mod geom;
 mod rect;
@@ -23,5 +24,6 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geom::all_points_inside, m)?)?;
     m.add_function(wrap_pyfunction!(clip::cut_intervals, m)?)?;
     m.add_function(wrap_pyfunction!(rect::rect_cover_edge, m)?)?;
+    m.add_function(wrap_pyfunction!(bem::bem_influence, m)?)?;
     Ok(())
 }
