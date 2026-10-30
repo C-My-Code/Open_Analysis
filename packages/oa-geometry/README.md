@@ -67,3 +67,7 @@ structure, nets, layers and coverage stay identical. Compare with a relative tol
 
 `mypy --strict` is clean. The shapely-heavy modules disable a few error codes at the top of the
 file because shapely's array-vs-scalar overloads are not expressible in the stubs.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

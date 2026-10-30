@@ -232,3 +232,7 @@ Gaps: GMRES with the block-Jacobi preconditioner stagnates above ~1800 panels (1
 LU (oa-impedance does not depend on oa-accel); `cross_section_at` is unchanged (its window is
 already physical; the truncation lives in the BEM). One cm5 section (3 conductors) has a singular
 vacuum matrix, with the old code too.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

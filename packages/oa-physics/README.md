@@ -15,3 +15,7 @@ Sign convention: `eps = eps' - j eps''`. Temperatures are in kelvin.
 
 Golden suite: `tests/golden/physics/`. Known gap: the cannonball tile area is unverified (see
 `docs/change-requests/WP-106-ieee370-and-cqm.md`).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

@@ -134,3 +134,7 @@ is 17-22 s per excitation for 0.05-20 GHz, 182k-223k cells, under 100 MB. Run it
   (acceptance, nightly) are not done.
 - CPW, coax and coupled/differential wave ports are not implemented.
 - Cancellation, memory limits and WSL/Docker path translation belong to the runner (`oa_jobs`).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).
