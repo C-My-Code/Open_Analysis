@@ -31,7 +31,7 @@ _PLANE_OFFSETS = (1.5e-3, 1.0e-3, 0.5e-3, 0.25e-3)  # [m] first that the mesh ca
 
 @dataclass(frozen=True)
 class SolveOptions:
-    """Run options; ``mesh.expert`` keys ``fdtd.engine|dtype|copper|plane_offset|pulse`` set them."""
+    """Options; ``mesh.expert`` keys ``fdtd.engine|dtype|copper|plane_offset|pulse`` set these."""
 
     engine: str = "auto"
     dtype: str = "float32"

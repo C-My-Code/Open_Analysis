@@ -103,7 +103,9 @@ class FdtdAdapter:
         key = problem.key()
         if self._cache is not None and self._cache[0] == key:
             return self._cache[1]
-        built = build_model(problem, copper=str(problem.mesh.expert.get("fdtd.copper", "thick_sibc")))
+        built = build_model(
+            problem, copper=str(problem.mesh.expert.get("fdtd.copper", "thick_sibc"))
+        )
         self._cache = (key, built)
         return built
 
@@ -114,9 +116,15 @@ class FdtdAdapter:
             out.append(Diagnostic(severity="error", code=code, message=message, hint=hint))
 
         if not isinstance(problem.physics, FullWaveDriven):
-            err("FDTD.PHYSICS", f"physics {problem.physics.kind!r} is not supported", "Use fullwave_driven.")
+            err(
+                "FDTD.PHYSICS",
+                f"physics {problem.physics.kind!r} is not supported",
+                "Use fullwave_driven.",
+            )
         if not problem.ports:
-            err("FDTD.NO_PORTS", "the problem has no ports", "Add at least one lumped or wave port.")
+            err(
+                "FDTD.NO_PORTS", "the problem has no ports", "Add at least one lumped or wave port."
+            )
         if problem.outputs.farfield is not None:
             err(
                 "FDTD.FARFIELD",
@@ -127,7 +135,11 @@ class FdtdAdapter:
             err("FDTD.FIELD_DUMPS", "field dumps are not implemented", "Remove the field dumps.")
         for p in problem.ports:
             if isinstance(p, EMCoaxPort):
-                err("FDTD.PORT_COAX", f"port {p.name}: coax ports are not implemented", "Use a lumped or wave port.")
+                err(
+                    "FDTD.PORT_COAX",
+                    f"port {p.name}: coax ports are not implemented",
+                    "Use a lumped or wave port.",
+                )
             elif isinstance(p, EMWavePort) and getattr(problem.boundaries, p.face) not in (
                 "absorbing",
                 "pml",
@@ -155,7 +167,11 @@ class FdtdAdapter:
         for text in built.diagnostics:
             code, _, msg = text.partition(": ")
             out.append(
-                Diagnostic(severity="warning", code="FDTD." + code.removeprefix("FDTD_"), message=msg or text)
+                Diagnostic(
+                    severity="warning",
+                    code="FDTD." + code.removeprefix("FDTD_"),
+                    message=msg or text,
+                )
             )
         return tuple(out)
 
@@ -175,7 +191,9 @@ class FdtdAdapter:
         steps = int(_STEPS_PER_TRANSIT * extent * eps**0.5 / (_C0 * dt))
         steps = min(steps, problem.convergence.max_timesteps)
         itemsize = 4
-        mem = cells * (6 * itemsize * batch + 6) * 1.25 + cells * 8 * 0.1  # fields + index + ADE/PML
+        mem = (
+            cells * (6 * itemsize * batch + 6) * 1.25 + cells * 8 * 0.1
+        )  # fields + index + ADE/PML
         return {
             "cells": cells,
             "shape": list(g.n),
@@ -195,7 +213,12 @@ class FdtdAdapter:
         g = built.model.grid
         np.savez(workdir / "grid.npz", x=g.x, y=g.y, z=g.z)
         stats = _json(
-            {**built.meta, **self._estimate(built, problem), "adapter": self.name, "version": VERSION}
+            {
+                **built.meta,
+                **self._estimate(built, problem),
+                "adapter": self.name,
+                "version": VERSION,
+            }
         )
         cmd = ExternalCommand(
             program=self.tool,
@@ -231,7 +254,11 @@ class FdtdAdapter:
             )
 
         if len(results) != 1 or len(run.commands) != 1:
-            return fail("FDTD.RESULT_COUNT", f"{len(results)} results for {len(run.commands)} commands", "One command per problem.")
+            return fail(
+                "FDTD.RESULT_COUNT",
+                f"{len(results)} results for {len(run.commands)} commands",
+                "One command per problem.",
+            )
         res, cmd = results[0], run.commands[0]
         if res.returncode != 0:
             detail = _error_line(res.stdout_tail) or res.stderr_tail[-300:]
@@ -239,11 +266,13 @@ class FdtdAdapter:
             return fail(
                 code,
                 f"oa-fdtd worker exited with code {res.returncode}: {detail}",
-                "See logs in the job directory; lower the Courant number or refine the mesh if unstable.",
+                "See logs in the job directory; lower the Courant number or refine the mesh.",
             )
         ports_npz = cmd.workdir / "ports.npz"
         if not ports_npz.is_file():
-            return fail("FDTD.NO_OUTPUT", "ports.npz not found", "The worker finished without results.")
+            return fail(
+                "FDTD.NO_OUTPUT", "ports.npz not found", "The worker finished without results."
+            )
         with np.load(ports_npz) as d:
             freqs = np.array(d["freqs"], dtype=np.float64)
             s = np.array(d["s"], dtype=np.complex128)
@@ -254,7 +283,11 @@ class FdtdAdapter:
         for text in meta.get("diagnostics", []):
             code, _, msg = str(text).partition(": ")
             warnings.append(
-                Diagnostic(severity="warning", code="FDTD." + code.removeprefix("FDTD_"), message=msg or text)
+                Diagnostic(
+                    severity="warning",
+                    code="FDTD." + code.removeprefix("FDTD_"),
+                    message=msg or text,
+                )
             )
         if meta.get("stopped_by") == "max_steps":
             tail = meta.get("tail") or {}
@@ -348,7 +381,7 @@ class FdtdAdapter:
                 out.append(
                     PortMapEntry(
                         port=p.name,
-                        nets=nets,  # type: ignore[arg-type]
+                        nets=tuple(n or "" for n in nets),
                         terminals=(p.face,),
                         location=(x if x is not None else mid, y if y is not None else mid),
                     )
@@ -364,7 +397,7 @@ class FdtdAdapter:
                 out.append(
                     PortMapEntry(
                         port=p.name,
-                        nets=nets,
+                        nets=tuple(n for n in nets if n is not None),
                         terminals=("positive", "negative"),
                         location=p.positive.position,
                     )
@@ -395,7 +428,10 @@ class FdtdAdapter:
             s,
             [float(z) for z in z0],
             names,
-            comments=(f"Open_Analysis {version}; problem {problem.name}", f"EMProblem key {problem.key()}"),
+            comments=(
+                f"Open_Analysis {version}; problem {problem.name}",
+                f"EMProblem key {problem.key()}",
+            ),
         )
         sha, size = _sha256_file(ts)
         sidecar: dict[str, Any] = {
@@ -432,10 +468,8 @@ class FdtdAdapter:
             cols.append(ColumnSpec(name=f"{nm}.z_re", dtype="f8", unit="ohm"))
             cols.append(ColumnSpec(name=f"{nm}.z_im", dtype="f8", unit="ohm"))
         idx = np.unique(np.linspace(0, freqs.size - 1, min(freqs.size, 200)).round().astype(int))
-        rows = tuple(
-            (float(freqs[k]), *(v for z in z0 for v in (float(z), 0.0))) for k in idx
-        )
-        return TableResult(columns=tuple(cols), inline=rows)  # type: ignore[arg-type]
+        rows = tuple((float(freqs[k]), *(v for z in z0 for v in (float(z), 0.0))) for k in idx)
+        return TableResult(columns=tuple(cols), inline=rows)
 
     def _convergence(self, meta: dict[str, Any]) -> TableResult:
         cols = (

@@ -6,7 +6,8 @@ A run that stops at its step cap (high-Q structures) leaves a tail ``y(t), t > T
 DFT misses. The last ``window`` samples are fitted by ``y_n = sum_m c_m z_m^n`` (matrix pencil on
 the decimated series, amplitudes by least squares), and the DFT of the continuation from sample
 ``S`` on is added in closed form,
-``sum_{n >= S} y_n e^{-j w t_n} dt = sum_m c_m e^{(s_m - j w)(t_S - t_0)} dt / (1 - e^{(s_m - j w) dt})``
+``sum_{n >= S} y_n e^{-j w t_n} dt
+= sum_m c_m e^{(s_m - j w)(t_S - t_0)} dt / (1 - e^{(s_m - j w) dt})``
 with ``s_m = ln(z_m) / (d dt)``. Poles that do not decay (``Re s >= 0``) or whose frequency lies
 far above the analysis band are dropped and counted.
 """
@@ -68,12 +69,12 @@ def fit_tail(
     ell = n // 3
     idx = np.arange(n - ell)[:, None] + np.arange(ell + 1)[None, :]
     _, sv, vh = np.linalg.svd(seg[idx], full_matrices=False)
-    m = int(min(max_poles, np.count_nonzero(sv > sv_tol * sv[0])))
+    m = min(max_poles, int(np.count_nonzero(sv > sv_tol * sv[0])))
     if m < 1:
         return None
     v = vh[:m].conj().T
     z = np.linalg.eigvals(np.linalg.pinv(v[:-1]) @ v[1:])
-    s = np.log(z.astype(np.complex128)) / h
+    s = np.asarray(np.log(z.astype(np.complex128)) / h, dtype=np.complex128)
     keep = (s.real < -1e-3 / (n * h)) & (np.abs(s.imag) < 2.0 * np.pi * 2.0 * f_band)
     dropped = int(s.size - keep.sum())
     s = s[keep]
@@ -82,7 +83,7 @@ def fit_tail(
     vand = np.exp(np.outer(np.arange(n) * h, s))
     c, *_ = np.linalg.lstsq(vand, seg.astype(np.complex128), rcond=None)
     res = float(np.linalg.norm(vand @ c - seg) / max(np.linalg.norm(seg), 1e-300))
-    return TailFit(s=s, c=c, t_ref=t0, n_dropped=dropped, residual=res)
+    return TailFit(s=s, c=c.astype(np.complex128), t_ref=t0, n_dropped=dropped, residual=res)
 
 
 def extrapolate_dft(fit: TailFit, dt: float, t_next: float, freqs: FloatArray) -> ComplexArray:

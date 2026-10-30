@@ -66,18 +66,32 @@ def solve_openems(problem: Any, threads: int = 4) -> dict[str, Any]:
     home = Path(os.environ.get("OA_OPENEMS_HOME", _OPENEMS_WT / "v0.37.0" / "openEMS"))
     expert = dict(problem.mesh.expert)
     expert.setdefault("openems.absorbing", "MUR")
-    problem = problem.model_copy(update={"mesh": problem.mesh.model_copy(update={"expert": expert})})
+    problem = problem.model_copy(
+        update={"mesh": problem.mesh.model_copy(update={"expert": expert})}
+    )
     adapter = OpenEMSAdapter()
     wd = Path(tempfile.mkdtemp(prefix="oa_openems_"))
-    prep = adapter.prepare(problem, wd, ToolInfo(program="openems-python", runner="local", path=str(py)))
+    prep = adapter.prepare(
+        problem, wd, ToolInfo(program="openems-python", runner="local", path=str(py))
+    )
     results = []
     wall = 0.0
     for cmd in prep.commands:
-        env = {**os.environ, **cmd.env, "OA_NUM_THREADS": str(threads), "CSXCAD_INSTALL_PATH": str(home)}
+        env = {
+            **os.environ,
+            **cmd.env,
+            "OA_NUM_THREADS": str(threads),
+            "CSXCAD_INSTALL_PATH": str(home),
+        }
         env["PATH"] = str(home) + os.pathsep + env.get("PATH", "")
         t0 = time.perf_counter()
         p = subprocess.run(
-            [str(py), *cmd.args], cwd=cmd.workdir, env=env, capture_output=True, text=True, check=False
+            [str(py), *cmd.args],
+            cwd=cmd.workdir,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         w = time.perf_counter() - t0
         wall += w
@@ -173,7 +187,9 @@ def thru_scores(
     }
 
 
-def stripline_exact_scores(f: FloatArray, s: ComplexArray, er: float, length: float) -> dict[str, float]:
+def stripline_exact_scores(
+    f: FloatArray, s: ComplexArray, er: float, length: float
+) -> dict[str, float]:
     """B-EM-02a: |S21| within 0.01 dB of 0, phase against ``-beta L``, S11."""
     beta = 2 * np.pi * f * np.sqrt(er) / C0
     ph_ref = np.unwrap(-beta * length)
@@ -230,7 +246,9 @@ def build_case(case: str, quality: str, cpw: float | None = None) -> Any:
     raise SystemExit(f"unknown case {case}")
 
 
-def score(case: str, res: dict[str, Any], problem: Any, rlgc: dict[str, FloatArray] | None) -> dict[str, Any]:
+def score(
+    case: str, res: dict[str, Any], problem: Any, rlgc: dict[str, FloatArray] | None
+) -> dict[str, Any]:
     f, s, z0 = res["freqs"], res["s"], res["z0"]
     out: dict[str, Any] = {}
     if case in ("bem01", "bem02b"):
@@ -281,7 +299,11 @@ def main(argv: list[str] | None = None) -> int:
         "quality": a.quality,
         "wall_s": round(res["wall_s"], 2),
         "gpu_gib": round(res["gpu_gib"], 3),
-        "meta": {k: v for k, v in res["meta"].items() if k in ("cells", "steps", "stopped_by", "energy_db", "engine", "tail", "threads")},
+        "meta": {
+            k: v
+            for k, v in res["meta"].items()
+            if k in ("cells", "steps", "stopped_by", "energy_db", "engine", "tail", "threads")
+        },
         **sc,
     }
     print(json.dumps(line, default=float))

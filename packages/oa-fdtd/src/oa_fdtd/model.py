@@ -331,7 +331,9 @@ def _compile_ade(
     betas: list[FloatArray] = []
     cbes: list[FloatArray] = []
     for c in range(3):
-        strength = np.sum(np.stack(edge_del[c]), axis=0)
+        strength = np.zeros_like(edge_del[c][0])
+        for d_p in edge_del[c]:
+            strength += d_p
         mask = (strength > 1e-12) & ~pec[c]
         k, j, i = np.nonzero(mask)
         if k.size == 0:
@@ -508,10 +510,12 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         (x0, x1), (y0, y1), (z0, z1) = g.valid("E", c)
         valid[z0 - 1 : z1 - 1, y0 - 1 : y1 - 1, x0 - 1 : x1 - 1] = True
         pec.append(~valid)
+    if not any(isinstance(p, ModePort) for p in model.ports) and not model.mode_probes:
+        del eps_c, sig_c, del_c  # only the mode-port static solve reads the cell arrays again
     # Debye ADE: the static part of the polarisation current joins eps (eps_inf + dt beta / 2 eps0)
     for c in range(3):
         for pi, tau in enumerate(taus):
-            edge_eps[c] = edge_eps[c] + edge_del[c][pi] * (dt / (2.0 * float(tau) + dt))
+            edge_eps[c] += edge_del[c][pi] * (dt / (2.0 * float(tau) + dt))
     # PEC walls (tangential E), PEC and CPML outer planes
     for a in range(3):
         for side in (0, 1):
@@ -664,17 +668,24 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
 
     # table of averaged materials
     idx: list[npt.NDArray[np.uint16]] = []
-    rows_list = []
+    # per component: unique (eps, sigma) pairs as a 1-D complex key, then merge the small tables
+    per_u: list[npt.NDArray[np.complex128]] = []
+    per_inv: list[npt.NDArray[np.intp]] = []
     for c in range(3):
         keep = ~pec[c]
-        rows_list.append(np.stack([edge_eps[c][keep], edge_sig[c][keep]], axis=1))
-    rows = np.concatenate(rows_list)
-    rows = np.round(rows, 12)
-    if rows.size:
-        uniq, inv = np.unique(rows, axis=0, return_inverse=True)
-        inv = inv.ravel()
-    else:
-        uniq, inv = np.zeros((0, 2)), np.zeros(0, dtype=np.intp)
+        ekey = np.round(edge_eps[c][keep], 12) + 1j * np.round(edge_sig[c][keep], 12)
+        u_c, inv_c = np.unique(ekey, return_inverse=True)
+        per_u.append(u_c)
+        per_inv.append(inv_c.ravel())
+        del ekey
+    uniq_c, merge = np.unique(np.concatenate(per_u), return_inverse=True)
+    merge = merge.ravel()
+    uniq = np.stack([uniq_c.real, uniq_c.imag], axis=1)
+    inv_parts = []
+    off = 0
+    for u_c, inv_c in zip(per_u, per_inv, strict=True):
+        inv_parts.append(merge[off : off + u_c.size][inv_c])
+        off += u_c.size
     if uniq.shape[0] + 1 > MAX_TABLE:
         raise ModelError(
             "FDTD_TOO_MANY_MATERIALS",
@@ -683,12 +694,10 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         )
     eps_tab = np.concatenate([[0.0], uniq[:, 0]])
     sig_tab = np.concatenate([[0.0], uniq[:, 1]])
-    pos = 0
     for c in range(3):
         keep = ~pec[c]
         full = np.zeros((nz + 1, ny + 1, nx + 1), dtype=np.uint16)
-        full[keep] = (inv[pos : pos + int(keep.sum())] + 1).astype(np.uint16)
-        pos += int(keep.sum())
+        full[keep] = (inv_parts[c] + 1).astype(np.uint16)
         arr = np.zeros(g.shape, dtype=np.uint16)
         arr[1 : nz + 2, 1 : ny + 2, 1 : nx + 2] = full
         idx.append(arr)

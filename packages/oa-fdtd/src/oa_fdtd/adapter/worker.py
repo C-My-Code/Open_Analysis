@@ -50,7 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     meta["port_names"] = list(r.port_names)
     (here / "run.json").write_text(json.dumps(meta, indent=1, default=str) + "\n", encoding="utf-8")
     print(f"step {r.run.steps}")
-    print(json.dumps({"steps": r.run.steps, "stopped_by": r.run.stopped_by, "engine": r.run.engine}))
+    print(
+        json.dumps({"steps": r.run.steps, "stopped_by": r.run.stopped_by, "engine": r.run.engine})
+    )
     return 0
 
 

@@ -44,7 +44,9 @@ def build(nx: int = 400, ny: int = 400, nz: int = 120, poles: int = 6) -> Model:
     z0 = float(z[10])
     m.regions.append(Region((-big, -big, z0 - 1e-6), (big, big, z0 + 1e-6), 1.0, 0.0, True))
     m.conductors.append(
-        Conductor((-big, -big, z_die), (big, big, z_die + 0.05e-3), 5.8e7, 35e-6, 0.0, None, "thick_sibc")
+        Conductor(
+            (-big, -big, z_die), (big, big, z_die + 0.05e-3), 5.8e7, 35e-6, 0.0, None, "thick_sibc"
+        )
     )
     return m
 

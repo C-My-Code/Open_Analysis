@@ -81,7 +81,12 @@ def _body(
 
 
 def _plane(
-    bid: str, layer: str, z0: float, z1: float, box: Box3, holes: Sequence[tuple[float, float, float]] = ()
+    bid: str,
+    layer: str,
+    z0: float,
+    z1: float,
+    box: Box3,
+    holes: Sequence[tuple[float, float, float]] = (),
 ) -> ConductorBody:
     poly = Polygon(
         exterior=Points(bld.rect_ring(box.xmin, box.ymin, box.xmax, box.ymax)),
@@ -199,7 +204,13 @@ def stripline_exact(
     mat = DielectricMaterial(name="LOSSLESS", model=ConstantDkDf(dk=er, df=0.0))
     box = Box3(xmin=0.0, xmax=length, ymin=-y_half, ymax=y_half, zmin=0.0, zmax=b)
     strip = _body(
-        "cb:S", "SIG", "signal", "L2", 0.5 * (b - t), 0.5 * (b + t), [rect(0.0, -width / 2, length, width / 2)]
+        "cb:S",
+        "SIG",
+        "signal",
+        "L2",
+        0.5 * (b - t),
+        0.5 * (b + t),
+        [rect(0.0, -width / 2, length, width / 2)],
     )
     st = _structure(
         box,
@@ -225,7 +236,16 @@ def stripline_exact(
         xmin="absorbing", xmax="absorbing", ymin="pec", ymax="pec", zmin="pec", zmax="pec"
     )
     return _problem(
-        "stripline_exact", st, ports, bnd, f_max, n_points, quality, copper="pec", pulse=pulse, cpw=cpw
+        "stripline_exact",
+        st,
+        ports,
+        bnd,
+        f_max,
+        n_points,
+        quality,
+        copper="pec",
+        pulse=pulse,
+        cpw=cpw,
     )
 
 
@@ -239,7 +259,9 @@ def cohn_z0(er: float, width: float, b: float) -> float:
 
 
 # ---------------------------------------------------------------------------------- B-EM-03
-def _stack8(total: float = 1.6e-3, cu: float = CU) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+def _stack8(
+    total: float = 1.6e-3, cu: float = CU
+) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
     """(copper z-ranges L1..L8 bottom-up so that L1 is the top, dielectric ranges)."""
     n_d = 7
     d = (total - 8 * cu) / n_d
@@ -302,11 +324,27 @@ def diff_via(
     zb0, zb1 = cop[0]
     top_end = length if straight else xv
     traces = [
-        _body("cb:T0", "S0", "signal", "L1", zt0, zt1, [rect(0.0, y_sig - w / 2, top_end, y_sig + w / 2)])
+        _body(
+            "cb:T0",
+            "S0",
+            "signal",
+            "L1",
+            zt0,
+            zt1,
+            [rect(0.0, y_sig - w / 2, top_end, y_sig + w / 2)],
+        )
     ]
     if not straight:
         traces.append(
-            _body("cb:B0", "S0", "signal", "L8", zb0, zb1, [rect(xv, y_sig - w / 2, length, y_sig + w / 2)])
+            _body(
+                "cb:B0",
+                "S0",
+                "signal",
+                "L8",
+                zb0,
+                zb1,
+                [rect(xv, y_sig - w / 2, length, y_sig + w / 2)],
+            )
         )
     vias: list[ViaBody] = []
     if not straight:
@@ -363,7 +401,11 @@ def diff_via(
 
 # ---------------------------------------------------------------------------------- B-EM-04
 def cpwg_launch(
-    f_max: float = 40e9, n_points: int = 80, quality: str = "medium", length: float = 6.0e-3, fence: bool = True
+    f_max: float = 40e9,
+    n_points: int = 80,
+    quality: str = "medium",
+    length: float = 6.0e-3,
+    fence: bool = True,
 ) -> EMProblem:
     """CPWG on 0.254 mm laminate (dk 3.66, df 0.0037) with a via fence at lambda/10 (40 GHz) pitch
     and a 0.5 mm wider launch pad at each end; two CPWG wave ports."""
@@ -385,7 +427,11 @@ def cpwg_launch(
     for s in (-1, 1):
         y0, y1 = (gnd_in, y_half) if s > 0 else (-y_half, -gnd_in)
         y0p, y1p = (w_pad / 2 + g_pad, y_half) if s > 0 else (-y_half, -(w_pad / 2 + g_pad))
-        gnd_polys += [rect(0.0, y0p, l_pad, y1p), rect(l_pad, y0, length - l_pad, y1), rect(length - l_pad, y0p, length, y1p)]
+        gnd_polys += [
+            rect(0.0, y0p, l_pad, y1p),
+            rect(l_pad, y0, length - l_pad, y1),
+            rect(length - l_pad, y0p, length, y1p),
+        ]
     top = (h, h + CU)
     bodies = [
         _plane("cb:L2", "L2", -CU, 0.0, box),
@@ -445,12 +491,32 @@ def patch_antenna(
     sub = 60e-3
     pw, pl = 32e-3, 40e-3
     pad = 45e-3
-    box = Box3(xmin=-sub / 2 - pad, xmax=sub / 2 + pad, ymin=-sub / 2 - pad, ymax=sub / 2 + pad, zmin=-pad, zmax=h + 2 * pad)
-    slab = MaterialSlab(
-        material="RO4003", z_bottom=0.0, z_top=h, footprint=rect(-sub / 2, -sub / 2, sub / 2, sub / 2)
+    box = Box3(
+        xmin=-sub / 2 - pad,
+        xmax=sub / 2 + pad,
+        ymin=-sub / 2 - pad,
+        ymax=sub / 2 + pad,
+        zmin=-pad,
+        zmax=h + 2 * pad,
     )
-    gnd = _body("cb:GND", "GND", "reference", "L2", -35e-6, 0.0, [rect(-sub / 2, -sub / 2, sub / 2, sub / 2)])
-    patch = _body("cb:PATCH", "ANT", "signal", "L1", h, h + 35e-6, [rect(-pw / 2, -pl / 2, pw / 2, pl / 2)])
+    slab = MaterialSlab(
+        material="RO4003",
+        z_bottom=0.0,
+        z_top=h,
+        footprint=rect(-sub / 2, -sub / 2, sub / 2, sub / 2),
+    )
+    gnd = _body(
+        "cb:GND",
+        "GND",
+        "reference",
+        "L2",
+        -35e-6,
+        0.0,
+        [rect(-sub / 2, -sub / 2, sub / 2, sub / 2)],
+    )
+    patch = _body(
+        "cb:PATCH", "ANT", "signal", "L1", h, h + 35e-6, [rect(-pw / 2, -pl / 2, pw / 2, pl / 2)]
+    )
     feed_x = -6e-3
     fw = 1.0e-3
     port = EMLumpedPort(
@@ -462,10 +528,24 @@ def patch_antenna(
     )
     st = _structure(box, [mat, CU_MAT], [slab], [gnd, patch])
     bnd = Boundaries(
-        xmin="absorbing", xmax="absorbing", ymin="absorbing", ymax="absorbing", zmin="absorbing", zmax="absorbing"
+        xmin="absorbing",
+        xmax="absorbing",
+        ymin="absorbing",
+        ymax="absorbing",
+        zmin="absorbing",
+        zmax="absorbing",
     )
     return _problem(
-        "patch_2p4", st, [port], bnd, f_max, n_points, quality, f_min=f_min, energy_db=-40.0, max_steps=60_000
+        "patch_2p4",
+        st,
+        [port],
+        bnd,
+        f_max,
+        n_points,
+        quality,
+        f_min=f_min,
+        energy_db=-40.0,
+        max_steps=60_000,
     )
 
 
@@ -484,10 +564,12 @@ def msl_notch(
     box = Box3(xmin=0.0, xmax=length, ymin=-y_half, ymax=y_half, zmin=0.0, zmax=h + CU + air)
     xs = 0.5 * length
     line = [rect(0.0, -w / 2, length, w / 2), rect(xs - w / 2, w / 2, xs + w / 2, w / 2 + stub)]
-    from shapely.geometry import box as sbox  # noqa: PLC0415
-    from shapely.ops import unary_union  # noqa: PLC0415
+    from shapely.geometry import box as sbox
+    from shapely.ops import unary_union
 
-    u = unary_union([sbox(0.0, -w / 2, length, w / 2), sbox(xs - w / 2, w / 2, xs + w / 2, w / 2 + stub)])
+    u = unary_union(
+        [sbox(0.0, -w / 2, length, w / 2), sbox(xs - w / 2, w / 2, xs + w / 2, w / 2 + stub)]
+    )
     ring = [(float(x), float(y)) for x, y in list(u.exterior.coords)[:-1]]
     line = [Polygon(exterior=Points(ring))]
     tr = _body("cb:SIG", "SIG", "signal", "L1", h, h + CU, line)
@@ -508,6 +590,11 @@ def msl_notch(
         for n, f in (("P1", "xmin"), ("P2", "xmax"))
     ]
     bnd = Boundaries(
-        xmin="absorbing", xmax="absorbing", ymin="absorbing", ymax="absorbing", zmin="pec", zmax="absorbing"
+        xmin="absorbing",
+        xmax="absorbing",
+        ymin="absorbing",
+        ymax="absorbing",
+        zmin="pec",
+        zmax="absorbing",
     )
     return _problem("msl_notch", st, ports, bnd, f_max, n_points, quality, energy_db=-40.0)

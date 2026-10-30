@@ -181,10 +181,12 @@ def _extend_tails(
     groups.update({n: list(parts) for n, parts in sums.items()})
     n_fit = n_drop = 0
     worst = 0.0
-    for name, parts in groups.items():
+    for parts in groups.values():
         if any(q not in series for q in parts):
             continue
-        y = sum(series[q] for q in parts)  # (B, steps)
+        y = series[parts[0]].copy()  # (B, steps)
+        for q in parts[1:]:
+            y += series[q]
         off = 0.5 if kind.get(parts[0], "E") == "H" else 1.0
         for b in range(y.shape[0]):
             fit = fit_tail(y[b], c.dt, off * c.dt, f_band=f_band)
