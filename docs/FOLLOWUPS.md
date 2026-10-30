@@ -179,7 +179,7 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - B-EM-03 (40 GHz differential via) wasn't run.
 - Vias are staircased (no conformal PEC).
 - The mode solver is local, not oa_impedance (CR WP-506-modal-solver).
-- No matrix-pencil tail extrapolation and no FDTD.UNSTABLE detector.
+- No matrix-pencil tail extrapolation. `FDTD_UNSTABLE` detects non-finite energy and (WP-513) a 20 dB energy rise after the excitation ended, at the end-criterion checks only.
 - PERF-01 PCB-like throughput isn't measured.
 - Measured on B-EM-01: IL error 0.005 dB at 10 GHz and 0.038 dB at 20 GHz; runtime 1.6 s on GPU; 0.02 GiB VRAM.
 

@@ -16,10 +16,12 @@ the reference implementation:
     1-ports are reciprocal by definition (100).
 ``CQM = 100 (1 - K * r_nc)``
     ``r_nc`` is the share of the L1 norm of the impulse response h(t) lying at negative time
-    (more than 1/f_max before t = 0). h(t) comes from a delay-compensated resampling of S onto a
-    uniform grid of step <= ``max_df_fraction * f_max`` with a DC point, a cosine taper over the
-    top quarter of the band, and an inverse real FFT. ``K`` (``CQM_SCALE`` = 10) maps the small
-    non-causal fractions of physical lossy lines onto the 80 %% acceptance threshold; it is an
+    (more than 2/f_max before t = 0; ``_GUARD`` absorbs the band-limit ringing of the inverse
+    transform). h(t) comes from a delay-compensated resampling of S onto a uniform grid of step
+    <= ``max_df_fraction * f_max`` with a DC point, a cosine-squared taper over the top half of
+    the band (``_TAPER`` = 0.5, suppresses edge truncation ringing), and an inverse real FFT.
+    ``K`` (``CQM_SCALE`` = 10) maps the small non-causal fractions of physical lossy lines onto
+    the 80 %% acceptance threshold; it is an
     implementation choice, not a value from the standard.
 """
 
@@ -49,7 +51,7 @@ __all__ = [
 
 CQM_SCALE = 10.0
 _GUARD = 2.0  # guard before t = 0, in units of 1/f_max
-_TAPER = 0.5
+_TAPER = 0.5  # taper starts at this fraction of the band (top half is tapered)
 _MAX_GRID = 8192
 _PASSIVITY_FAIL = 1e-3
 

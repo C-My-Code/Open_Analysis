@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from oa_impedance._physics_compat import C0
+from oa_physics.constants import C0
 
 C128 = npt.NDArray[np.complex128]
 F64 = npt.NDArray[np.float64]

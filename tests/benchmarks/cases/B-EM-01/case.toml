@@ -18,7 +18,7 @@ id = "oa_fdtd"
 title = "oa-fdtd on B-EM-01"
 pending = "pending"
 owner = "WP-505/506/507"
-reason = "oa-fdtd does not exist yet"
+reason = "oa-fdtd exists (WP-505/506/506A) but is not gated; measured on GPU: IL error 0.005 dB at 10 GHz and 0.038 dB at 20 GHz, S11 -28.4 dB (target -29), 1.6 s, 0.02 GiB"
 devices = ["cpu", "cuda"]
 
 [sub.targets.cpu]

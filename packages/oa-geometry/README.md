@@ -51,10 +51,17 @@ layers and nets, copper intervals along the cut, partner offset) is equal share 
 
 ## Performance (synthetic 4-layer boards, `tests/synthetic.py`, Windows laptop)
 
+Before WP-509 (`reference_map()` in pure Python):
+
 | tracks | build + copper unions | `reference_map()` |
 |---|---|---|
 | 10k | 1.4 s | 5.4 s |
 | 50k | 9.2 s | 51 s |
+
+After WP-509 (memoized candidate layers and a single-span fast path, `docs/perf/PROFILE-509.md`):
+`reference_map()` on the 10k board takes about 1.3 s (including a one-off 0.4 s scipy import); 50k
+extrapolates to about 5 s against the 3 s target, so a native clipping kernel is still open
+(`docs/change-requests/WP-509-native-clipping.md`, `docs/FOLLOWUPS.md`). The 50k board was not re-run.
 
 ## Typing
 

@@ -12,7 +12,8 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 
-from oa_impedance._physics_compat import C0, MU0, skin_depth, surface_resistance
+from oa_physics import skin_depth
+from oa_physics.constants import C0, MU0
 
 __all__ = ["dielectric_loss_np_per_m", "wheeler_conductor_loss_np_per_m"]
 
@@ -31,8 +32,8 @@ def wheeler_conductor_loss_np_per_m(
 
     Returns ``(alpha, valid)``; ``valid`` is False when delta is not << min(t, w).
     """
-    delta = skin_depth(f, sigma)
-    rs = surface_resistance(f, sigma) * roughness_k
+    delta = float(skin_depth(sigma, f)[0])
+    rs = (1.0 / (sigma * delta)) * roughness_k
     z_a = z_air(w, h, t)
     z_r = z_air(w - delta, h + delta, max(t - delta, 0.0))
     d_l = (z_r - z_a) / C0

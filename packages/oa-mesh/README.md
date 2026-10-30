@@ -1,6 +1,14 @@
 # oa-mesh
 
-gmsh meshing for Open_Analysis. WP-109 (2D) is implemented; `src/oa_mesh/occ3d/` is reserved for WP-206.
+gmsh meshing for Open_Analysis. Three meshers live here: the 2D cross-section and copper-sheet
+meshers (WP-109, WP-211, documented below), the 3D OpenCASCADE mesher `oa_mesh.occ3d` (WP-206; see
+`src/oa_mesh/occ3d/README.md`), and the rectilinear graded-axis builder `oa_mesh.rect` (WP-505)
+used by the FDTD engines.
+
+Cells per wavelength by preset (coarse / medium / fine): `oa_mesh.rect`, `oa_fdtd` and the openEMS
+adapter use 10 / 20 / 30 (finite-difference grids are second order and need the density);
+`oa_mesh.occ3d` uses 6 / 10 / 15 (FEM tetrahedra with higher-order elements). The two families
+are deliberately different; within a family the presets agree.
 
 Layer L2 (interfaces.md section 0). Contract: interfaces.md section 9 plus the details in
 `docs/change-requests/WP-109-interface-details.md`.

@@ -58,8 +58,8 @@ zero-thickness ribbons whose free charge is recovered from the interface operato
 what makes true thin strips (t = 1e-6) accurate where thick-face pairs are ill-conditioned.
 Open boundaries are truncated at `20 * characteristic length` (note in every result). L comes from
 the vacuum capacitance (`L = mu0 C0^-1`), R(f) from the surface-impedance perturbation using the
-vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (`_physics_compat.py`
-shim until `oa_physics` lands). Complex permittivity gives C(f), G(f); dispersive materials are
+vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (all material and roughness
+physics comes from `oa_physics`; tabulated Dk/Df is interpolated in ln f). Complex permittivity gives C(f), G(f); dispersive materials are
 solved at up to 6 log-spaced anchors and interpolated (cubic, log f). Pure NumPy/SciPy; BLAS is
 limited to one thread for these small systems (`threadpoolctl`), which matters on loaded machines.
 Numba is not used: the NumPy kernel meets the budget.
@@ -91,7 +91,7 @@ Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
 3. **Cannonball geometry.** 14 spheres of radius r in a three-layer square-based pyramid
    (9 + 4 + 1) on a *square* 6r x 6r tile (Polar AP8195 / Simonovich 2015); the hexagonal tile is
    the earlier DesignCon 2015 variant. Stack height `(2 + 2 sqrt 2) r = 4.83 r`, so `r = Rz / 4.83`;
-   surface ratio `14 * 4 pi r^2 / 36 r^2`. Used by `_physics_compat.roughness_factor`.
+   surface ratio `14 * 4 pi r^2 / 36 r^2`. Used by `oa_physics.roughness_factor`.
    (Secondary-source level check: the primary white paper was not fetched.)
 
 ## Known limitations

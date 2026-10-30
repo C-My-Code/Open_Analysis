@@ -85,6 +85,13 @@ mesh (78 624 cells, 12 160 steps, -70 dB end criterion), against the cascaded 2-
 IL error 0.005 dB at 10 GHz, 0.038 dB at 20 GHz, worst 0.038 dB over 0.2-20 GHz (target 0.05);
 max |S11| -28.4 dB (target below -29 where the reference is below -30); 1.6 s run, 0.02 GiB.
 
+## Stability detection
+`run` raises `ModelError("FDTD_UNSTABLE")` when the field energy is not finite, or when, after the
+excitation has ended (`2 * delay_tau * tau`), it exceeds `GROWTH_LIMIT` (100, i.e. 20 dB) times its
+post-excitation minimum. Both checks run with the end-criterion energy checks every `check_every`
+steps, so they are inactive with `end_db=None`. Slow growth below 20 dB, or growth while the
+source is still on, is not detected. Tests: `tests/test_stability.py`.
+
 ## Known gaps
 - Dey-Mittra conformal PEC is not implemented: via barrels and diagonal polygons are staircased.
 - Mode ports are static quasi-TEM (no full-wave 2-D eigenmode solve), single dielectric

@@ -6,7 +6,7 @@ title = "FDTD kernel throughput"
 group = "perf"
 spec = "docs/BENCHMARKS.md#b-perf-01-fdtd-kernel-throughput"
 # BENCHMARKS.md section 2, copied verbatim
-targets_text = "Accuracy: float32 vs float64 |dS| <= 1e-4. Runtime: >= 3.0 Gcells/s plain; >= 1.5 Gcells/s ADE+CPML. Today: no engine"
+targets_text = "Accuracy: float32 vs float64 |dS| <= 1e-4. Runtime: >= 3.0 Gcells/s plain; >= 1.5 Gcells/s ADE+CPML. Today: 6.0 / 3.2 Gcells/s measured on 256^3 + CPML; ADE+CPML not measured"
 
 [reference]
 class = "converged"
@@ -18,7 +18,7 @@ id = "kernels"
 title = "256^3 vacuum + CPML; 400x400x120 PCB-like grid with ADE"
 pending = "pending"
 owner = "WP-505"
-reason = "oa-fdtd does not exist"
+reason = "oa-fdtd exists; 256^3 + CPML measured 6.0 Gcells/s float32 and 3.2 float64 (target >= 3.0); float32 vs float64 accuracy gate and the PCB-like ADE grid throughput are not measured"
 devices = ["cuda"]
 
 [sub.targets.cuda]

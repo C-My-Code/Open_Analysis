@@ -217,7 +217,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but is not gated; measured on GPU: IL error 0.005 dB at 10 GHz and 0.038 dB at 20 GHz, S11 -28.4 dB (target -29), 1.6 s, 0.02 GiB",
    "status": "pending"
   },
   {
@@ -265,7 +265,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but this case is not gated or run yet",
    "status": "pending"
   },
   {
@@ -313,7 +313,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but the 40 GHz differential via was not run; vias are staircased (no conformal PEC)",
    "status": "pending"
   },
   {
@@ -345,7 +345,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but this case is not gated or run yet",
    "status": "pending"
   },
   {
@@ -377,7 +377,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but this case is not gated or run yet",
    "status": "pending"
   },
   {
@@ -409,7 +409,7 @@
    },
    "targets": {},
    "owner": "WP-505/506/507",
-   "reason": "oa-fdtd does not exist yet",
+   "reason": "oa-fdtd exists (WP-505/506/506A) but this case is not gated or run yet",
    "status": "pending"
   },
   {

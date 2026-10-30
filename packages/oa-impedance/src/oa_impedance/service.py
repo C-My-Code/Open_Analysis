@@ -16,14 +16,15 @@ from typing import Literal
 
 import numpy as np
 
-from oa_impedance import _physics_compat as phys
 from oa_impedance import methods as _methods
 from oa_impedance import topology as topo_mod
+from oa_impedance._dielectric import eps_at
 from oa_impedance.bem import MeshParams, solve_bem
 from oa_impedance.errors import ImpedanceUnsupported
 from oa_impedance.modal import modal_decomposition
 from oa_model.arrays import Floats, NDArray
 from oa_model.xsection import CrossSection
+from oa_physics.constants import C0
 from oa_results.container import ValidityFlag
 from oa_results.rlgc import RLGC, ImpedanceResult, LineParams
 
@@ -52,8 +53,8 @@ def _freqs(freqs: Sequence[float] | None) -> tuple[float, ...]:
 
 
 def _quasi_static_fmax(xs: CrossSection, h_char: float) -> float:
-    er_max = max([xs.background_dk] + [phys.eps_complex(d.model, 0.0).real for d in xs.dielectrics])
-    return 0.1 * phys.C0 / (math.sqrt(er_max) * h_char)
+    er_max = max([xs.background_dk] + [eps_at(d.model, 0.0).real for d in xs.dielectrics])
+    return 0.1 * C0 / (math.sqrt(er_max) * h_char)
 
 
 def bem_to_result(
@@ -184,7 +185,7 @@ def closed_form_result(
         flags.append(ValidityFlag(code="formula_range", ok=False, message="; ".join(msgs)))
     else:
         flags.append(ValidityFlag(code="formula_range", ok=True, message="inside published range"))
-    delay = np.sqrt(ee) / phys.C0
+    delay = np.sqrt(ee) / C0
     kw: dict[str, Floats] = {}
     if n == 1:
         kw["z0"] = Floats(z0)
