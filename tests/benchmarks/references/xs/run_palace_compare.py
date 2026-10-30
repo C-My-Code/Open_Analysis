@@ -66,6 +66,8 @@ def problem(args: argparse.Namespace) -> Any:
         "palace.solver": args.solver,
         "gmsh.cells_per_wavelength": args.cpw,
     }
+    if args.hmax:
+        expert["gmsh.h_max"] = args.hmax
     mesh = p.mesh.model_copy(
         update={"preset": args.preset, "fem_order": args.order, "expert": expert}
     )
@@ -93,6 +95,7 @@ def main() -> None:
     ap.add_argument("--f", type=float, nargs="+", default=[5e9, 10e9])
     ap.add_argument("--y-half", type=float, default=5.0, help="lateral half width [mm]")
     ap.add_argument("--air", type=float, default=6.0, help="air above the board [mm]")
+    ap.add_argument("--hmax", type=float, default=0.0, help="gmsh size cap [mm], 0 = none")
     ap.add_argument("--length", type=float, default=25.0, help="line length [mm]")
     ap.add_argument("--max-tets", type=int, default=400000)
     ap.add_argument("--ranks", type=int, default=4)

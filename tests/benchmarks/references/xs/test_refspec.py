@@ -50,3 +50,28 @@ def test_r1_is_self_consistent() -> None:
     assert 0.7 < il[i10] < 0.95  # the canonical line at 10 GHz
     assert 48.0 < ref["z0"][i10] < 51.0
     assert doc["error_estimate"]["il_line_db"][i10] < 0.01  # mesh error well inside 0.02 dB
+
+
+def test_bem_agrees_with_r1_on_the_canonical_line() -> None:
+    f = HERE / "R1" / "reference.json"
+    if not f.exists():
+        pytest.skip("R1 not generated")
+    import numpy as np
+
+    import gen_r1
+    from oa_impedance.service import ImpedanceServiceImpl
+
+    doc = json.loads(f.read_text(encoding="utf-8"))
+    freqs = np.array(doc["freqs_hz"])
+    res = ImpedanceServiceImpl().solve(rs.em_microstrip_xs(), freqs, method="bem")
+    rl = res.rlgc
+    assert rl is not None
+
+    def one(a):  # type: ignore[no-untyped-def]
+        return np.asarray(a.array)[:, 0, 0]
+
+    casc = gen_r1.cascade(freqs, one(rl.R), one(rl.L), one(rl.G), one(rl.C), rs.EM_L)
+    il_err = np.abs(casc["il_line_db"] - np.array(doc["reference"]["il_line_db"]))
+    assert il_err.max() < 0.01  # dB over 25 mm, 0.1 .. 20 GHz (0.004 measured); gate is 0.05
+    z_err = np.abs(casc["z0"] / np.array(doc["reference"]["z0"]) - 1)
+    assert z_err.max() < 0.003
