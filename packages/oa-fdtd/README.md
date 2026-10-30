@@ -100,6 +100,13 @@ max |S11| -28.4 dB (target below -29 where the reference is below -30); 1.6 s ru
   radius. Suspected: spurious coupling of the via/antipad into the inner plane gaps, which end in
   the port faces and the PML. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the
   gate on a stable machine.
+- BUG (open): the S-parameters of the B-EM-03 via depend on `frequency.n_points`. With 80 and 160
+  points they agree exactly; with 60 they differ by about 0.15 dB; with 20 to 41 points S21 is
+  exactly zero between 8 and 11 GHz and wrong at 1 to 7 GHz, though the time series is identical
+  (same step count). The cause is somewhere in the per-frequency extraction (not the pulse, which
+  depends only on `f_max`). Use `n_points >= 80` until fixed. The plane-gap termination hypothesis
+  was tested and refuted: the port sheet has 0.00 % of its weight in the plane gaps, and
+  restricting it in y or z does not change S.
 - `compile_model` host memory for a 400x400x120 grid with 6 ADE poles: peak 7.5 GiB (was 10.1 GiB),
   compile 12 s (was 67 s); the per-pole delta arrays (float64) dominate what remains.
 - The matrix-pencil tail extrapolation is exercised only by B-EM-05a.
