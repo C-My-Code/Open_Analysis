@@ -16,7 +16,7 @@ import numpy as np
 import numpy.typing as npt
 import shapely
 
-_NEEDED = ("cut_intervals",)
+_NEEDED = ("cut_intervals", "rect_cover_edge")
 
 
 def kernels() -> ModuleType | None:

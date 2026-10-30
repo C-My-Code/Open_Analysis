@@ -143,37 +143,44 @@ def _clip(lines: object, geoms: object) -> object:
     return res
 
 
+_FM_DIGITS = 15
+"""Cut intervals are rounded to 1 fm: canonical output, equal for the GEOS and native paths."""
+
+
 def _native_u_intervals(
     lines: object,
     geoms: object,
     centers: F64,
     normals: F64,
     out: list[list[tuple[float, float]]],
+    rings: RingSet | None = None,
+    gi: npt.NDArray[np.int64] | None = None,
 ) -> bool:
     """``_u_intervals`` through the compiled cut kernel (closed-set segment/polygon clipping, the
     same point set as ``shapely.intersection``); fills `out`, False when it is not available."""
     kern = _kernels()
     if kern is None:
         return False
-    if isinstance(geoms, shapely.Geometry):
-        uniq = np.empty(1, dtype=object)
-        uniq[0] = geoms
-        gi = np.zeros(len(lines), dtype=np.int64)  # type: ignore[arg-type]
-    else:
-        ids = np.fromiter((id(g) for g in geoms), dtype=np.int64, count=len(geoms))  # type: ignore[arg-type]
-        _, first, inv = np.unique(ids, return_index=True, return_inverse=True)
-        uniq = np.asarray(geoms, dtype=object)[first]
-        gi = inv.astype(np.int64)
-    rs = RingSet(uniq)
+    if rings is None or gi is None:
+        if isinstance(geoms, shapely.Geometry):
+            uniq = np.empty(1, dtype=object)
+            uniq[0] = geoms
+            gi = np.zeros(len(lines), dtype=np.int64)  # type: ignore[arg-type]
+        else:
+            ids = np.fromiter((id(g) for g in geoms), dtype=np.int64, count=len(geoms))  # type: ignore[arg-type]
+            _, first, inv = np.unique(ids, return_index=True, return_inverse=True)
+            uniq = np.asarray(geoms, dtype=object)[first]
+            gi = inv.astype(np.int64)
+        rings = RingSet(uniq)
     segs = np.ascontiguousarray(shapely.get_coordinates(lines).reshape(-1, 2, 2))
-    own, xy = kern.cut_intervals(segs, gi, rs.xy, rs.ring_start, rs.geom_start)
+    own, xy = kern.cut_intervals(segs, gi, rings.xy, rings.ring_start, rings.geom_start)
     own = np.asarray(own, dtype=np.intp)
     if len(own) == 0:
         return True
     xy = np.asarray(xy).reshape(-1, 2, 2)
     d = xy - centers[own][:, None, :]
     u = d[:, :, 0] * normals[own][:, None, 0] + d[:, :, 1] * normals[own][:, None, 1]
-    lo, hi = u.min(axis=1), u.max(axis=1)
+    lo, hi = np.round(u.min(axis=1), _FM_DIGITS), np.round(u.max(axis=1), _FM_DIGITS)
     for o, a_, b_ in zip(own.tolist(), lo.tolist(), hi.tolist(), strict=True):
         if b_ - a_ > MIN_INTERVAL:
             out[o].append((a_, b_))
@@ -181,7 +188,12 @@ def _native_u_intervals(
 
 
 def _u_intervals(
-    lines: object, geoms: object, centers: F64, normals: F64
+    lines: object,
+    geoms: object,
+    centers: F64,
+    normals: F64,
+    rings: RingSet | None = None,
+    gi: npt.NDArray[np.int64] | None = None,
 ) -> list[list[tuple[float, float]]]:
     """u-intervals (unmerged) where ``lines[i]`` lies inside ``geoms[i]``; ``geoms`` may be one
     geometry for all lines. ``centers`` / ``normals`` are (n, 2) arrays aligned with ``lines``."""
@@ -189,7 +201,7 @@ def _u_intervals(
     out: list[list[tuple[float, float]]] = [[] for _ in range(k)]
     if k == 0:
         return out
-    nat = _native_u_intervals(lines, geoms, centers, normals, out)
+    nat = _native_u_intervals(lines, geoms, centers, normals, out, rings, gi)
     if nat:
         return out
     inter = _clip(lines, geoms)
@@ -209,8 +221,8 @@ def _u_intervals(
     d = xy - centers[own]
     u = d[:, 0] * normals[own, 0] + d[:, 1] * normals[own, 1]
     starts = np.flatnonzero(np.concatenate(([True], pi[1:] != pi[:-1])))
-    lo = np.minimum.reduceat(u, starts)
-    hi = np.maximum.reduceat(u, starts)
+    lo = np.round(np.minimum.reduceat(u, starts), _FM_DIGITS)
+    hi = np.round(np.maximum.reduceat(u, starts), _FM_DIGITS)
     for o, a_, b_ in zip(src[pi[starts]].tolist(), lo.tolist(), hi.tolist(), strict=True):
         if b_ - a_ > MIN_INTERVAL:
             out[o].append((a_, b_))
@@ -247,7 +259,14 @@ def _layer_intervals(
         qi, ti = qi[keep], ti[keep]
     per: list[dict[str | None, list[tuple[float, float]]]] = [{} for _ in range(k)]
     if len(qi):
-        ivs = _u_intervals(lines[qi], tree._geoms[ti], centers[qi], normals[qi])  # type: ignore[index]
+        rings = (
+            geo._memoized(("rings-tree", layer), lambda: RingSet(tree._geoms))
+            if _kernels() is not None
+            else None
+        )
+        ivs = _u_intervals(
+            lines[qi], tree._geoms[ti], centers[qi], normals[qi], rings, ti.astype(np.int64)
+        )  # type: ignore[index]
         for a, j, iv in zip(qi.tolist(), ti.tolist(), ivs, strict=True):
             if iv:
                 per[a].setdefault(tree.net(j), []).extend(iv)
@@ -391,7 +410,15 @@ def _sections(
     plane_ivs: dict[tuple[int, str], list[tuple[float, float]]] = {}
     for (lyr, net), mem in groups.items():
         idx = np.array([i for i, _ in mem], dtype=np.intp)
-        res = _u_intervals(lines[idx], geo.copper(lyr, net), p[idx], n[idx])
+        cu = geo.copper(lyr, net)
+        rings = (
+            geo._memoized(("rings-cu", lyr, net), lambda cu=cu: RingSet(np.array([cu], dtype=object)))
+            if _kernels() is not None
+            else None
+        )
+        res = _u_intervals(
+            lines[idx], cu, p[idx], n[idx], rings, np.zeros(len(idx), dtype=np.int64)
+        )
         for (i, side), iv in zip(mem, res, strict=True):
             plane_ivs[(i, side)] = _merge(iv)
     cache: dict[object, CrossSection] = geo._memoized("xs_templates", dict)

@@ -75,7 +75,10 @@ class ParallelCoupling(ErcRule):
             acc = defaultdict(list)
             for i, (net, sid, w, ln) in enumerate(items):
                 reach = cfg.spacing_factor * w
-                for j in tree.query(ln.buffer(reach * 2)):
+                # bbox query: the envelope of the round buffer is the bounds grown by the radius
+                bx0, by0, bx1, by1 = ln.bounds
+                rr = reach * 2
+                for j in tree.query(shapely.box(bx0 - rr, by0 - rr, bx1 + rr, by1 + rr)):
                     j = int(j)
                     if j <= i:
                         continue

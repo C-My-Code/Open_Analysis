@@ -28,7 +28,7 @@ fn cross(a: P, b: P) -> f64 {
 fn segment_in_rings(
     a: P,
     b: P,
-    xy: &[P],
+    xy: &[f64],
     rings: &[(usize, usize, (f64, f64, f64, f64))],
     toggles: &mut Vec<f64>,
     extra: &mut Vec<(f64, f64)>,
@@ -53,10 +53,11 @@ fn segment_in_rings(
         if lx1 < bb.0 || lx0 > bb.2 || ly1 < bb.1 || ly0 > bb.3 {
             continue;
         }
-        let mut p0 = xy[s];
+        let mut p0 = (xy[2 * s], xy[2 * s + 1]);
         let mut s0 = cross(d, (p0.0 - a.0, p0.1 - a.1));
         for k in 1..=n {
-            let p1 = xy[s + (k % n)];
+            let q = s + (k % n);
+            let p1 = (xy[2 * q], xy[2 * q + 1]);
             if p1 == p0 {
                 continue;
             }
@@ -146,25 +147,31 @@ pub fn cut_intervals<'py>(
     }
     let l = lines.as_array();
     let go = geom_of.as_array();
-    let pts: Vec<P> = xy.as_array().outer_iter().map(|r| (r[0], r[1])).collect();
-    let rs: Vec<usize> = ring_start.as_array().iter().map(|&v| v as usize).collect();
-    let gs: Vec<usize> = geom_start.as_array().iter().map(|&v| v as usize).collect();
+    let pts = xy
+        .as_slice()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("xy must be C-contiguous"))?;
+    let rs = ring_start
+        .as_slice()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("ring_start must be contiguous"))?;
+    let gs = geom_start
+        .as_slice()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("geom_start must be contiguous"))?;
     let n = l.shape()[0];
-    let geoms_ok = gs.len() >= 1 && rs.len() >= 1;
+    let geoms_ok = !gs.is_empty() && !rs.is_empty();
     if !geoms_ok {
         return Ok((vec![], vec![]));
     }
-    let boxes: Vec<(f64, f64, f64, f64)> = (0..rs.len().saturating_sub(1))
-        .map(|r| {
-            let mut bb = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
-            for p in &pts[rs[r]..rs[r + 1]] {
-                bb = (bb.0.min(p.0), bb.1.min(p.1), bb.2.max(p.0), bb.3.max(p.1));
-            }
-            bb
-        })
-        .collect();
     let rings_of = |g: usize| -> Vec<(usize, usize, (f64, f64, f64, f64))> {
-        (gs[g]..gs[g + 1]).map(|r| (rs[r], rs[r + 1], boxes[r])).collect()
+        (gs[g] as usize..gs[g + 1] as usize)
+            .map(|r| {
+                let mut bb = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+                let (s0, s1) = (rs[r] as usize, rs[r + 1] as usize);
+                for p in pts[2 * s0..2 * s1].chunks_exact(2) {
+                    bb = (bb.0.min(p[0]), bb.1.min(p[1]), bb.2.max(p[0]), bb.3.max(p[1]));
+                }
+                (s0, s1, bb)
+            })
+            .collect()
     };
     let res = py.allow_threads(|| {
         let mut idx: Vec<i64> = Vec::new();
@@ -182,7 +189,7 @@ pub fn cut_intervals<'py>(
             }
             let a = (l[[i, 0, 0]], l[[i, 0, 1]]);
             let b = (l[[i, 1, 0]], l[[i, 1, 1]]);
-            segment_in_rings(a, b, &pts, &rings, &mut toggles, &mut extra, &mut out);
+            segment_in_rings(a, b, pts, &rings, &mut toggles, &mut extra, &mut out);
             let d = (b.0 - a.0, b.1 - a.1);
             for &(t0, t1) in out.iter() {
                 let p0 = if t0 <= 0.0 { a } else { (a.0 + t0 * d.0, a.1 + t0 * d.1) };
