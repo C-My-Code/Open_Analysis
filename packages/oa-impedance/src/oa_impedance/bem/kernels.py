@@ -13,6 +13,10 @@ the principal value of the normal field on the panel itself).
 
 from __future__ import annotations
 
+import os
+from functools import lru_cache
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
@@ -53,6 +57,38 @@ def influence(
     return p, d
 
 
+_NATIVE_MIN_ENTRIES = 20_000  # below this the numpy loop is as fast as a thread hand-off
+
+
+@lru_cache(maxsize=4)
+def _kernel_for(env: str, native: str) -> Any:
+    if env == "0":
+        return None
+    try:
+        from oa_native import get
+    except ImportError:
+        if native == "1":
+            raise
+        return None
+    mod = get()
+    return mod if mod is not None and hasattr(mod, "bem_influence") else None
+
+
+def _native_kernel() -> Any:
+    """The compiled ``bem_influence`` (``oa-native``, WP-515) or None; ``OA_NATIVE_BEM=0`` (or
+    ``OA_NATIVE=0``) forces the numpy oracle below."""
+    return _kernel_for(
+        os.environ.get("OA_NATIVE_BEM", "auto").strip(), os.environ.get("OA_NATIVE", "auto").strip()
+    )
+
+
+def _native_threads(entries: int) -> int:
+    n = int(os.environ.get("OA_NUM_THREADS", "0") or 0)
+    if n <= 0:
+        n = min(os.cpu_count() or 1, 8)
+    return max(1, min(n, entries // 100_000 + 1))
+
+
 _BLOCK_ENTRIES = 1 << 19  # about 4 MB per float64 temporary; the kernel holds ~20 of them
 
 
@@ -76,6 +112,22 @@ def influence_blocks(
     n_r, n_c = mid.shape[0], a.shape[0]
     p = p_out if p_out is not None else np.empty((n_r, n_c))
     d = d_out if d_out is not None else np.empty((n_r, n_c))
+    kern = _native_kernel() if n_r * n_c >= _NATIVE_MIN_ENTRIES else None
+    if kern is not None and p.flags.c_contiguous and d.flags.c_contiguous:
+        f64 = np.float64
+        kern.bem_influence(
+            np.ascontiguousarray(mid, f64),
+            np.ascontiguousarray(normal, f64),
+            np.ascontiguousarray(a, f64),
+            np.ascontiguousarray(tangent, f64),
+            np.ascontiguousarray(nrm, f64),
+            np.ascontiguousarray(length, f64),
+            p,
+            d,
+            same,
+            _native_threads(n_r * n_c),
+        )
+        return p, d
     rows = max(8, _BLOCK_ENTRIES // max(n_c, 1))
     for r0 in range(0, n_r, rows):
         r1 = min(n_r, r0 + rows)

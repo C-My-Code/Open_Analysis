@@ -31,6 +31,7 @@ import numpy as np
 import numpy.typing as npt
 import shapely
 
+from oa_geometry._fastcopy import replace
 from oa_geometry._native import RingSet
 from oa_geometry._native import kernels as _kernels
 from oa_geometry._shapes import path_points, polygons_of
@@ -434,27 +435,89 @@ def _sections(
     include_aggressors: bool,
     physics_temp: float | None,
 ) -> list[CrossSection]:
-    """Cross-sections of `seg` at every `svals`: poses, cut lines and copper intervals are
-    computed in bulk (shapely array calls); sections with an identical geometric signature
-    share one canonical build and differ only in provenance."""
-    layer = geo.conductor(seg.layer)
-    k = len(svals)
-    ss = [min(max(s, 0.0), seg.length) for s in svals]
-    spn = [_span_at(spans, s) for s in ss]
-    refs_a = [sp.above if sp else None for sp in spn]
-    refs_b = [sp.below if sp else None for sp in spn]
+    """Cross-sections of `seg` at every `svals` (see ``_sections_multi``)."""
+    return _sections_multi(
+        geo, [(seg, piece, spans, svals)], pair, window, include_aggressors, physics_temp
+    )[0]
+
+
+_Job = tuple[RoutedSegment, Piece, tuple[ReferenceSpan, ...], list[float]]
+_Plan = tuple[Piece, tuple[ReferenceSpan, ...], Piece | None, float, list[tuple[float, str | None]]]
+
+
+def _sections_multi(
+    geo: BoardGeometry,
+    jobs: list[_Job],
+    pair: str | None,
+    window: float | None,
+    include_aggressors: bool,
+    physics_temp: float | None,
+) -> list[list[CrossSection]]:
+    """Cross-sections of several segments (``jobs``: segment, piece, spans, positions along it)
+    of one net. Poses, cut lines and copper intervals are computed in bulk over every sample of
+    every segment (shapely array calls, one native cut per layer); sections with an identical
+    geometric signature share one canonical build and differ only in provenance."""
+    segs = [j[0] for j in jobs]
+    layers = [geo.conductor(s.layer) for s in segs]
+    counts = [len(j[3]) for j in jobs]
+    ji = np.repeat(np.arange(len(jobs), dtype=np.intp), counts)
+    k = len(ji)
+    refs_a: list[RefInfo | None] = []
+    refs_b: list[RefInfo | None] = []
     halves = np.empty(k)
-    for i in range(k):
-        refs = [r for r in (refs_a[i], refs_b[i]) if r is not None]
-        halves[i] = window if window is not None else _default_window(geo, seg.width, refs, layer)
-    p, t = _poses(piece, seg, ss)
+    p_parts: list[F64] = []
+    t_parts: list[F64] = []
+    i = 0
+    for jx, (seg, piece, spans, svals) in enumerate(jobs):
+        layer = layers[jx]
+        s_job = [min(max(s, 0.0), seg.length) for s in svals]
+        for s in s_job:
+            sp = _span_at(spans, s)
+            ra = sp.above if sp else None
+            rb = sp.below if sp else None
+            refs_a.append(ra)
+            refs_b.append(rb)
+            if window is not None:
+                halves[i] = window
+            else:
+                halves[i] = _default_window(
+                    geo, seg.width, [r for r in (ra, rb) if r is not None], layer
+                )
+            i += 1
+        if s_job:
+            pj, tj = _poses(piece, seg, s_job)
+            p_parts.append(pj)
+            t_parts.append(tj)
+    if k == 0:
+        return [[] for _ in jobs]
+    p = np.concatenate(p_parts)
+    t = np.concatenate(t_parts)
     n = np.stack((-t[:, 1], t[:, 0]), axis=1)
     lines = shapely.linestrings(
         np.stack((p - n * halves[:, None], p + n * halves[:, None]), axis=1)
     )
-    per_nets = _layer_intervals(
-        geo, seg.layer, lines, p, n, frozenset(x for x in (seg.net, pair) if x is not None)
-    )
+    # samples grouped by (layer, net): one copper query and one partner cut per group
+    by_group: dict[tuple[str, str], list[int]] = {}
+    start = 0
+    for seg, cnt in zip(segs, counts, strict=True):
+        by_group.setdefault((seg.layer, seg.net), []).extend(range(start, start + cnt))
+        start += cnt
+    per_nets: list[dict[str | None, list[tuple[float, float]]]] = [{} for _ in range(k)]
+    pair_ivs: list[list[tuple[float, float]]] = [[] for _ in range(k)]
+    for (lyr_id, net_id), members in by_group.items():
+        idx = np.asarray(members, dtype=np.intp)
+        res_g = _layer_intervals(
+            geo,
+            lyr_id,
+            lines[idx],
+            p[idx],
+            n[idx],
+            frozenset(x for x in (net_id, pair) if x is not None),
+        )
+        piv = _partner_intervals(geo, lyr_id, pair, lines[idx], p[idx], n[idx])
+        for m, i in enumerate(members):
+            per_nets[i] = res_g[m]
+            pair_ivs[i] = piv[m]
     groups: dict[tuple[str, str | None], list[tuple[int, str]]] = {}
     for i in range(k):
         for side, ref in (("above", refs_a[i]), ("below", refs_b[i])):
@@ -476,11 +539,13 @@ def _sections(
         )
         for (i, side), iv in zip(mem, res, strict=True):
             plane_ivs[(i, side)] = _merge(iv)
-    pair_ivs = _partner_intervals(geo, seg.layer, pair, lines, p, n)
-    w_sig = max(_etch_widths(layer, seg.width))
+    w_sigs = [max(_etch_widths(lyr, s.width)) for lyr, s in zip(layers, segs, strict=True)]
     cache: dict[object, CrossSection] = geo._memoized("xs_templates", dict)
-    out: list[CrossSection] = []
+    out: list[list[CrossSection]] = [[] for _ in jobs]
     for i in range(k):
+        jx = int(ji[i])
+        seg, piece = segs[jx], jobs[jx][1]
+        layer = layers[jx]
         half = float(halves[i])
         per_net = per_nets[i]
         near = None
@@ -488,7 +553,7 @@ def _sections(
             nr = _nearest_partner_piece(geo, pair, p[i], seg.layer)
             if nr is not None:
                 u_c = float((nr[0] - p[i]) @ n[i])
-                near = _placed_partner(u_c, nr[1], half, w_sig, pair_ivs[i], per_net)
+                near = _placed_partner(u_c, nr[1], half, w_sigs[jx], pair_ivs[i], per_net)
             if near is None and pair_ivs[i]:
                 # the partner is not alongside here (meander, fan-out, other layer): its copper
                 # on the cut is an ordinary aggressor, never a copy laid over the signal
@@ -536,12 +601,10 @@ def _sections(
                 physics_temp,
             )
             cache[sig] = tmpl
-            out.append(tmpl)
+            out[jx].append(tmpl)
         else:
-            prov = tmpl.provenance.model_copy(  # type: ignore[union-attr]
-                update={"position": pos, "track_ids": (piece.track,)}
-            )
-            out.append(tmpl.model_copy(update={"provenance": prov}))
+            prov = replace(tmpl.provenance, position=pos, track_ids=(piece.track,))  # type: ignore[type-var]
+            out[jx].append(replace(tmpl, provenance=prov))
     return out
 
 
@@ -600,8 +663,8 @@ def _build_section(
         p_net = next((d.p_net for d in geo.board.diff_pairs if pair in (d.p_net, d.n_net)), None)
         if p_net == pair:
             signals = [
-                sig.model_copy(update={"id": "s1"}),
-                signals[0].model_copy(update={"id": "s2"}),
+                replace(sig, id="s1"),
+                replace(signals[0], id="s2"),
             ]
             net_ids = [pair, seg.net]
         else:
@@ -627,15 +690,15 @@ def _build_section(
     aggressors.sort(key=lambda a: a[0])
     n_sig = len(signals)
     for k, (_, a) in enumerate(aggressors):
-        signals.append(a.model_copy(update={"id": f"s{n_sig + k + 1}"}))
+        signals.append(replace(a, id=f"s{n_sig + k + 1}"))
         if a.net is not None and a.net not in net_ids:
             net_ids.append(a.net)
     grounds.sort(key=lambda c: c.shape.u_center)  # type: ignore[union-attr]
     n_cop = len(grounds)
     for k, g in enumerate(grounds):
-        grounds[k] = g.model_copy(update={"id": f"g{k + 1}"})
+        grounds[k] = replace(g, id=f"g{k + 1}")
     for k, f in enumerate(floating):
-        floating[k] = f.model_copy(update={"id": f"f{k + 1}"})
+        floating[k] = replace(f, id=f"f{k + 1}")
 
     # reference planes truncated to the actual copper along the cut
     planes: list[XsConductor] = []
@@ -872,6 +935,8 @@ def sample_net(
     for pc in pieces:
         ends[(round(pc.end[0] / 1e-8), round(pc.end[1] / 1e-8))] = pc
     out: list[XsSample] = []
+    plan: list[_Plan] = []
+    jobs: list[_Job] = []
     for pc in pieces:
         seg = pc.seg
         spans = _spans_of(geo, seg)
@@ -894,18 +959,12 @@ def sample_net(
             at = min(seg.length, sp0.s_start + eps)
             pos[at] = "boundary"
         samples = sorted(pos.items())
-        pair = partner if partner is not None else _partner(geo, seg.net)
-        xss = _sections(
-            geo,
-            seg,
-            _piece_of(geo, seg),
-            spans,
-            [s for s, _ in samples],
-            pair,
-            None,
-            True,
-            None,
-        )
+        plan.append((pc, spans, prev, eps, samples))
+        jobs.append((seg, _piece_of(geo, seg), spans, [s for s, _ in samples]))
+    pair = partner if partner is not None else (_partner(geo, jobs[0][0].net) if jobs else None)
+    all_xss = _sections_multi(geo, jobs, pair, None, True, None) if jobs else []
+    for (pc, spans, prev, eps, samples), xss in zip(plan, all_xss, strict=True):
+        seg = pc.seg
         first = True
         for (s, tag), xs in zip(samples, xss, strict=True):
             sp = _span_at(spans, s)
@@ -922,13 +981,13 @@ def sample_net(
                 s * float(pc.line.length) / seg.length if seg.length > 0 else 0.0
             )
             out.append(
-                XsSample(
-                    s=seg.s_start + s,
+                XsSample.model_construct(  # computed values of the field types
+                    s=float(seg.s_start + s),
                     position=(float(xy.x), float(xy.y)),
                     layer=seg.layer,
                     seg_id=seg.id,
                     xs=xs,
-                    event=event,  # type: ignore[arg-type]
+                    event=event,
                 )
             )
     return tuple(out)

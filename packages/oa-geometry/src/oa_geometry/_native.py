@@ -19,13 +19,28 @@ import shapely
 _NEEDED = ("cut_intervals", "rect_cover_edge")
 
 
+_KCACHE: dict[tuple[str, str], ModuleType | None] = {}
+
+
 def kernels() -> ModuleType | None:
-    if os.environ.get("OA_NATIVE_CLIP", "auto").strip() == "0":
+    # called per cut batch (tens of thousands of times per board): cache by the two env switches
+    env = (os.environ.get("OA_NATIVE_CLIP", "auto"), os.environ.get("OA_NATIVE", "auto"))
+    try:
+        return _KCACHE[env]
+    except KeyError:
+        pass
+    mod = _kernels(env)
+    _KCACHE[env] = mod
+    return mod
+
+
+def _kernels(env: tuple[str, str]) -> ModuleType | None:
+    if env[0].strip() == "0":
         return None  # clipping kernels off (GEOS oracle), whatever OA_NATIVE says
     try:
         from oa_native import get
     except ImportError:
-        if os.environ.get("OA_NATIVE", "auto").strip() == "1":
+        if env[1].strip() == "1":
             raise
         return None
     mod = get()

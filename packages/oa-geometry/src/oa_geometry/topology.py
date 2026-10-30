@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import heapq
 import itertools
 import math
 import re
@@ -13,11 +14,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-import networkx as nx
 import numpy as np
 import shapely
 from shapely import STRtree
 
+from oa_geometry._fastcopy import replace
 from oa_geometry.errors import UnknownItem
 from oa_geometry.models import Island, NetTopology, RoutedSegment, Stub, TopoEdge, TopoNode
 from oa_geometry.segs import JOIN_EPS, Piece, build_pieces, reverse_seg
@@ -160,8 +161,15 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
         key = (layer, round(pt[0] / CLUSTER_GRID), round(pt[1] / CLUSTER_GRID))
         if key not in pt_nodes:
             n_pt += 1
+            # model_construct: the arguments are computed here, already of the field types
             pt_nodes[key] = add_node(
-                TopoNode(id=f"pt{n_pt}", kind="end", position=pt, layer=layer, ref=None)
+                TopoNode.model_construct(
+                    id=f"pt{n_pt}",
+                    kind="end",
+                    position=(float(pt[0]), float(pt[1])),
+                    layer=layer,
+                    ref=None,
+                )
             )
         return pt_nodes[key]
 
@@ -171,14 +179,15 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
         b = node_at(pc.seg.layer, pc.end)
         seg_nodes[pc.seg.id] = (a, b)
         edges.append(
-            TopoEdge(
+            TopoEdge.model_construct(
                 id=pc.seg.id,
                 kind="segment",
                 a=a,
                 b=b,
-                length=pc.seg.length,
+                length=float(pc.seg.length),
                 layer=pc.seg.layer,
                 seg_id=pc.seg.id,
+                s_start=0.0,
             )
         )
 
@@ -192,8 +201,10 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
             if lid not in geo._copper:
                 continue
             tree = geo.strtree(lid)
-            pt = shapely.points(node.position)
-            for i in tree.query_indices(pt.buffer(JOIN_EPS)):
+            px, py = node.position
+            # the envelope of the round buffer is the point grown by the radius
+            box = shapely.box(px - JOIN_EPS, py - JOIN_EPS, px + JOIN_EPS, py + JOIN_EPS)
+            for i in tree.query_indices(box):
                 ref = tree.ref(int(i))
                 if ref.kind == "zone" and tree.net(int(i)) == net:
                     zone_members[(ref.id, lid)].append(nid)
@@ -234,22 +245,20 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
             counters[prefix] += 1
             new = f"{prefix}{counters[prefix]}"
             rename[nid] = new
-            final_nodes.append(node.model_copy(update={"id": new, "kind": kind}))
+            final_nodes.append(replace(node, id=new, kind=kind))
         else:
             final_nodes.append(node)
     if rename:
-        edges = [
-            e.model_copy(update={"a": rename.get(e.a, e.a), "b": rename.get(e.b, e.b)})
-            for e in edges
-        ]
+        edges = [replace(e, a=rename.get(e.a, e.a), b=rename.get(e.b, e.b)) for e in edges]
         seg_nodes = {k: (rename.get(a, a), rename.get(b, b)) for k, (a, b) in seg_nodes.items()}
 
     # graph, root, distances
-    g = nx.MultiGraph()
-    for n in final_nodes:
-        g.add_node(n.id)
-    for e in edges:
-        g.add_edge(e.a, e.b, key=e.id, length=e.length)
+    adj: dict[str, dict[str, float]] = {n.id: {} for n in final_nodes}
+    for e in edges:  # parallel edges: the shortest one
+        for u, v in ((e.a, e.b), (e.b, e.a)):
+            row = adj.setdefault(u, {})
+            if v not in row or e.length < row[v]:
+                row[v] = e.length
     root_id = _pick_root(geo, final_nodes, pads, root, net)
     dist: dict[str, float] = {}
     order = [root_id] if root_id else []
@@ -257,14 +266,34 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
     for start in order:
         if start in dist:
             continue
-        for k, v in nx.single_source_dijkstra_path_length(g, start, weight="length").items():
+        for k, v in _dijkstra(adj, start).items():
             dist.setdefault(k, v)
-    edges = [e.model_copy(update={"s_start": dist.get(e.a, 0.0)}) for e in edges]
+    edges = [replace(e, s_start=dist.get(e.a, 0.0)) for e in edges]
     stubs = _stubs(geo, final_nodes, edges, via_layer_nodes, vias)
     model = NetTopology(
         net=net, root=root_id, nodes=tuple(final_nodes), edges=tuple(edges), stubs=tuple(stubs)
     )
     return _Topo(model=model, dist=dist, seg_nodes=seg_nodes)
+
+
+def _dijkstra(adj: dict[str, dict[str, float]], source: str) -> dict[str, float]:
+    """Shortest path lengths from ``source`` (the algorithm of
+    ``networkx.single_source_dijkstra_path_length``, without building a graph object)."""
+    dist: dict[str, float] = {}
+    seen: dict[str, float] = {source: 0}  # type: ignore[dict-item]
+    count = itertools.count(1)
+    heap: list[tuple[float, int, str]] = [(0, 0, source)]  # type: ignore[list-item]
+    while heap:
+        d, _, v = heapq.heappop(heap)
+        if v in dist:
+            continue
+        dist[v] = d
+        for u, w in adj[v].items():
+            vu = d + w
+            if u not in dist and (u not in seen or vu < seen[u]):
+                seen[u] = vu
+                heapq.heappush(heap, (vu, next(count), u))
+    return dist
 
 
 def _pick_root(
@@ -394,7 +423,7 @@ def oriented_pieces(geo: BoardGeometry, net: str, root: str | None = None) -> li
             piece = pc if da <= db else reverse_piece(pc)
             s = min(da, db)
             piece = Piece(
-                seg=piece.seg.model_copy(update={"s_start": s}),
+                seg=replace(piece.seg, s_start=s),
                 pts=piece.pts,
                 line=piece.line,
                 track=piece.track,
@@ -511,7 +540,7 @@ def _islands(geo: BoardGeometry, net: str) -> tuple[Island, ...]:
         )
         built.append((-area, isl.bbox[:4], isl))
     built.sort(key=lambda t: (t[0], t[1]))
-    return tuple(t[2].model_copy(update={"id": f"{net}#{k}"}) for k, t in enumerate(built))
+    return tuple(replace(t[2], id=f"{net}#{k}") for k, t in enumerate(built))
 
 
 __all__ += ["oriented_pieces", "pieces_by_net", "reverse_seg"]

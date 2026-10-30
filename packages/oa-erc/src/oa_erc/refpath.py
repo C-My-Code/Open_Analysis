@@ -18,6 +18,7 @@ from __future__ import annotations
 import itertools
 import math
 from dataclasses import dataclass, field
+from functools import cached_property
 
 import shapely
 
@@ -44,7 +45,7 @@ class Interval:
     def length(self) -> float:
         return self.s1 - self.s0
 
-    @property
+    @cached_property
     def refs_key(self) -> frozenset[str]:
         return frozenset(r.net for r in self.refs)
 
@@ -145,9 +146,14 @@ def reference_map(ctx: ErcContext) -> ReferenceMap:
 
 
 def _classify(
-    ctx: ErcContext, layer: str, above: RefInfo | None, below: RefInfo | None, cov_ok: float
+    ctx: ErcContext,
+    layer: str,
+    above: RefInfo | None,
+    below: RefInfo | None,
+    cov_ok: float,
+    adjacent: tuple[str | None, str | None] | None = None,
 ) -> tuple[str, RefInfo | None, tuple[RefInfo, ...]]:
-    adj_a, adj_b = adjacent_ref_layers(ctx, layer)
+    adj_a, adj_b = adjacent if adjacent is not None else adjacent_ref_layers(ctx, layer)
     good: list[RefInfo] = []
     partial: list[RefInfo] = []
     for adj, ri in ((adj_a, above), (adj_b, below)):
@@ -168,6 +174,7 @@ def net_runs(ctx: ErcContext, net: str, cov_ok: float = 0.8) -> list[Run]:
         geo = ctx.geometry()
         rm = reference_map(ctx)
         chains: list[list[Run]] = []
+        adjacent: dict[str, tuple[str | None, str | None]] = {}
         cur: list[Run] = []
         last_end: Vec2 | None = None
         last_layer: str | None = None
@@ -175,7 +182,10 @@ def net_runs(ctx: ErcContext, net: str, cov_ok: float = 0.8) -> list[Run]:
             for sp in rm.for_segment(seg.id):
                 if sp.s_end - sp.s_start <= 1e-9:
                     continue
-                st, ref, refs = _classify(ctx, seg.layer, sp.above, sp.below, cov_ok)
+                adj = adjacent.get(seg.layer)
+                if adj is None:
+                    adj = adjacent[seg.layer] = adjacent_ref_layers(ctx, seg.layer)
+                st, ref, refs = _classify(ctx, seg.layer, sp.above, sp.below, cov_ok, adj)
                 p0 = seg_point(seg.seg, sp.s_start)
                 p1 = seg_point(seg.seg, sp.s_end)
                 contiguous = (
