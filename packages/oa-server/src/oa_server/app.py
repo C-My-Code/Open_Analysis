@@ -66,8 +66,19 @@ from oa_service.types import Envelope, oa_version
 __all__ = ["ApiError", "create_app"]
 
 API = "/api/v1"
-_ERR = {"model": ErrorBody}
-ERRORS: dict[int | str, dict[str, Any]] = {400: _ERR, 403: _ERR, 404: _ERR, 409: _ERR, 422: _ERR}
+# Descriptions are explicit: FastAPI otherwise takes them from the interpreter's
+# http.client.responses table, which renamed 422 in Python 3.13 ("Unprocessable Entity" ->
+# "Unprocessable Content", RFC 9110), so the committed openapi.json would depend on the Python.
+_ERROR_PHRASES = {
+    400: "Bad Request",
+    403: "Forbidden",
+    404: "Not Found",
+    409: "Conflict",
+    422: "Unprocessable Content",
+}
+ERRORS: dict[int | str, dict[str, Any]] = {
+    code: {"model": ErrorBody, "description": phrase} for code, phrase in _ERROR_PHRASES.items()
+}
 
 
 class ApiError(Exception):
