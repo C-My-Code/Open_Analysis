@@ -10,7 +10,10 @@ This is the geometry front end of ADR-0010 (the adapter of WP-507 calls :func:`b
   layer) and on both copper faces, which bound exactly one cell; grading from ``mesh.max_grading``.
   Absorbing faces get ``pml_cells`` cells of the boundary cell size outside the problem box.
 - **Dielectrics:** each model is evaluated by ``oa_physics`` and fitted by a multi-pole Debye sum
-  (:mod:`oa_fdtd.materials`) over ``max(f_min, f_max / 100) .. f_max`` for the ADE kernels.
+  (:mod:`oa_fdtd.materials`) over ``max(f_min, f_max / 100) .. f_max`` for the ADE kernels. A z gap
+  between two full slabs (an inner copper layer) is filled with the lower slab's material, as
+  the openEMS adapter and the 2-D FEM cross-section do, so the copper layer is laminate wherever
+  there is no copper.
 - **Copper:** polygons are rasterised on the mesh (cell centres) and merged into boxes, each a
   :class:`~oa_fdtd.model.Conductor` with the finite-slab surface impedance and the roughness of
   the body; vias are solid PEC square barrels of the area of the round via
@@ -28,6 +31,7 @@ diagnostic.
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -252,6 +256,19 @@ def build_model(
     # ---- dielectric slabs
     regions: list[Region] = []
     tol = 1e-9
+    # Resin between full slabs: an inner copper layer is the z range between two dielectric
+    # layers, and the laminate fills it wherever there is no copper (around inner traces, in
+    # antipads, past plane edges). Same rule as the openEMS adapter and the 2-D FEM cross-section
+    # (the lower slab's material); the slabs and the copper boxes are applied after it.
+    full = sorted((s for s in st.slabs if s.footprint is None), key=lambda s: (s.z_bottom, s.z_top))
+    n_fill = 0
+    for lower, upper in itertools.pairwise(full):
+        if upper.z_bottom - lower.z_top > tol:
+            fit = fits[lower.material]
+            lo = (grid.x[0] - _BIG, grid.y[0] - _BIG, lower.z_top)
+            hi = (grid.x[-1] + _BIG, grid.y[-1] + _BIG, upper.z_bottom)
+            regions.append(Region(lo, hi, fit.eps_inf, 0.0, False, fit.poles))
+            n_fill += 1
     for slab in st.slabs:
         fit = fits[slab.material]
         z_lo = grid.z[0] - _BIG if slab.z_bottom <= box.zmin + tol else slab.z_bottom
@@ -409,5 +426,6 @@ def build_model(
         "debye_poles": {k: len(v.delta) for k, v in fits.items()},
         "debye_err": {k: (v.err_eps, v.err_tand) for k, v in fits.items()},
         "conductor_boxes": n_box,
+        "resin_fills": n_fill,
     }
     return BuiltModel(model, meta, diag)

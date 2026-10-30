@@ -121,12 +121,26 @@ def solve_openems(problem: Any, threads: int = 4) -> dict[str, Any]:
 
 # ------------------------------------------------------------------------------ references
 def rlgc_reference(kind: str, freqs: FloatArray) -> dict[str, FloatArray]:
-    """FEM RLGC(f) of the testkit line (``microstrip`` or ``stripline``) at ``freqs`` [Hz]."""
+    """FEM RLGC(f) of the testkit line (``microstrip`` or ``stripline``) at ``freqs`` [Hz].
+
+    The board's constant-Dk laminate is replaced by the causal Djordjevic-Sarkar model that the
+    ``EMProblem`` carries (``oa_testkit.emproblems``), so reference and FDTD solve one material
+    (the constant model is 4 % above it at 20 GHz, a 2 % delay offset).
+    """
     from oa_geometry import BoardGeometry
     from oa_impedance.fem.solver import solve_fem
+    from oa_model.materials import DielectricMaterial, DjordjevicSarkar
     from oa_testkit import builders as bld
 
     board = bld.microstrip_board() if kind == "microstrip" else bld.stripline_board()
+    mats = []
+    for m in board.stackup.materials:
+        if isinstance(m, DielectricMaterial) and m.model.kind == "constant":
+            ds = DjordjevicSarkar(dk=m.model.dk, df=m.model.df, f_ref=m.model.f_ref)
+            m = m.model_copy(update={"model": ds})
+        mats.append(m)
+    stack = board.stackup.model_copy(update={"materials": tuple(mats)})
+    board = board.model_copy(update={"stackup": stack})
     geo = BoardGeometry.build(board)
     seg = geo.segments("SIG")[0]
     xs = geo.cross_section_at(seg, 12e-3, include_aggressors=False)
