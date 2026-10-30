@@ -181,6 +181,8 @@ def test_plan_bands_bound_the_dielectric_change_and_cover_the_sweep() -> None:
         assert b.f_lo <= b.f_fit <= b.f_hi
         d_er, d_td = _band_deviation(problem, b.f_fit, b.f_lo, b.f_hi)
         assert d_er <= opts.eps_tol and d_td <= opts.tand_tol
-    cfg, info = build_config(problem, groups("microstrip_thru"), mesh_file="model.msh", band=bands[0])
+    cfg, info = build_config(
+        problem, groups("microstrip_thru"), mesh_file="model.msh", band=bands[0]
+    )
     assert cfg["Solver"]["Driven"]["Samples"][0]["Type"] == "Point"
     assert info.eps_freq == bands[0].f_fit

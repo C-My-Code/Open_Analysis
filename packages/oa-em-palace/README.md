@@ -146,6 +146,14 @@ the adapter defaults to `Solver.Linear.Type = "AMS"` (GMRES, 28 to 61 iterations
 - **Output**: `postpro/port-S.csv` header is `f (GHz), |S[i][j]| (dB), arg(S[i][j]) (deg.)`,
   `S[i][j]` = port i response to excitation j; AMR writes `error-indicators.csv`.
 
+## WP-501 findings (microstrip IL)
+
+The 1.24 dB above is mostly the first-order absorbing boundary 1 mm / 2.5 mm from the line (about
++0.25 dB at 10 GHz); with 5 mm / 6 mm padding Palace p2 gives 0.949 dB (BEM 0.845). See
+`docs/change-requests/WP-501-palace-il-root-cause.md` for the table, the new banded-dielectric
+option (`palace.banded`, `eps_tol`, `tand_tol`), the `occ.*` mesh keys and the `PALACE.ABC_NEAR`
+warning. Memory: p2 above about 1 M DOF with AMS exceeds a 12 GB box.
+
 ## Known gaps
 
 - Differential/coupled wave ports, coax ports and rough-copper impedance boundaries are not

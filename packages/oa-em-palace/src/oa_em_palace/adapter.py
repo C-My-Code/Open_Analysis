@@ -64,6 +64,29 @@ def _safe_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_") or "problem"
 
 
+_MIN_ABC_GAP = 5e-3  # [m] conductor-to-absorbing-face distance below which the ABC is lossy
+
+
+def _absorbing_gap(problem: EMProblem) -> float | None:
+    """Smallest distance [m] from a conductor body to an absorbing face of the region (y and z)."""
+    box, bnd = problem.structure.bbox, problem.boundaries
+    bodies = problem.structure.conductors
+    if not bodies:
+        return None
+    ys = [float(np.min(np.asarray(p.exterior.array)[:, 1])) for b in bodies for p in b.polygons]
+    ye = [float(np.max(np.asarray(p.exterior.array)[:, 1])) for b in bodies for p in b.polygons]
+    gaps: list[float] = []
+    if bnd.ymin == "absorbing":
+        gaps.append(min(ys) - box.ymin)
+    if bnd.ymax == "absorbing":
+        gaps.append(box.ymax - max(ye))
+    if bnd.zmin == "absorbing":
+        gaps.append(min(b.z_bottom for b in bodies) - box.zmin)
+    if bnd.zmax == "absorbing":
+        gaps.append(box.zmax - max(b.z_top for b in bodies))
+    return min(gaps) if gaps else None
+
+
 def _json(obj: Any) -> Any:
     return json.loads(json.dumps(obj, default=float))
 
@@ -179,6 +202,15 @@ class PalaceAdapter:
                     f"port {p.name}: Palace wave-port S-parameters are referenced to the modal "
                     "impedance; z0 is not applied",
                 )
+        gap = _absorbing_gap(problem)
+        if gap is not None and gap < _MIN_ABC_GAP:
+            warn(
+                "PALACE.ABC_NEAR",
+                f"an absorbing face is {gap * 1e3:.2f} mm from the nearest conductor; Palace's "
+                "first-order absorbing boundary then dissipates the evanescent fringing field "
+                "(about +0.25 dB per 25 mm microstrip at 10 GHz with 1 mm / 2.5 mm padding)",
+                f"Pad the region by at least {_MIN_ABC_GAP * 1e3:.0f} mm (WP-501 root cause).",
+            )
         if problem.frequency.f_min == 0:
             diags.append(
                 Diagnostic(

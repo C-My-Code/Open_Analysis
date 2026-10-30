@@ -116,7 +116,9 @@ def sweep_frequencies(problem: EMProblem, options: PalaceOptions) -> np.ndarray:
     return np.unique(np.concatenate([pts, np.asarray(fp.extra_points, dtype=np.float64)]))
 
 
-def _band_deviation(problem: EMProblem, f_fit: float, f_a: float, f_b: float) -> tuple[float, float]:
+def _band_deviation(
+    problem: EMProblem, f_fit: float, f_a: float, f_b: float
+) -> tuple[float, float]:
     """Largest relative deviation of eps' and tan d over [f_a, f_b] from their value at f_fit."""
     d_er = d_td = 0.0
     for m in problem.structure.materials:
@@ -146,7 +148,9 @@ def plan_bands(problem: EMProblem, options: PalaceOptions) -> list[Band]:
                 break
             j += 1
         fit = 0.5 * (f[i] + f[j])
-        bands.append(Band(float(f[i]), float(f[j]), float(fit), tuple(float(x) for x in f[i : j + 1])))
+        bands.append(
+            Band(float(f[i]), float(f[j]), float(fit), tuple(float(x) for x in f[i : j + 1]))
+        )
         i = j + 1
     return bands
 

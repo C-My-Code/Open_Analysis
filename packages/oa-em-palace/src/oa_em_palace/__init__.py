@@ -8,8 +8,8 @@ from oa_em_palace.discovery import discover
 from oa_em_palace.paths import host_to_wsl, wsl_to_host
 
 __all__ = [
-    "PalaceAdapter",
     "Band",
+    "PalaceAdapter",
     "PalaceOptions",
     "build_config",
     "default_assessor",
