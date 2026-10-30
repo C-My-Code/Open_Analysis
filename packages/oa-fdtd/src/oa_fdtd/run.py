@@ -30,6 +30,7 @@ class RunResult:
     peak_bytes: int  # GPU pool high-water mark [bytes], 0 on CPU
     report: dict[str, Any] = field(default_factory=dict)  # oa_accel AccelReport
     series: dict[str, FloatArray] = field(default_factory=dict)
+    port_r: FloatArray = field(default_factory=lambda: np.zeros(0))  # reference impedances [ohm]
 
 
 def source_spectrum(c: Compiled, steps: int) -> ComplexArray:
@@ -110,8 +111,13 @@ def run(
         if done >= min_steps and peak > 0 and e_db <= end_db:
             stopped = "end_criterion"
             break
+    probes = eng.results()
+    sums = {f"V:{q['name']}": q["probe_parts"] for q in c.ports if q.get("probe_parts")}
+    sums.update(c.probe_sums)
+    for name, parts in sums.items():  # mode ports record one probe per field component: sum them
+        probes[name] = sum(probes.pop(q) for q in parts)
     return RunResult(
-        probes=eng.results(),
+        probes=probes,
         source_dft=source_spectrum(c, done),
         steps=done,
         dt=c.dt,
@@ -122,6 +128,7 @@ def run(
         peak_bytes=eng.peak_bytes(),
         report=report,
         series=eng.series() if record_series else {},
+        port_r=np.array([float(q["r_ohm"]) for q in c.ports]),
     )
 
 
@@ -152,4 +159,4 @@ def sparams(model: Model, res: RunResult) -> ComplexArray:
             v[i, j] = res.probes[f"V:{ports[i].name}"][j]
     vs = res.source_dft[:n]
     v = v * port_voltage_factor(res.dt, model.frequencies)
-    return power_wave_s(v, vs, np.array([p.r_ohm for p in ports]))
+    return power_wave_s(v, vs, res.port_r)

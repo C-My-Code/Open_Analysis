@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from oa_fdtd.grid import C0, EPS0, ETA0, MU0, Grid
-from oa_fdtd.model import Conductor, LumpedPort, Model, Region, Waveform
+from oa_fdtd.model import Conductor, LumpedPort, Model, ModePort, Region, Waveform
 
 ComplexArray = npt.NDArray[np.complex128]
 W, H = 0.008, 0.001  # plate width and gap [m]
@@ -40,6 +40,8 @@ def plate_line(
     sigma_cu: float | None = None,
     t_cu: float = 0.25e-3,
     r_port: float | None = None,
+    mode_ports: bool = False,
+    probe_planes: tuple[float, ...] = (),
 ) -> Model:
     """TEM line between two plates, PMC side walls, ports spanning the gap at both ends.
 
@@ -55,6 +57,13 @@ def plate_line(
         LumpedPort("p1", 2, (0, 0, t_cu), (W, 0, t_cu + H), z0),
         LumpedPort("p2", 2, (0, ny * dy, t_cu), (W, ny * dy, t_cu + H), z0),
     ]
+    if mode_ports:
+        top = ((0.0, t_cu + H), (W, 2 * t_cu + H))  # signal conductor: the upper plate (x, z)
+
+        def mp(name: str, y: float, direction: int) -> ModePort:
+            return ModePort(name, 1, y, (0.0, 0.0), (W, 2 * t_cu + H), (top,), 0, direction)
+
+        ports = [mp("p1", 0.0, 1), mp("p2", ny * dy, -1)]  # type: ignore[list-item]
     regions = [Region((0, 0, t_cu), (W, length, t_cu + H), eps_inf, poles=poles)] if poles else []
     if not poles and eps_inf != 1.0:
         regions = [Region((0, 0, t_cu), (W, length, t_cu + H), eps_inf)]
@@ -67,6 +76,7 @@ def plate_line(
             (-big, -big, t_cu + H), (W + big, length + big, 3 * t_cu + H), sig, t_cu, 0.0, kind
         ),
     ]
+    probes = [mp(f"q{i}", y, 1) for i, y in enumerate(probe_planes)] if mode_ports else []
     return Model(
         g,
         Waveform("gauss_mod", f_max / 2.0, f_max),
@@ -75,6 +85,7 @@ def plate_line(
         conductors=conductors,
         walls=("pmc", "pmc", "pmc", "pmc", "pec", "pec"),
         ports=ports,
+        mode_probes=probes,
     )
 
 

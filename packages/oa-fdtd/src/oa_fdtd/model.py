@@ -105,6 +105,28 @@ class LumpedPort:
 
 
 @dataclass(frozen=True)
+class ModePort:
+    """Quasi-TEM mode port on a plane (ADR-0010 section 6; :mod:`oa_fdtd.ports`).
+
+    The plane ``axis = position`` is cut by the in-plane rectangle ``lo .. hi`` (the two remaining
+    axes in ascending order). The mode comes from a 2-D electrostatic solve with ``signals`` as
+    the signal conductors (rectangles in the same in-plane axes); every other conductor, PEC
+    region and PEC wall is ground. Several ports with the same rectangle and signals but different
+    ``mode`` give the N modes of N coupled conductors. The reference impedance is the modal one.
+    """
+
+    name: str
+    axis: int  # plane normal: 0, 1, 2
+    position: float  # [m]
+    lo: tuple[float, float]  # [m] rectangle corner (smaller coordinates)
+    hi: tuple[float, float]  # [m]
+    signals: tuple[tuple[tuple[float, float], tuple[float, float]], ...]  # (lo, hi) per conductor
+    mode: int = 0
+    direction: int = 1  # +1: the structure lies toward +axis from the plane
+    sign: float = 1.0
+
+
+@dataclass(frozen=True)
 class SoftSource:
     """Additive source ``E += amplitude * s(t)`` on all E edges of a component in the box."""
 
@@ -138,8 +160,9 @@ class Model:
     conductors: list[Conductor] = field(default_factory=list)
     walls: tuple[str, str, str, str, str, str] = ("pec",) * 6  # xlo, xhi, ylo, yhi, zlo, zhi
     cpml: CpmlSpec = field(default_factory=CpmlSpec)
-    ports: list[LumpedPort] = field(default_factory=list)
+    ports: list[LumpedPort | ModePort] = field(default_factory=list)
     sources: list[SoftSource] = field(default_factory=list)
+    mode_probes: list[ModePort] = field(default_factory=list)  # passive modal V probes
     probes: list[Probe] = field(default_factory=list)
     drive: FloatArray | None = (
         None  # (B, channels) amplitude per batch member; channels: ports, sources
@@ -211,6 +234,7 @@ class Compiled:
     frequencies: FloatArray
     ade: AdeData | None = None
     sibc: SibcData | None = None
+    probe_sums: dict[str, list[str]] = field(default_factory=dict)  # name -> part probe names
 
     @property
     def batch(self) -> int:
@@ -404,6 +428,38 @@ def _compile_conductors(
     )
 
 
+def _mode_probe_parts(
+    g: Grid,
+    port: ModePort,
+    mp: dict[str, Any],
+    probes: list[dict[str, Any]],
+    edge_sig: list[FloatArray],
+    *,
+    load: bool,
+) -> list[str]:
+    """Add the per-component modal projection probes (and the loading when ``load``)."""
+    parts: list[str] = []
+    lo_ix = 0
+    for comp_seg, nseg in zip(sorted({int(c) for c in mp["comp"]}), mp["split"], strict=True):
+        sl_seg = slice(lo_ix, lo_ix + nseg)
+        lo_ix += nseg
+        fl = mp["flat"][sl_seg]
+        if load:
+            kk, jj, ii = np.unravel_index(fl, g.shape)
+            edge_sig[comp_seg][kk - 1, jj - 1, ii - 1] += mp["sigma"][sl_seg]
+        parts.append(f"V:{port.name}:{comp_seg}")
+        probes.append(
+            {
+                "name": parts[-1],
+                "kind": "E",
+                "comp": comp_seg,
+                "flat": fl,
+                "weights": mp["weights"][sl_seg],
+            }
+        )
+    return parts
+
+
 def compile_model(model: Model, dtype: str = "float32") -> Compiled:
     """Build indices, tables, PML, channels and probes. Raises :class:`ModelError`."""
     g = model.grid
@@ -471,7 +527,46 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
     channels: list[dict[str, Any]] = []
     ports_info: list[dict[str, Any]] = []
     probes: list[dict[str, Any]] = []
+    mode_cache: dict[Any, Any] = {}
+    eps_mid: FloatArray | None = None
     for port in model.ports:
+        if isinstance(port, ModePort):
+            from oa_fdtd.ports.build import build_mode_port, solve_port_modes
+
+            if eps_mid is None:  # real permittivity at the band centre for the static solve
+                w_mid = 2.0 * np.pi * float(np.mean(model.frequencies))
+                eps_mid = eps_c.copy()
+                for pi, tau in enumerate(taus):
+                    eps_mid = eps_mid + del_c[pi] / (1.0 + (w_mid * float(tau)) ** 2)
+            key = (port.axis, port.position, port.lo, port.hi, port.signals, port.direction)
+            try:
+                if key not in mode_cache:
+                    mode_cache[key] = solve_port_modes(model, g, port, eps_mid[1:-1, 1:-1, 1:-1])
+                modes, geo = mode_cache[key]
+                mp = build_mode_port(model, g, port, modes, geo, edge_eps)
+            except ValueError as exc:
+                raise ModelError("FDTD_BAD_PORT", str(exc)) from exc
+            pidx = len(ports_info)
+            parts = _mode_probe_parts(g, port, mp, probes, edge_sig, load=True)
+            ports_info.append(
+                {
+                    "name": port.name,
+                    "axis": port.axis,
+                    "r_ohm": mp["z"],
+                    "sign": port.sign,
+                    "flat": mp["flat"],
+                    "channel": len(channels),
+                    "sig_e": mp["sigma"],
+                    "e_t": mp["template"],
+                    "probe_parts": parts,
+                    "eps_eff": mp["eps_eff"],
+                    "voltages": mp["voltages"],
+                }
+            )
+            channels.append(
+                {"comp": mp["comp"], "flat": mp["flat"], "port": pidx, "sign": port.sign}
+            )
+            continue
         if port.r_ohm <= 0:
             raise ModelError("FDTD_BAD_PORT", f"port {port.name}: r_ohm must be positive")
         flat, counts = g.points("E", port.axis, port.lo, port.hi)
@@ -510,6 +605,24 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
                 "weights": length * area / total_area,
             }
         )
+    probe_sums: dict[str, list[str]] = {}
+    for mpb in model.mode_probes:
+        from oa_fdtd.ports.build import build_mode_port, solve_port_modes
+
+        if eps_mid is None:
+            w_mid = 2.0 * np.pi * float(np.mean(model.frequencies))
+            eps_mid = eps_c.copy()
+            for pi, tau in enumerate(taus):
+                eps_mid = eps_mid + del_c[pi] / (1.0 + (w_mid * float(tau)) ** 2)
+        key = (mpb.axis, mpb.position, mpb.lo, mpb.hi, mpb.signals, mpb.direction)
+        try:
+            if key not in mode_cache:
+                mode_cache[key] = solve_port_modes(model, g, mpb, eps_mid[1:-1, 1:-1, 1:-1])
+            modes, geo = mode_cache[key]
+            mp = build_mode_port(model, g, mpb, modes, geo, edge_eps)
+        except ValueError as exc:
+            raise ModelError("FDTD_BAD_PORT", str(exc)) from exc
+        probe_sums[f"V:{mpb.name}"] = _mode_probe_parts(g, mpb, mp, probes, edge_sig, load=False)
     for src in model.sources:
         flat, _ = g.points("E", src.axis, src.lo, src.hi)
         channels.append({"comp": src.axis, "flat": flat, "amp": src.amplitude})
@@ -572,10 +685,19 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
     # injection amplitudes (per unit waveform) now that cb is known
     for ch in channels:
         flat = ch["flat"]
-        mat = idx[ch["comp"]].ravel()[flat]
+        if np.ndim(ch["comp"]) == 0:
+            mat = idx[ch["comp"]].ravel()[flat]
+        else:
+            mat = np.zeros(flat.size, dtype=np.uint16)
+            for cc in np.unique(ch["comp"]):
+                sel = ch["comp"] == cc
+                mat[sel] = idx[int(cc)].ravel()[flat[sel]]
         if "port" in ch:
             p = ports_info[ch["port"]]
-            ch["amps"] = ch["sign"] * cb_tab[mat] * p["sig_eq"] / p["total_len"]
+            if "sig_e" in p:
+                ch["amps"] = ch["sign"] * cb_tab[mat] * p["sig_e"] * p["e_t"]
+            else:
+                ch["amps"] = ch["sign"] * cb_tab[mat] * p["sig_eq"] / p["total_len"]
         else:
             ch["amps"] = ch["amp"] * np.ones(flat.size)
         ch["waveform"] = model.waveform
@@ -597,4 +719,5 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         frequencies=np.asarray(model.frequencies, dtype=np.float64),
         ade=ade,
         sibc=sibc,
+        probe_sums=probe_sums,
     )

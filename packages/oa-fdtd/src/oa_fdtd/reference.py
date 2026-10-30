@@ -224,10 +224,14 @@ class NumpyEngine:
         c = self.c
         for ci, ch in enumerate(c.channels):
             w = float(ch["waveform"](np.array([(step + 0.5) * c.dt]))[0])
-            f = self.E[ch["comp"]].reshape(c.batch, -1)
-            f[:, ch["flat"]] += ((c.drive[:, ci : ci + 1] * w) * ch["amps"][None, :]).astype(
-                self.dtype
-            )
+            comps = np.broadcast_to(np.asarray(ch["comp"]), ch["flat"].shape)
+            for cc in np.unique(comps):
+                sel = comps == cc
+                f = self.E[int(cc)].reshape(c.batch, -1)
+                amps = ch["amps"][sel]
+                f[:, ch["flat"][sel]] += ((c.drive[:, ci : ci + 1] * w) * amps[None, :]).astype(
+                    self.dtype
+                )
 
     def _record(self, kind: str, t: float) -> None:
         probes = self.t_e if kind == "E" else self.t_h

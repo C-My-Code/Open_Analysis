@@ -172,7 +172,7 @@ class CupyEngine:
         amp: list[Any] = []
         chan: list[Any] = []
         for ci, ch in enumerate(c.channels):
-            comp.append(np.full(ch["flat"].size, ch["comp"], np.int32))
+            comp.append(np.broadcast_to(np.asarray(ch["comp"], np.int32), ch["flat"].shape).copy())
             flat.append(ch["flat"].astype(np.int64))
             amp.append(np.asarray(ch["amps"], np.float64))
             chan.append(np.full(ch["flat"].size, ci, np.int32))
