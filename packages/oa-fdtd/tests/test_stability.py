@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""``FDTD_UNSTABLE``: non-finite energy and growth after the excitation has ended."""
+"""``FDTD.UNSTABLE``: non-finite energy and growth after the excitation has ended."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _run(monkeypatch: pytest.MonkeyPatch, energy_of: Any, **kw: Any) -> run_mod.
 def test_non_finite_energy_is_unstable(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(ModelError) as ei:
         _run(monkeypatch, lambda n: float("inf") if n > 640 else 1.0)
-    assert ei.value.code == "FDTD_UNSTABLE"
+    assert ei.value.code == "FDTD.UNSTABLE"
 
 
 def test_growth_after_excitation_is_unstable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -61,7 +61,7 @@ def test_growth_after_excitation_is_unstable(monkeypatch: pytest.MonkeyPatch) ->
 
     with pytest.raises(ModelError) as ei:
         _run(monkeypatch, energy, end_db=-300.0)
-    assert ei.value.code == "FDTD_UNSTABLE"
+    assert ei.value.code == "FDTD.UNSTABLE"
     assert "grew" in ei.value.message
 
 

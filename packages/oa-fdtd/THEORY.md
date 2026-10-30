@@ -28,7 +28,7 @@ $$\Delta t=\frac{S}{c_{max}\sqrt{\dfrac1{\Delta x_{min}^2}+\dfrac1{\Delta y_{min
 
 $\varepsilon_{r,min}$ is the smallest permittivity among non-PEC regions and 1 (`compile_model`). The classical limit is $S\le1$ for the uniform Yee scheme; on a non-uniform grid using the smallest cell on each axis is conservative. Stability is therefore by construction, as long as the material table does not contain a speed above $c_{max}$. Other time steps in the code base: `oa_mesh.rect.estimate_timestep` uses 0.99 (a helper for estimates; the solver itself uses `Grid.dt`).
 
-**Instability detection.** `run.run` raises `ModelError("FDTD_UNSTABLE")` if the field energy becomes non-finite. The ADR-0010 late-time energy-growth detector is **not** implemented; a slowly growing instability (for example from a badly fitted dispersive model) would not be caught until it overflows.
+**Instability detection.** `run.run` raises `ModelError("FDTD.UNSTABLE")` if the field energy becomes non-finite, or if, after the excitation has decayed, it rises more than `growth_db` (default 20 dB) above its post-excitation minimum (the ADR-0010 late-time growth detector). Slower growth below that threshold is not caught.
 
 ### 2.3 Boundaries: CPML
 
@@ -121,7 +121,7 @@ The reference is the project's own FEM, so this is a cross-method check inside t
 - The B-EM-01 S11 target is missed (-28.4 dB against -29 dB).
 - The FDTD benchmark harness pages (`docs/validation/benchmarks/em.md`, `perf.md`) still read "oa-fdtd does not exist yet" and show B-PERF-01 as pending; they were generated before oa-fdtd merged and disagree with the README measurements above. The README and FOLLOWUPS numbers are the more recent.
 - `tests/golden/fdtd/tem_line/case.toml` still carries the pre-fix comment that the S21 deviation "grows as f^2 above 3 GHz (3.8e-3 at 20 GHz)"; the cos correction (WP-506) removed this (FOLLOWUPS). The case only lists frequencies up to 3 GHz, so this golden file itself stops at 3 GHz; the 20 GHz claim (|S21|-1 below 4e-5, FOLLOWUPS) rests on a test I did not locate [verify].
-- `FDTD_UNSTABLE` exists only for non-finite energy (`run.py`). The ADR-0010 late-time growth detector and matrix-pencil extrapolation are absent.
+- `FDTD.UNSTABLE` covers non-finite energy and a 20 dB late-time rise (configurable `growth_db`). Matrix-pencil tail extrapolation (`oa_fdtd.tail`) is applied when a run hits `max_steps`.
 - Mode ports use a local 2D solver, not `oa_impedance` (change request WP-506-modal-solver); the two could disagree on the port impedance, which is not cross-checked.
 - PERF-01 for a PCB-like case (ADE, CPML, special edges) is not measured; the quoted throughput is for the plain kernel only.
 - ROCm is untested on hardware.
