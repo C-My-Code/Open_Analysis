@@ -6,13 +6,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 
 if TYPE_CHECKING:
-    from oa_fdtd.model import Model
+    from oa_fdtd.model import Model, ModePort
 
 FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]
@@ -136,17 +136,66 @@ class PlaneSet:
     spacing_b: float | None = None  # inner gap when unequal
 
 
+def uniform_length(model: Model, port: ModePort) -> float:
+    """Length [m] of the uniform line behind ``port``: the distance from the port plane to the
+    first cell layer whose cross-section (the regions and copper boxes that cut the port
+    rectangle, with their in-plane extents) differs from the layer at the port."""
+    n = port.axis
+    u_ax, v_ax = (a for a in range(3) if a != n)
+    lo_r = {u_ax: port.lo[0], v_ax: port.lo[1]}
+    hi_r = {u_ax: port.hi[0], v_ax: port.hi[1]}
+    boxes: list[tuple[tuple[float, float, float], tuple[float, float, float], str]] = [
+        (c.lo, c.hi, f"cu:{c.model}") for c in model.conductors
+    ] + [(r.lo, r.hi, repr((r.eps_r, r.sigma, r.pec, r.poles))) for r in model.regions]
+
+    def section(mid: float) -> tuple[tuple[Any, ...], ...]:
+        out: list[tuple[Any, ...]] = []
+        for lo, hi, kind in boxes:
+            if not lo[n] <= mid <= hi[n]:
+                continue
+            ext: list[float] = []
+            for a in (u_ax, v_ax):
+                a0, a1 = max(lo[a], lo_r[a]), min(hi[a], hi_r[a])
+                if a1 < a0:
+                    break
+                ext += [round(a0, 12), round(a1, 12)]
+            else:
+                out.append((kind, *ext))
+        return tuple(sorted(out))
+
+    lines = model.grid.lines[n]
+    i = int(np.argmin(np.abs(lines - port.position)))
+    step = port.direction
+    first = None
+    while 0 <= i + step < lines.size:
+        here = section(0.5 * float(lines[i] + lines[i + step]))
+        if first is None:
+            first = here
+        elif here != first:
+            break
+        i += step
+    return abs(float(lines[i]) - port.position)
+
+
 def add_wave_planes(
-    model: Model, port: str, offset: float, spacing_cells: int = 16, max_phase: float = 2.2
+    model: Model,
+    port: str,
+    offset: float,
+    spacing_cells: int = 16,
+    max_phase: float = 2.2,
+    min_phase: float = 0.6,
 ) -> PlaneSet:
     """Add three modal probe planes inside the line behind ``port`` and return their description.
 
-    The outer plane is at least ``offset`` [m] from the port plane; the planes are the widest
-    equal spacing of at most ``spacing_cells`` cells that the mesh offers (a uniform stretch),
-    capped so that they stay in the half of the line next to the port and so that the phase
-    between them stays below ``max_phase`` [rad] at the highest frequency (the cosh formula
-    aliases at pi). The phase between planes
-    should exceed about 0.3 rad for a well-conditioned gamma (:func:`wave_sparams`).
+    The planes lie in the uniform line next to the port (:func:`uniform_length`), at least
+    ``offset`` [m] from the port plane and from the first discontinuity (a via, a cage, a bend,
+    the line end), and in the half of the domain next to the port; the three-plane formula holds
+    only on a uniform line. They are the widest equal spacing of at most ``spacing_cells`` cells
+    that the mesh offers, capped so that the phase between them stays below ``max_phase`` [rad]
+    at the highest frequency (the cosh formula aliases at pi). ``FDTD_UNEQUAL_PLANES`` is raised
+    when no such planes exist or when their phase at the highest frequency (with the largest
+    permittivity) is below ``min_phase`` [rad]: gamma would be ill-conditioned over the whole band
+    (it needs about 0.3 rad, :func:`wave_sparams`), and the port S is the better estimate.
     """
     from oa_fdtd.model import ModelError, ModePort
 
@@ -160,9 +209,11 @@ def add_wave_planes(
         [1.0] + [r.eps_r + sum(d for d, _ in r.poles) for r in model.regions if not r.pec]
     )
     f_top = float(np.max(model.frequencies))
-    d_target = max_phase * 299792458.0 / (2.0 * np.pi * f_top * float(np.sqrt(eps_max)))
+    beta_top = 2.0 * np.pi * f_top * float(np.sqrt(eps_max)) / 299792458.0
+    d_target = max_phase / beta_top
     found: tuple[list[int], float, float] | None = None
-    depth = 0.45 * float(lines[-1] - lines[0])
+    uniform = uniform_length(model, mp)
+    depth = min(0.45 * float(lines[-1] - lines[0]), uniform - offset)
     for k in range(spacing_cells, 0, -1):  # the widest equal spacing gives the best conditioning
         for i_mid in range(i_port + step * 2, i_port + step * lines.size, step):
             if not 0 <= i_mid < lines.size:
@@ -186,10 +237,18 @@ def add_wave_planes(
     if found is None:
         raise ModelError(
             "FDTD_UNEQUAL_PLANES",
-            f"no three equally spaced planes behind {port} at least {offset:.3e} m from it",
-            "Use a uniform stretch of the mesh along the line.",
+            f"no three equally spaced planes behind {port} at least {offset:.3e} m from it and "
+            f"from the end of its {uniform:.3e} m uniform line",
+            "Lengthen the uniform line behind the port or use a uniform stretch of the mesh.",
         )
     idx, d1, d2 = found
+    if beta_top * d1 < min_phase:
+        raise ModelError(
+            "FDTD_UNEQUAL_PLANES",
+            f"the {uniform:.3e} m uniform line behind {port} holds planes only {d1:.3e} m apart "
+            f"({beta_top * d1:.2f} rad at {f_top:.3e} Hz, below {min_phase} rad)",
+            "Lengthen the uniform line behind the port; the port S is used meanwhile.",
+        )
     pos = [float(lines[i]) for i in idx]
     names = tuple(f"W:{port}:{k}" for k in range(3))
     for nm, x in zip(names, pos, strict=True):

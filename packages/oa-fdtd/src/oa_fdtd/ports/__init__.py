@@ -9,6 +9,7 @@ from oa_fdtd.ports.deembed import (
     apply_hook,
     gamma_from_planes,
     shift_reference,
+    uniform_length,
     wave_sparams,
 )
 from oa_fdtd.ports.modal import ModeSet, solve_modes
@@ -22,5 +23,6 @@ __all__ = [
     "gamma_from_planes",
     "shift_reference",
     "solve_modes",
+    "uniform_length",
     "wave_sparams",
 ]
