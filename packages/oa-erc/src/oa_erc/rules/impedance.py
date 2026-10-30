@@ -222,9 +222,10 @@ class ImpedanceOutOfTolerance(ErcRule):
             )
         if not samples:
             return
+        sample_keys = [s.xs.key() for s in samples]  # key() hashes the section: once each
         by_key: dict[str, Any] = {}
-        for s in samples:
-            by_key.setdefault(s.xs.key(), s.xs)
+        for k, s in zip(sample_keys, samples, strict=True):
+            by_key.setdefault(k, s.xs)
         keys = sorted(by_key)
         if len(keys) > cfg.max_sections:
             step = len(keys) / cfg.max_sections
@@ -236,13 +237,13 @@ class ImpedanceOutOfTolerance(ErcRule):
                 strict=True,
             )
         )
-        solved = [i for i, s in enumerate(samples) if s.xs.key() in results]
+        solved = [i for i, k in enumerate(sample_keys) if k in results]
         zs: list[float | None] = []
         for idx, s in enumerate(samples):
-            r = results.get(s.xs.key())
+            r = results.get(sample_keys[idx])
             if r is None and solved:  # thinned: reuse the nearest solved section
                 near = min(solved, key=lambda j: abs(j - idx))
-                r = results[samples[near].xs.key()]
+                r = results[sample_keys[near]]
             if r is None:
                 zs.append(None)
                 continue

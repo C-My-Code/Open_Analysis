@@ -398,13 +398,10 @@ def cross_section_at(
             track_ids=(piece.track,),
         ),
     )
-    try:
-        sym = raw.model_copy(update={"symmetric_about_u0": True})
-        CrossSection.canonicalize(sym)
-        raw = sym
+    try:  # canonicalize raises when the conductors are not mirror symmetric
+        return CrossSection.canonicalize(raw.model_copy(update={"symmetric_about_u0": True}))
     except ValueError:
-        pass
-    return CrossSection.canonicalize(raw)
+        return CrossSection.canonicalize(raw)
 
 
 def _is_outer(geo: BoardGeometry, layer: ConductorLayer) -> bool:

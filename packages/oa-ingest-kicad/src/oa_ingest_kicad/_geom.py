@@ -8,6 +8,7 @@ Everything here works in the model frame (metres, Y up) unless a function says o
 from __future__ import annotations
 
 import math
+from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Iterable, Sequence
 
 import numpy as np
@@ -194,6 +195,19 @@ def fix_fractured(ring: Arr) -> BaseGeometry:
     if p.is_valid:
         return p
     return shapely.make_valid(p)
+
+
+_PAR_MIN_POINTS = 8000  # below this many ring points a thread pool costs more than it saves
+_PAR_WORKERS = 2  # default thread cap (docs/TASKS.md); GEOS releases the GIL in make_valid
+
+
+def fix_fractured_many(rings: Sequence[Arr]) -> list[BaseGeometry]:
+    """``fix_fractured`` of every ring, in order. Big batches run on two threads; the result is
+    identical to the serial loop (same GEOS call per ring)."""
+    if len(rings) < 2 or sum(r.shape[0] for r in rings) < _PAR_MIN_POINTS:
+        return [fix_fractured(r) for r in rings]
+    with ThreadPoolExecutor(max_workers=_PAR_WORKERS) as ex:
+        return list(ex.map(fix_fractured, rings))
 
 
 def polygon_to_shapely(p: Polygon) -> ShPolygon:
