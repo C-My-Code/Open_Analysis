@@ -50,7 +50,7 @@ IM-002 needs an impedance target (net class, diff pair or intent).
 | ED-002 (E1) | Trace/via near board edge | max(1 mm, 3h); edge launches ignored |
 | ED-003 (E5) | Edge stitching via pitch | lambda/20 at 1 GHz |
 | IM-001 | Width differs from net-class width | 2 %; skipped with an impedance target |
-| IM-002 | Z0/Zdiff (BEM) out of tolerance | intent tolerance, 10 % |
+| IM-002 | Z0/Zdiff (BEM, closed-form screened) out of tolerance | intent tolerance, 10 % |
 | IM-003 | Neck-down too long | 5 mm |
 | IM-005 | Stub too long | 3 mm or t_r v / 10 (one-way delay < t_r / 10) |
 | DP-001 / 002 / 003 | Uncoupled length, skew, gap variation | 2 mm, 1 ps, 25 % over 2 mm |
@@ -89,6 +89,29 @@ condition; RP-004 uses straight-line distances.
 10k tracks, all rules, IM-002 on every net (`tests/test_builders_perf.py` board): 13.1 s before
 WP-509, 6.2 s after (`docs/perf/PROFILE-509.md`). Violation sets of the WP-102 boards (at their
 intent and at a deliberately wrong 40 ohm target) are byte-identical.
+
+## IM-002 screening (WP-516)
+
+IM-002 used to solve every distinct cross-section of a net by BEM. It now (config `IM002Config`,
+`method="bem"`):
+
+1. **Skips sections that have no verdict.** Z0 needs one conductor in the RLGC matrix, Zdiff two
+   (the signals, minus one when there is no ground). A section with a neighbouring signal yields
+   neither, so the BEM answer was discarded. Exact; on the bus-like `--mix` board 357 of 383
+   sections.
+2. **Screens the rest** with `svc.quick(xs)` (closed form, `accuracy_class = "screening"`) and
+   the calibrated relative error bound the service puts in the result's `z_rel_bound` validity
+   flag (`oa-impedance` THEORY section 2.6). A sample whose tolerance band contains
+   `[Z/(1+b), Z/(1-b)]` passes, one whose band is disjoint from it fails, the others go to the BEM.
+   `screen=False` solves every section by BEM ("validated everywhere").
+3. **Keeps reported values exact.** The worst member of a failing run is solved by BEM
+   (`exact_values=True`, the default), so the violations, `measured`, `limit` and evidence are
+   identical to the all-BEM path (`tests/test_im002_screening.py`, WP-102 boards at four targets,
+   a width sweep, the mix board). `exact_values=False` reports a clearly failing run with
+   `accuracy_class = "screening"`, `z_rel_bound` and `z_interval_ohm` in the evidence.
+
+Other `method` values (`auto`, `closed_form`) are used as given, with no skip and no screening.
+Timings are in `docs/perf/PROFILE-516.md`.
 
 ## Golden suites and tests
 
