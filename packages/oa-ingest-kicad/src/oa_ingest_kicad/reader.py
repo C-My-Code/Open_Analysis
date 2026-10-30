@@ -62,8 +62,10 @@ from ._geom import (
     arc_points,
     clean_ring,
     fix_fractured,
+    fix_fractured_many,
     from_shapely,
     make_arc_seg,
+    ring_kernels,
 )
 from ._tokens import CONTEXTS
 from .graphics import (
@@ -418,7 +420,9 @@ class _Ingest:
             components=tuple(self.components),
             diagnostics=tuple(self.diags),
         )
-        extra = tuple(d for d in validate_board(board) if d.severity != "info")
+        extra = tuple(
+            d for d in validate_board(board, kernels=ring_kernels()) if d.severity != "info"
+        )
         if extra:
             board = board.model_copy(update={"diagnostics": board.diagnostics + extra})
         if getattr(self.options, "strict", False):
@@ -1048,6 +1052,8 @@ class _Ingest:
         zi = len(self.zones)
         # ---- fills
         by_layer: dict[str, list[BaseGeometry]] = {}
+        fill_layers: list[str] = []
+        fill_rings = []
         for fpn in sexpr.children(z, "filled_polygon"):
             fl = sexpr.get_str(fpn, "layer")
             pts = sexpr.child(fpn, "pts")
@@ -1056,7 +1062,10 @@ class _Ingest:
             ring = clean_ring(pts_xy(pts, FLIP, self.tol))
             if ring.shape[0] < 3:
                 continue
-            by_layer.setdefault(fl, []).append(fix_fractured(ring))
+            fill_layers.append(fl)
+            fill_rings.append(ring)
+        for fl, geom in zip(fill_layers, fix_fractured_many(fill_rings), strict=True):
+            by_layer.setdefault(fl, []).append(geom)
         fills: list[ZoneFill] = []
         for kname in cu:
             geoms = by_layer.get(kname)

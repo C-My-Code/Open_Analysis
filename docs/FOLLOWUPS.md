@@ -149,3 +149,47 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] The full KiCadReader is barely faster with the native parser (1.07 s vs 1.02 s) because parsing is a small share of the time. The Jetson target needs whole-reader profiling.
 - [ ] The ReferenceMap isn't native (CR WP-508-refmap-scope, proposed WP-508b).
 - [ ] The wheel CI (`wp-508-wheels.yml`) hasn't run yet.
+
+## Palace accuracy (WP-501, partial)
+- Root cause of 1.24 dB: the first-order ABC was too close (1 mm / 2.5 mm), costing about 0.25 dB. Padded to 5/6 mm it gives 0.949 dB vs BEM 0.845 dB.
+- The remaining 0.10 dB is about 0.07 dB from Palace's one-sided finite-thickness copper impedance and 0.03 dB from the dielectric model (DS fixed at 5 GHz vs BEM constant 4.3). The reference isn't apples-to-apples; WP-510 owns the fix.
+- No p3/AMR convergence and nothing above 10 GHz. The B-EM references under tests/benchmarks/references/em/ don't exist yet. Roughness isn't implemented. LossTan=0 hangs the wave-port mode solve.
+- PERF: the converged run took 597 s and 7.8 GB on CPU. The p2 run on the full 228k-tet mesh exceeded 12 GB.
+
+## Profiling (WP-508b)
+- cm5 read 0.95 to 0.75 s; RefMap 10k 2.06 to 1.55 s (50k extrapolates to about 8 s vs a 3 s target); ERC 10k 20.2 to 14.5 s (target 3 s).
+- CR WP-508b-make-valid-structure: 13x faster on the 44% hot spot, but it changes hashes. WP-509 decides after area/topology equivalence tests.
+- The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
+
+## Compiled core part 2 (WP-509, partial)
+- make_valid structure adopted (area-guarded; evidence in docs/perf/PROFILE-509.md). No `--update-golden` needed: no committed golden holds a content_hash of a fractured-fill board.
+- cm5 read 0.75 to 0.23 s; ERC 10k 13.1 to 6.2 s (target 3 s); RefMap 10k about 1.3 s (50k extrapolates to about 5 s vs 3 s). Jetson not measured.
+- [ ] Native clipping kernel for ERC cut intervals and ReferenceMap (CR WP-509-native-clipping).
+- [ ] BEM assembly and profile-sampling kernels (B-IMP-01/02 gates) not started.
+
+## GPU FDTD core (WP-505)
+- Port |S21| drift above 3 GHz: fixed in WP-506 (semi-implicit port voltage, `cos(w dt / 2)` in `run.sparams`); abs(S21) - 1 below 4e-5 to 20 GHz. `tests/golden/fdtd/tem_line/case.toml` still carries the old comment (WP-505 path).
+- WP-506 Part A gaps: no Dey-Mittra conformal PEC; static quasi-TEM mode ports with a local 2-D solver instead of `oa_impedance`; B-EM-03 (40 GHz differential via) not run; low-frequency S11 from the port S reaches -26 dB (B-EM-01 asks below -29). See `packages/oa-fdtd/README.md`.
+- CPML is validated at normal incidence only.
+- ROCm is untested on hardware.
+- Measured: 6.0 Gcells/s f32 and 3.2 f64 on 256^3 with CPML (target >= 3).
+
+## FDTD physics (WP-506A)
+- S11 is -28.4 dB, just missing its target on B-EM-01.
+- B-EM-03 (40 GHz differential via) wasn't run.
+- Vias are staircased (no conformal PEC).
+- The mode solver is local, not oa_impedance (CR WP-506-modal-solver).
+- No matrix-pencil tail extrapolation and no FDTD.UNSTABLE detector.
+- PERF-01 PCB-like throughput isn't measured.
+- Measured on B-EM-01: IL error 0.005 dB at 10 GHz and 0.038 dB at 20 GHz; runtime 1.6 s on GPU; 0.02 GiB VRAM.
+
+## EMC decisions (user, 2026-10-29)
+- Limit data: ship MIL-STD-461 and FCC Part 15 curves. For CISPR 32/25 and DO-160, ship citations and a template only; users enter the values.
+- MIL-STD-461 scope, all in M2: RE102, CE102, RE101 and CE101.
+- RE102 platforms: all of them (aircraft AF/Navy, ground Army/Navy/AF, ships and submarines, space).
+- No user pre-compliance measurements and no commercial-tool licences for now. Calibrate only against published measured-vs-simulated cases, and keep the uncertainty bands conservative.
+- 461G is verified from its PDF. 461H (17 Apr 2026) stays [verify] until the official text is obtained.
+- ARCHITECTURE.md still lists EMI under M3/M4; update it to M2 per ADR-0011.
+
+## CI (coordinator)
+- [ ] The CI `test` job has failed on every push, on all 6 OS × Python combinations, since at least 0cc834d. lint/types, schema, reuse, pip-licenses and the wp-508 wheel builds pass. Being reproduced in a clean clone with KiCad, openEMS and CuPy hidden. PROCESS FIX: the coordinator checks the CI result of every push, and a red `test` job blocks new merges.

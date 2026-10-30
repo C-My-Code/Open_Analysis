@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""GPU tests run only with ``OA_RUN_GPU=1`` and a CuPy device (TASKS rule 11); else they skip."""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+import pytest
+
+_here = str(Path(__file__).parent)
+if _here not in sys.path:
+    sys.path.insert(0, _here)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "gpu: needs a GPU and OA_RUN_GPU=1")
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    gpu_items = [i for i in items if i.get_closest_marker("gpu")]
+    if not gpu_items:
+        return
+    reason = None
+    if os.environ.get("OA_RUN_GPU") != "1":
+        reason = "GPU tests need OA_RUN_GPU=1"
+    else:
+        from oa_accel.probe import probe
+
+        if not probe().cupy_available:
+            reason = "no CuPy device available"
+    if reason:
+        skip = pytest.mark.skip(reason=reason)
+        for item in gpu_items:
+            item.add_marker(skip)

@@ -30,6 +30,14 @@ geo.resolve_terminal(PadTerminal(component="U1", pin="1"))
 
 Errors are `GeometryError` subclasses (`code`, `message`, `path`, `hint`).
 
+## Cross-section sampling (WP-509)
+
+`sample_net` cuts all samples of a segment in bulk: poses, cut lines, STRtree queries and copper
+intervals are shapely array calls. Samples whose geometric signature (layer, widths, reference
+layers and nets, copper intervals along the cut, partner offset) is equal share one canonical
+`CrossSection` build and differ only in `provenance`, so IM-002 hashes each shared section once.
+`tests/test_sampling.py` checks the bulk path against one `cross_section_at` per sample.
+
 ## Conventions
 
 - Metres, board frame. Curves have sagitta error <= `arc_tol`; polygons are inscribed. Unions are

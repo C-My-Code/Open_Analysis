@@ -245,3 +245,29 @@ def test_sample_net_diff_pair() -> None:
     assert len(samples) >= 5
     assert all(len(x.xs.signal_ids()) == 2 for x in samples)
     assert len({x.xs.key() for x in samples}) == 1
+
+
+@pytest.mark.parametrize(
+    "make",
+    [diff_pair_board, split_plane_board, via_transition_board, cpwg_board, stripline_board],
+)
+def test_sample_net_batch_equals_single_cross_sections(make) -> None:  # type: ignore[no-untyped-def]
+    """The bulk path of ``sample_net`` (vectorised cuts, shared signatures) gives the sections
+    that one ``cross_section_at`` call per sample gives on a fresh geometry (no shared cache)."""
+    board = make()
+    batch = BoardGeometry.build(board)
+    single = BoardGeometry(board, batch.arc_tol)
+    n_checked = 0
+    for net in sorted({t.net for t in board.tracks}):
+        segs = {s.id: s for s in single.segments(net)}
+        for smp in batch.sample_net(net):
+            seg = segs[smp.seg_id]
+            ref = single.cross_section_at(seg, smp.s - seg.s_start)
+            skip = {"provenance"}  # position differs by the s round trip (1 ulp)
+            assert smp.xs.model_dump(mode="json", exclude=skip) == ref.model_dump(
+                mode="json", exclude=skip
+            )
+            assert smp.xs.provenance.net_ids == ref.provenance.net_ids  # type: ignore[union-attr]
+            assert smp.xs.key() == ref.key()
+            n_checked += 1
+    assert n_checked > 0

@@ -146,7 +146,14 @@ def _ref_layer(geo: BoardGeometry, layer: str) -> _RefLayer | None:
 
 
 def _candidates(geo: BoardGeometry, layer: str, side: str) -> list[tuple[str, float]]:
-    """Reference candidate layers (nearest first) with their vertical distances."""
+    """Reference candidate layers (nearest first) with their vertical distances (memoized: it
+    is asked once per piece and side)."""
+    return geo._memoized(  # type: ignore[no-any-return]
+        ("refcands", layer, side), lambda: _candidates_uncached(geo, layer, side)
+    )
+
+
+def _candidates_uncached(geo: BoardGeometry, layer: str, side: str) -> list[tuple[str, float]]:
     me = geo.conductor(layer)
     out: list[tuple[str, float]] = []
     for c in geo.idx.conductor_layers:
@@ -296,16 +303,15 @@ def _profile(geo: BoardGeometry, piece: Piece, layer: str, h: float, k: float) -
 def _bulk_cover(
     geo: BoardGeometry, pieces: list[Piece], k: float
 ) -> dict[tuple[str, str], tuple[str, float, str, float]]:
-    """Fast path: pieces whose footprint is entirely inside one part of the nearest reference
-    layer. Returns {(piece id, side): (layer, h, net, edge_distance)}."""
+    """Fast path: pieces whose footprint is entirely inside one part of a candidate reference
+    layer. Returns {(piece id, "side:layer"): (layer, h, net, edge_distance)}."""
     groups: dict[tuple[str, str, str], list[tuple[Piece, float]]] = defaultdict(list)
     for p in pieces:
         if p.line.length <= 0.0:
             continue
         for side in ("above", "below"):
-            cands = _candidates(geo, p.seg.layer, side)
-            if cands:
-                groups[(p.seg.layer, side, cands[0][0])].append((p, cands[0][1]))
+            for lid, h in _candidates(geo, p.seg.layer, side):
+                groups[(p.seg.layer, side, lid)].append((p, h))
     out: dict[tuple[str, str], tuple[str, float, str, float]] = {}
     for (_, side, cand), members in groups.items():
         rl = _ref_layer(geo, cand)
@@ -339,8 +345,73 @@ def _bulk_cover(
         edist = _part_edge_distance(rl, part_of, body, cap)
         for n, i in enumerate(idx):
             p = members[int(i)][0]
-            out[(p.seg.id, side)] = (cand, float(h[i]), rl.nets[part_of[n]], float(edist[n]))
+            out[(p.seg.id, f"{side}:{cand}")] = (
+                cand,
+                float(h[i]),
+                rl.nets[part_of[n]],
+                float(edist[n]),
+            )
     return out
+
+
+def _empty_cache(geo: BoardGeometry, k: float) -> set[tuple[str, str]]:
+    """(piece id, candidate layer) pairs whose profile is known to be empty (no foreign copper
+    in the footprint); filled by `_bulk_empty`."""
+    return geo._memoized(("refempty", k), set)  # type: ignore[no-any-return]
+
+
+def _bulk_empty(geo: BoardGeometry, pieces: list[Piece], k: float) -> None:
+    """Batch the "no foreign copper under the footprint" test of `_profile` for all pieces and
+    every candidate layer. The footprint is built exactly as `_profile` builds it, so the test
+    is the same; `_profile` then returns its empty profile without per-piece work."""
+    empty = _empty_cache(geo, k)
+    groups: dict[tuple[str, str], list[tuple[Piece, float]]] = defaultdict(list)
+    for p in pieces:
+        if p.line.length <= 0.0:
+            continue
+        for side in ("above", "below"):
+            for lid, h in _candidates(geo, p.seg.layer, side):
+                groups[(p.seg.layer, lid)].append((p, h))
+    for (_, lid), members in groups.items():
+        rl = _ref_layer(geo, lid)
+        assert rl is not None
+        n = len(members)
+        foot = np.empty(n, dtype=object)
+        # straight pieces: the rectangle of `_rects`, vectorised with the same arithmetic
+        st = [i for i, (p, _) in enumerate(members) if len(p.pts) == 2]
+        if st:
+            sp = [members[i][0] for i in st]
+            p0 = np.array([p.pts[0] for p in sp])
+            tot = np.array([float(p.line.length) for p in sp])
+            d = (np.array([p.pts[-1] for p in sp]) - p0) / tot[:, None]
+            r = np.array(
+                [p.seg.width / 2.0 + k * members[i][1] for p, i in zip(sp, st, strict=True)]
+            )
+            nrm = np.stack((-d[:, 1], d[:, 0]), axis=1)
+            pb = p0 + tot[:, None] * d
+            ring = np.stack(
+                (
+                    p0 + r[:, None] * nrm,
+                    pb + r[:, None] * nrm,
+                    pb - r[:, None] * nrm,
+                    p0 - r[:, None] * nrm,
+                ),
+                axis=1,
+            )
+            foot[st] = shapely.polygons(ring)
+        cu = [i for i, (p, _) in enumerate(members) if len(p.pts) != 2]
+        if cu:
+            lines = np.empty(len(cu), dtype=object)
+            lines[:] = [members[i][0].line for i in cu]
+            rr = np.array([members[i][0].seg.width / 2.0 + k * members[i][1] for i in cu])
+            foot[cu] = shapely.buffer(lines, rr, cap_style="flat", join_style="round")
+        pi, pj = rl.tree.query(foot)
+        has = np.zeros(n, dtype=bool)
+        for i, j in zip(pi, pj, strict=True):
+            if rl.nets[int(j)] != members[int(i)][0].seg.net:
+                has[int(i)] = True
+        for i in np.flatnonzero(~has):
+            empty.add((members[int(i)][0].seg.id, lid))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -366,11 +437,29 @@ def _side_intervals(
     cands = _candidates(geo, piece.seg.layer, side)
     if not cands:
         return [(0.0, total, None)]
+    first = fast.get((piece.seg.id, f"{side}:{cands[0][0]}"))
+    if first is not None and total > _EPS:
+        # the nearest candidate fully covers the footprint: one span, no merging needed
+        return [
+            (
+                0.0,
+                total,
+                RefInfo(
+                    layer=cands[0][0],
+                    net=first[2],
+                    distance=cands[0][1],
+                    coverage=1.0,
+                    edge_distance=first[3],
+                ),
+            )
+        ]
     done: list[tuple[str, float, list[Interval]]] = []
-    for ci, (lid, h) in enumerate(cands):
-        hit = fast.get((piece.seg.id, side)) if ci == 0 else None
-        if hit is not None and hit[0] == lid:
+    for lid, h in cands:
+        hit = fast.get((piece.seg.id, f"{side}:{lid}"))
+        if hit is not None:
             prof: list[Interval] = [(0.0, total, hit[2], 1.0, hit[3])]
+        elif (piece.seg.id, lid) in _empty_cache(geo, k):
+            prof = [(0.0, total, None, 0.0, EDGE_FACTOR * max(h, 1e-6))]
         else:
             prof = _profile(geo, piece, lid, h, k)
         done.append((lid, h, prof))
@@ -495,6 +584,7 @@ def spans_for_net(geo: BoardGeometry, net: str, k: float = 3.0) -> None:
     if not pcs:
         return
     fast = _bulk_cover(geo, pcs, k)
+    _bulk_empty(geo, pcs, k)
     cache = _span_cache(geo, k)
     for p in pcs:
         cache[p.seg.id] = _compute_spans(geo, p, k, fast)
@@ -526,6 +616,7 @@ def reference_map(geo: BoardGeometry, k: float = 3.0) -> ReferenceMap:
         cache = _span_cache(geo, k)
         todo = [p for p in pcs if p.seg.id not in cache]
         fast = _bulk_cover(geo, todo, k)
+        _bulk_empty(geo, todo, k)
         for p in todo:
             cache[p.seg.id] = _compute_spans(geo, p, k, fast)
         spans = tuple((p.seg.id, cache[p.seg.id]) for p in pcs)

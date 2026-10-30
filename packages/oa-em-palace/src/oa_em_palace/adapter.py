@@ -22,8 +22,8 @@ import numpy as np
 from pydantic import JsonValue
 
 from oa_em_palace import discovery
-from oa_em_palace.config import PalaceOptions, build_config
-from oa_em_palace.parse import SParams, parse_footer, read_csv_table, read_port_s
+from oa_em_palace.config import PalaceOptions, build_config, plan_bands
+from oa_em_palace.parse import RunFooter, SParams, parse_footer, read_csv_table, read_port_s
 from oa_framework.em import AdapterCapabilities, EMSolveOutput, PreparedRun
 from oa_framework.external import ExternalCommand, ExternalResult, ToolInfo
 from oa_model.arrays import Floats, NDArray
@@ -64,6 +64,29 @@ def _safe_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_") or "problem"
 
 
+_MIN_ABC_GAP = 5e-3  # [m] conductor-to-absorbing-face distance below which the ABC is lossy
+
+
+def _absorbing_gap(problem: EMProblem) -> float | None:
+    """Smallest distance [m] from a conductor body to an absorbing face of the region (y and z)."""
+    box, bnd = problem.structure.bbox, problem.boundaries
+    bodies = problem.structure.conductors
+    if not bodies:
+        return None
+    ys = [float(np.min(np.asarray(p.exterior.array)[:, 1])) for b in bodies for p in b.polygons]
+    ye = [float(np.max(np.asarray(p.exterior.array)[:, 1])) for b in bodies for p in b.polygons]
+    gaps: list[float] = []
+    if bnd.ymin == "absorbing":
+        gaps.append(min(ys) - box.ymin)
+    if bnd.ymax == "absorbing":
+        gaps.append(box.ymax - max(ye))
+    if bnd.zmin == "absorbing":
+        gaps.append(min(b.z_bottom for b in bodies) - box.zmin)
+    if bnd.zmax == "absorbing":
+        gaps.append(box.zmax - max(b.z_top for b in bodies))
+    return min(gaps) if gaps else None
+
+
 def _json(obj: Any) -> Any:
     return json.loads(json.dumps(obj, default=float))
 
@@ -79,7 +102,11 @@ def _mesh(problem: EMProblem, path: Path) -> Any:
     read 4.1) plus ``<path>.groups.json``; returns ``MeshStats``."""
     from oa_mesh.occ3d import OccOptions, build_occ_model, write_msh
 
-    opts = OccOptions().model_copy(update={"f_max": problem.frequency.f_max})
+    update: dict[str, Any] = {"f_max": problem.frequency.f_max}
+    for key in ("edge_divisions", "thin_elements", "barrel_segments"):  # expert: ``occ.<key>``
+        if f"occ.{key}" in problem.mesh.expert:
+            update[key] = problem.mesh.expert[f"occ.{key}"]
+    opts = OccOptions().model_copy(update=update)
     thick = [s.z_top - s.z_bottom for s in problem.structure.slabs]
     model = build_occ_model(
         problem.structure,
@@ -175,6 +202,15 @@ class PalaceAdapter:
                     f"port {p.name}: Palace wave-port S-parameters are referenced to the modal "
                     "impedance; z0 is not applied",
                 )
+        gap = _absorbing_gap(problem)
+        if gap is not None and gap < _MIN_ABC_GAP:
+            warn(
+                "PALACE.ABC_NEAR",
+                f"an absorbing face is {gap * 1e3:.2f} mm from the nearest conductor; Palace's "
+                "first-order absorbing boundary then dissipates the evanescent fringing field "
+                "(about +0.25 dB per 25 mm microstrip at 10 GHz with 1 mm / 2.5 mm padding)",
+                f"Pad the region by at least {_MIN_ABC_GAP * 1e3:.0f} mm (WP-501 root cause).",
+            )
         if problem.frequency.f_min == 0:
             diags.append(
                 Diagnostic(
@@ -196,24 +232,57 @@ class PalaceAdapter:
         workdir.mkdir(parents=True, exist_ok=True)
         stats = _mesh(problem, workdir / MESH)
         groups = json.loads((workdir / "model.groups.json").read_text(encoding="utf-8"))
-        config, info = build_config(
-            problem, groups, mesh_file=MESH, output_dir=OUTPUT_DIR, options=options
-        )
-        (workdir / CONFIG).write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
         env = {
             "OA_PALACE_NP": str(self.mpi_ranks),
             "OA_PALACE_MEM_GB": f"{self.memory_gb:g}",
             "OA_PALACE_CPU_PERCENT": str(self.cpu_percent),
         }
-        command = ExternalCommand(
-            program=self.tool,
-            args=(CONFIG,),
-            workdir=workdir,
-            env=env,
-            timeout_s=problem.convergence.max_wall_s,
-            progress_parser="palace",
-            outputs=(f"{OUTPUT_DIR}/port-S.csv",),
-        )
+        bands = plan_bands(problem, options) if options.banded else []
+        if len(bands) > 1:
+            # one run per band (dielectrics at the band centre), all on the same mesh
+            names = [(f"config_{k:02d}.json", f"{OUTPUT_DIR}_{k:02d}") for k in range(len(bands))]
+        else:
+            bands = []
+            names = [(CONFIG, OUTPUT_DIR)]
+        commands: list[ExternalCommand] = []
+        info = None
+        files = [MESH, "model.groups.json"]
+        for k, (cfg_name, out_name) in enumerate(names):
+            config, info_k = build_config(
+                problem,
+                groups,
+                mesh_file=MESH,
+                output_dir=out_name,
+                options=options,
+                band=bands[k] if bands else None,
+            )
+            info = info if info is not None else info_k
+            if bands:
+                info.band_info.append(
+                    {
+                        "config": cfg_name,
+                        "output": out_name,
+                        "f_lo_hz": bands[k].f_lo,
+                        "f_hi_hz": bands[k].f_hi,
+                        "f_fit_hz": bands[k].f_fit,
+                        "n_points": len(bands[k].freqs),
+                        "dielectric_fit": info_k.dielectric_fit,
+                    }
+                )
+            (workdir / cfg_name).write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+            files.append(cfg_name)
+            commands.append(
+                ExternalCommand(
+                    program=self.tool,
+                    args=(cfg_name,),
+                    workdir=workdir,
+                    env=env,
+                    timeout_s=problem.convergence.max_wall_s,
+                    progress_parser="palace",
+                    outputs=(f"{out_name}/port-S.csv",),
+                )
+            )
+        assert info is not None
         order = problem.mesh.fem_order
         dofs = _dofs(stats.n_tets, stats.n_faces, stats.n_edges, order)
         mesh_stats: dict[str, JsonValue] = _json(
@@ -237,10 +306,12 @@ class PalaceAdapter:
                 "sweep_ghz": list(info.sweep_ghz),
                 "diagnostics": [d.model_dump(mode="json") for d in info.diagnostics],
                 "port_index": info.port_index,
+                "bands": info.band_info,
             }
         )
-        files = (CONFIG, MESH, "model.groups.json")
-        return PreparedRun(workdir=workdir, commands=(command,), mesh_stats=mesh_stats, files=files)
+        return PreparedRun(
+            workdir=workdir, commands=tuple(commands), mesh_stats=mesh_stats, files=tuple(files)
+        )
 
     # --------------------------------------------------------------------------- collect
     def collect(
@@ -269,26 +340,44 @@ class PalaceAdapter:
                 f"{len(results)} results for {len(run.commands)} commands",
                 "Pass one ExternalResult per prepared command.",
             )
-        res = results[0]
-        footer = parse_footer(res.stdout_tail)
-        version = footer.version or res.tool_version or "unknown"
-        if res.returncode != 0:
-            return fail(
-                "PALACE.RUN_FAILED",
-                f"palace exited with code {res.returncode}",
-                "See logs/ in the job directory; stderr tail: " + res.stderr_tail[-300:],
+        footers = [parse_footer(r.stdout_tail) for r in results]
+        footer = footers[0]
+        version = footer.version or results[0].tool_version or "unknown"
+        for res in results:
+            if res.returncode != 0:
+                return fail(
+                    "PALACE.RUN_FAILED",
+                    f"palace exited with code {res.returncode}",
+                    "See logs/ in the job directory; stderr tail: " + res.stderr_tail[-300:],
+                )
+        parts: list[SParams] = []
+        for cmd in run.commands:
+            out_name = cmd.outputs[0].split("/")[0] if cmd.outputs else OUTPUT_DIR
+            csv_path = run.workdir / out_name / "port-S.csv"
+            if not csv_path.is_file():
+                return fail(
+                    "PALACE.NO_OUTPUT",
+                    f"{out_name}/port-S.csv not found",
+                    "The run finished without S-parameters; check the Palace log.",
+                )
+            try:
+                parts.append(read_port_s(csv_path))
+            except ValueError as exc:
+                return fail("PALACE.BAD_OUTPUT", str(exc), "Palace output format changed?")
+        sp = parts[0]
+        if len(parts) > 1:
+            sp = SParams(
+                freqs=np.concatenate([p.freqs for p in parts]),
+                s=np.concatenate([p.s for p in parts], axis=0),
+                excited=parts[0].excited,
             )
-        csv_path = run.workdir / OUTPUT_DIR / "port-S.csv"
-        if not csv_path.is_file():
-            return fail(
-                "PALACE.NO_OUTPUT",
-                f"{OUTPUT_DIR}/port-S.csv not found",
-                "The run finished without S-parameters; check the Palace log.",
-            )
-        try:
-            sp = read_port_s(csv_path)
-        except ValueError as exc:
-            return fail("PALACE.BAD_OUTPUT", str(exc), "Palace output format changed?")
+        walls = [f.wall_s for f in footers if f.wall_s is not None]
+        peaks = [f.peak_mem_kb for f in footers if f.peak_mem_kb is not None]
+        footer = RunFooter(
+            version=footer.version,
+            wall_s=sum(walls) if walls else None,
+            peak_mem_kb=max(peaks) if peaks else None,
+        )
         ports = list(problem.ports)
         n = len(ports)
         if sp.s.shape[1] != n:
@@ -311,7 +400,7 @@ class PalaceAdapter:
         )
         names = tuple(p.name for p in ports)
         quality = self._assess(sp.freqs, s, z0)
-        wall = footer.wall_s if footer.wall_s is not None else res.wall_s
+        wall = footer.wall_s if footer.wall_s is not None else sum(r.wall_s for r in results)
         peak_mb = footer.peak_mem_kb / 1024.0 if footer.peak_mem_kb is not None else None
         network = NetworkResult(
             freqs=Floats(sp.freqs),

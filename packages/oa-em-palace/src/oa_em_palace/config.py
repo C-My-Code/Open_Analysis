@@ -31,7 +31,14 @@ from oa_model.em import (
 from oa_model.materials import ConductorMaterial, DielectricMaterial, NoRoughness
 from oa_physics import eps_complex
 
-__all__ = ["PalaceOptions", "build_config", "dielectric_fit_frequency"]
+__all__ = [
+    "Band",
+    "PalaceOptions",
+    "build_config",
+    "dielectric_fit_frequency",
+    "plan_bands",
+    "sweep_frequencies",
+]
 
 _GHZ = 1e9
 _AXES = {
@@ -57,7 +64,9 @@ class PalaceOptions:
     230k tets) or ``"SuperLU"``/``"Default"`` (sparse direct: far more memory).
     ``adaptive_tol``: fast-sweep ROM tolerance when ``frequency.adaptive`` is set. ``device``:
     ``"CPU"`` or ``"GPU"`` (GPU hook; needs a CUDA/HIP build). ``f_min_fraction``: lowest sweep
-    point as a fraction of ``f_max`` when ``frequency.f_min == 0``.
+    point as a fraction of ``f_max`` when ``frequency.f_min == 0``. ``banded``: split the sweep
+    into bands (``plan_bands``), one Palace run each, dielectrics at the band centre, so the
+    change of eps' is at most ``eps_tol`` and of tan d at most ``tand_tol`` inside a band.
     """
 
     conductor_model: str = "sheet"
@@ -69,6 +78,9 @@ class PalaceOptions:
     device: str = "CPU"
     f_min_fraction: float = 0.1
     amr_update_fraction: float = 0.7
+    banded: bool = False
+    eps_tol: float = 0.002
+    tand_tol: float = 0.02
 
     @classmethod
     def from_expert(cls, expert: Mapping[str, Any]) -> PalaceOptions:
@@ -81,6 +93,68 @@ class PalaceOptions:
         return cls(**{**base.__dict__, **kwargs})
 
 
+@dataclass(frozen=True)
+class Band:
+    """One sub-band of a banded sweep: Palace 0.18 has no dispersive materials, so each band is a
+    separate run whose dielectrics are evaluated at ``f_fit`` [Hz] (the band centre)."""
+
+    f_lo: float  # [Hz]
+    f_hi: float  # [Hz]
+    f_fit: float  # [Hz]
+    freqs: tuple[float, ...]  # sweep points of the band [Hz]
+
+
+def sweep_frequencies(problem: EMProblem, options: PalaceOptions) -> np.ndarray:
+    """The sweep points [Hz] the translation asks Palace for, ascending (see ``_sample_blocks``)."""
+    fp = problem.frequency
+    f_hi = fp.f_max
+    f_lo = fp.f_min if fp.f_min > 0 else options.f_min_fraction * f_hi
+    if fp.spacing == "log":
+        pts = np.geomspace(f_lo, f_hi, fp.n_points)
+    else:
+        pts = np.linspace(f_lo, f_hi, fp.n_points)
+    return np.unique(np.concatenate([pts, np.asarray(fp.extra_points, dtype=np.float64)]))
+
+
+def _band_deviation(
+    problem: EMProblem, f_fit: float, f_a: float, f_b: float
+) -> tuple[float, float]:
+    """Largest relative deviation of eps' and tan d over [f_a, f_b] from their value at f_fit."""
+    d_er = d_td = 0.0
+    for m in problem.structure.materials:
+        if not isinstance(m, DielectricMaterial):
+            continue
+        e = np.asarray(eps_complex(m.model, np.array([f_fit, f_a, f_b])))
+        er = e.real
+        td = -e.imag / e.real
+        d_er = max(d_er, float(np.max(np.abs(er[1:] - er[0]) / er[0])))
+        if td[0] > 1e-12:
+            d_td = max(d_td, float(np.max(np.abs(td[1:] - td[0]) / td[0])))
+    return d_er, d_td
+
+
+def plan_bands(problem: EMProblem, options: PalaceOptions) -> list[Band]:
+    """Split the sweep into bands inside which the dielectric changes at most ``eps_tol`` (eps')
+    and ``tand_tol`` (tan d) relative to its value at the band centre (greedy, ascending)."""
+    f = sweep_frequencies(problem, options)
+    bands: list[Band] = []
+    i = 0
+    while i < f.size:
+        j = i
+        while j + 1 < f.size:
+            fit = 0.5 * (f[i] + f[j + 1])
+            d_er, d_td = _band_deviation(problem, fit, float(f[i]), float(f[j + 1]))
+            if d_er > options.eps_tol or d_td > options.tand_tol:
+                break
+            j += 1
+        fit = 0.5 * (f[i] + f[j])
+        bands.append(
+            Band(float(f[i]), float(f[j]), float(fit), tuple(float(x) for x in f[i : j + 1]))
+        )
+        i = j + 1
+    return bands
+
+
 @dataclass
 class ConfigInfo:
     """What the translation decided, for the run sidecar and the tests."""
@@ -90,6 +164,7 @@ class ConfigInfo:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     dielectric_fit: dict[str, dict[str, float]] = field(default_factory=dict)
     sweep_ghz: tuple[float, float, int] = (0.0, 0.0, 0)
+    band_info: list[dict[str, Any]] = field(default_factory=list)
 
 
 def dielectric_fit_frequency(problem: EMProblem, options: PalaceOptions) -> float:
@@ -215,6 +290,7 @@ def build_config(
     mesh_file: str,
     output_dir: str = "postpro",
     options: PalaceOptions | None = None,
+    band: Band | None = None,
 ) -> tuple[dict[str, Any], ConfigInfo]:
     """The Palace ``config.json`` of ``problem`` on the mesh described by ``groups``.
 
@@ -226,7 +302,7 @@ def build_config(
         raise ValueError(
             f"Palace adapter supports fullwave_driven only, got {problem.physics.kind}"
         )
-    f_fit = dielectric_fit_frequency(problem, opts)
+    f_fit = band.f_fit if band is not None else dielectric_fit_frequency(problem, opts)
     info = ConfigInfo(eps_freq=f_fit)
     eps = _eps_table(problem, f_fit, info)
     infos = list(groups["groups"])
@@ -385,7 +461,12 @@ def build_config(
             boundaries["WavePortPEC"] = {"Attributes": sorted(conductor_tags)}
 
     # ---- solver --------------------------------------------------------------------------
-    driven: dict[str, Any] = {"Samples": _sample_blocks(problem, opts, info)}
+    if band is not None:
+        samples: list[Any] = [{"Type": "Point", "Freq": [round(x / _GHZ, 12) for x in band.freqs]}]
+        info.sweep_ghz = (band.f_lo / _GHZ, band.f_hi / _GHZ, len(band.freqs))
+    else:
+        samples = _sample_blocks(problem, opts, info)
+    driven: dict[str, Any] = {"Samples": samples}
     if problem.frequency.adaptive:
         driven["AdaptiveTol"] = opts.adaptive_tol
     linear: dict[str, Any] = {

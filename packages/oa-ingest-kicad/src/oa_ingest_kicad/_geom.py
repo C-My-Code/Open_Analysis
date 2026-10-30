@@ -8,17 +8,20 @@ Everything here works in the model frame (metres, Y up) unless a function says o
 from __future__ import annotations
 
 import math
+import os
 from collections.abc import Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import numpy.typing as npt
 import shapely
-from shapely.geometry import LinearRing
+from shapely.geometry import LinearRing, MultiPolygon
 from shapely.geometry import Polygon as ShPolygon
 from shapely.geometry.base import BaseGeometry
 
 from oa_model import ArcSeg, LineSeg, Points, Polygon
 from oa_model.geometry import signed_area
+from oa_model.validate import RingKernels
 
 Arr = npt.NDArray[np.float64]
 Pt = tuple[float, float]
@@ -189,11 +192,41 @@ def fix_fractured(ring: Arr) -> BaseGeometry:
     KiCad writes an outline with its holes joined by zero-width bridges as ONE self-touching
     ring. ``make_valid`` splits the ring at the touch points and returns the proper polygon with
     holes; the bridges collapse to lines, which are discarded.
+
+    The ``structure`` method (13x faster than GEOS linework) gives the identical point set on
+    every WP-102 board and KiCad demo (docs/perf/PROFILE-509.md); only ring start vertices differ.
+    ``structure`` can drop holes on rings whose bridges overlap collinear edges, so its result
+    is accepted only when its area equals the ring's shoelace area (the bridges have none);
+    anything else falls back to ``linework``.
     """
     p = ShPolygon(ring)
     if p.is_valid:
         return p
+    g = shapely.make_valid(p, method="structure")
+    if (
+        isinstance(g, (ShPolygon, MultiPolygon))
+        and abs(g.area - abs(_shoelace(ring))) <= 1e-9 * g.area
+    ):
+        return g
     return shapely.make_valid(p)
+
+
+def _shoelace(ring: Arr) -> float:
+    x, y = ring[:, 0], ring[:, 1]
+    return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+
+_PAR_MIN_POINTS = 8000  # below this many ring points a thread pool costs more than it saves
+_PAR_WORKERS = 2  # default thread cap (docs/TASKS.md); GEOS releases the GIL in make_valid
+
+
+def fix_fractured_many(rings: Sequence[Arr]) -> list[BaseGeometry]:
+    """``fix_fractured`` of every ring, in order. Big batches run on two threads; the result is
+    identical to the serial loop (same GEOS call per ring)."""
+    if len(rings) < 2 or sum(r.shape[0] for r in rings) < _PAR_MIN_POINTS:
+        return [fix_fractured(r) for r in rings]
+    with ThreadPoolExecutor(max_workers=_PAR_WORKERS) as ex:
+        return list(ex.map(fix_fractured, rings))
 
 
 def polygon_to_shapely(p: Polygon) -> ShPolygon:
@@ -243,3 +276,18 @@ def path_length(path: Sequence[PathSegT]) -> float:
             r = math.hypot(s.start[0] - s.center[0], s.start[1] - s.center[1])
             total += r * abs(Arc(s.start, s.center, s.end, s.ccw).sweep())
     return total
+
+
+def ring_kernels() -> RingKernels | None:
+    """Compiled ring predicates for ``validate_board`` (``oa-native``, ``OA_NATIVE=0|1|auto``),
+    or ``None`` to use the numpy oracle."""
+    try:
+        from oa_native import get  # type: ignore[import-not-found,unused-ignore]
+    except ImportError:
+        if os.environ.get("OA_NATIVE", "auto").strip() == "1":
+            raise
+        return None
+    mod = get()
+    if mod is None or not hasattr(mod, "ring_self_intersects"):
+        return None
+    return RingKernels(mod.ring_self_intersects, mod.all_points_inside)

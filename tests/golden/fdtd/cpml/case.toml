@@ -1,0 +1,13 @@
+source = "analytic: normal-incidence reflection of a 10-cell CPML vs a domain 1400 cells longer (ADR-0010 section 9 case 2)"
+
+[tolerance]
+max_reflection_db = -60.0
+
+[inputs]
+cells = 10
+cell_m = 0.000375  # lambda/20 at 40 GHz
+f_hz = [1e8, 5e8, 1e9, 5e9, 1e10, 2e10, 3e10, 4e10]
+late_time_energy_db = -80.0
+
+[expected]
+measured_max_reflection_db = -84.4  # float64 NumPy; float32 GPU -84.6 (informational)

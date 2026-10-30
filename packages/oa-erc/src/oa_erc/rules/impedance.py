@@ -222,9 +222,20 @@ class ImpedanceOutOfTolerance(ErcRule):
             )
         if not samples:
             return
-        by_key: dict[str, Any] = {}
+        # key() hashes the section. Samples cut from one signature share their conductor and
+        # dielectric tuples (``sample_net``), so those are hashed once.
+        seen: dict[tuple[object, ...], str] = {}
+        sample_keys: list[str] = []
         for s in samples:
-            by_key.setdefault(s.xs.key(), s.xs)
+            x = s.xs
+            ident = (id(x.conductors), id(x.dielectrics), x.topology_hint, x.symmetric_about_u0)
+            k = seen.get(ident)
+            if k is None:
+                k = seen[ident] = x.key()
+            sample_keys.append(k)
+        by_key: dict[str, Any] = {}
+        for k, s in zip(sample_keys, samples, strict=True):
+            by_key.setdefault(k, s.xs)
         keys = sorted(by_key)
         if len(keys) > cfg.max_sections:
             step = len(keys) / cfg.max_sections
@@ -236,13 +247,13 @@ class ImpedanceOutOfTolerance(ErcRule):
                 strict=True,
             )
         )
-        solved = [i for i, s in enumerate(samples) if s.xs.key() in results]
+        solved = [i for i, k in enumerate(sample_keys) if k in results]
         zs: list[float | None] = []
-        for idx, s in enumerate(samples):
-            r = results.get(s.xs.key())
+        for idx in range(len(samples)):
+            r = results.get(sample_keys[idx])
             if r is None and solved:  # thinned: reuse the nearest solved section
                 near = min(solved, key=lambda j: abs(j - idx))
-                r = results[samples[near].xs.key()]
+                r = results[sample_keys[near]]
             if r is None:
                 zs.append(None)
                 continue

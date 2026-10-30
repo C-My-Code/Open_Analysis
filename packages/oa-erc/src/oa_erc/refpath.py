@@ -124,6 +124,13 @@ def _conductor_order(ctx: ErcContext) -> list[str]:
 
 def adjacent_ref_layers(ctx: ErcContext, layer: str) -> tuple[str | None, str | None]:
     """(above, below) primary reference layers of ``layer``."""
+    res: tuple[str | None, str | None] = ctx.memo(
+        ("adjacent_ref_layers", layer), lambda: _adjacent_ref_layers(ctx, layer)
+    )
+    return res
+
+
+def _adjacent_ref_layers(ctx: ErcContext, layer: str) -> tuple[str | None, str | None]:
     order = _conductor_order(ctx)
     refs = set(reference_layers(ctx))
     i = order.index(layer)
