@@ -62,6 +62,13 @@ def test_build_model_structure() -> None:
     assert 40.0 < c.ports[0]["r_ohm"] < 56.0  # modal Z of the 0.38 mm strip on 0.2 mm FR-4
 
 
+def test_port_impedance_matches_fem() -> None:
+    """Static modal Z of the B-EM-01 strip on the port lattice (refined at the physical edges)
+    against the converged 2-D FEM (48.85 ohm at 5 GHz from L_ext and C, DS FR-4)."""
+    c = compile_model(build_model(_wave_thru(10e9, 11)).model, "float32")
+    assert abs(c.ports[0]["r_ohm"] / 48.85 - 1.0) < 0.015
+
+
 def test_lumped_port_problem_builds() -> None:
     built = build_model(microstrip_thru_problem(f_max=10e9, n_points=11))
     assert all(isinstance(p, LumpedPort) for p in built.model.ports)
@@ -87,3 +94,9 @@ def test_microstrip_thru_matches_fem_reference() -> None:
     # S11 is worst below 1 GHz, where the plane extraction is replaced by the port S
     assert float(20 * np.log10(np.abs(s[0, 0])).max()) < case["tolerance"]["s11_max_db"]
     assert np.abs(s[1, 0] - s[0, 1]).max() < 1e-2  # reciprocity
+    # eps_eff at 5 GHz against the same-material FEM (3.1188 with the eddy-current L) plus the
+    # Kirschning-Jansen dispersion at 5 GHz (+0.25 %): the edge rule keeps it within 0.5 %
+    i5 = int(np.argmin(np.abs(m.frequencies - 5e9)))
+    ph = np.unwrap(np.angle(s[1, 0]))
+    eps = (-ph[i5] / (2 * np.pi * m.frequencies[i5]) * 299792458.0 / 25e-3) ** 2
+    assert abs(eps / (3.1188 * 1.0025) - 1.0) < 5e-3

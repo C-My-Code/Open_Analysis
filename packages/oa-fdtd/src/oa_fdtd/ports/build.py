@@ -12,6 +12,7 @@ impedance), and the voltage probe projects the plane field with the same weights
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -40,6 +41,45 @@ def _in_box(
     return np.asarray(mu[:, None] & mv[None, :])
 
 
+def _physical_extent(g: Grid, c: Any, tol: float) -> tuple[list[float], list[float]]:
+    """``(lo, hi)`` of a conductor box with its x/y faces moved out to the physical edge:
+    ``e + edge_frac (e' - e)`` with ``e'`` the next mesh line outward (no move on the mesh ends)."""
+    lo, hi = list(c.lo), list(c.hi)
+    frac = float(getattr(c, "edge_frac", 0.0))
+    if frac <= 0.0:
+        return lo, hi
+    for a in (0, 1):
+        lines = g.lines[a]
+        for ext, step in ((lo, -1), (hi, 1)):
+            i = int(np.argmin(np.abs(lines - ext[a])))
+            if abs(lines[i] - ext[a]) > tol or not 0 <= i + step < lines.size:
+                continue
+            ext[a] = float(lines[i] + frac * (lines[i + step] - lines[i]))
+    return lo, hi
+
+
+def _refine(
+    base: FloatArray, extra: list[float], tol: float
+) -> tuple[FloatArray, npt.NDArray[np.intp]]:
+    """``base`` lines plus the ``extra`` ones strictly inside its span; returns the lines and the
+    index of every base line in them."""
+    inner = [x for x in extra if base[0] + tol < x < base[-1] - tol]
+    # geometric grading into every edge: the static potential is singular there
+    graded = list(inner)
+    for x in inner:
+        h = float(np.min(np.abs(base - x)[np.abs(base - x) > tol], initial=np.inf))
+        h = min(h, float(np.min(np.diff(base))) if base.size > 1 else h)
+        for k in range(1, 5):
+            graded += [x - h / 3.0**k, x + h / 3.0**k]
+    inner = [x for x in graded if base[0] + tol < x < base[-1] - tol]
+    keep = [x for x in inner if np.min(np.abs(base - x)) > tol]
+    lines = np.unique(np.concatenate([base, np.asarray(keep, dtype=np.float64)]))
+    if lines.size > 1:  # merge extras that nearly coincide
+        lines = lines[np.concatenate([[True], np.diff(lines) > tol])]
+    idx = np.array([int(np.argmin(np.abs(lines - b))) for b in base], dtype=np.intp)
+    return lines, idx
+
+
 def solve_port_modes(
     model: Model,
     g: Grid,
@@ -66,16 +106,33 @@ def solve_port_modes(
     plane = eps_cell_axis[tuple(idx)]  # axes: the two remaining of (z, y, x), in that order
     arr = plane.T  # remaining array axes are (v, u); want (iu, iv)
     eps_cell = arr[np.ix_(su[:-1], sv[:-1])]
-    labels = -np.ones((su.size, sv.size), dtype=np.int64)
-    # ground: PEC regions and conductor boxes crossing the plane, PEC walls on the rectangle edges
-    boxes: list[tuple[Any, Any]] = [(c.lo, c.hi) for c in model.conductors] + [
-        (r.lo, r.hi) for r in model.regions if r.pec
-    ]
     pos = float(g.lines[n][m])
+    # ground: PEC regions and conductor boxes crossing the plane, at their physical extent (a box
+    # meshed with an edge rule ends ``edge_frac`` of a cell inside its edge), PEC walls
+    boxes: list[tuple[list[float], list[float]]] = []
+    for c in model.conductors:
+        if c.lo[n] - tol <= pos <= c.hi[n] + tol:
+            boxes.append(_physical_extent(g, c, tol))
+    boxes += [(list(r.lo), list(r.hi)) for r in model.regions if r.pec]
+    # the static solve runs on the port lattice refined by every physical edge in the rectangle
+    # (nodal Q1 elements end the metal at its last node; the Yee field ends about a third of a
+    # cell beyond it), and the potential is read back on the Yee nodes
+    extra_u = [b[k][u_ax] for b in boxes for k in (0, 1)] + [
+        q[k][0] for q in port.signals for k in (0, 1)
+    ]
+    extra_v = [b[k][v_ax] for b in boxes for k in (0, 1)] + [
+        q[k][1] for q in port.signals for k in (0, 1)
+    ]
+    ua, iu = _refine(u, extra_u, tol)
+    va, iv = _refine(v, extra_v, tol)
+    cu = np.clip(np.searchsorted(u, 0.5 * (ua[1:] + ua[:-1])) - 1, 0, u.size - 2)
+    cv = np.clip(np.searchsorted(v, 0.5 * (va[1:] + va[:-1])) - 1, 0, v.size - 2)
+    eps_aug = eps_cell[np.ix_(cu, cv)]
+    labels = -np.ones((ua.size, va.size), dtype=np.int64)
     for lo, hi in boxes:
         if lo[n] - tol <= pos <= hi[n] + tol:
-            labels[_in_box(u, v, (lo[u_ax], lo[v_ax]), (hi[u_ax], hi[v_ax]), tol)] = 0
-    for a, ax_lines, sl in ((u_ax, u, 0), (v_ax, v, 1)):
+            labels[_in_box(ua, va, (lo[u_ax], lo[v_ax]), (hi[u_ax], hi[v_ax]), tol)] = 0
+    for a, ax_lines, sl in ((u_ax, ua, 0), (v_ax, va, 1)):
         for side in (0, 1):
             if model.walls[2 * a + side] == "pec":
                 wall = g.lines[a][0 if side == 0 else -1]
@@ -85,11 +142,12 @@ def solve_port_modes(
                 else:
                     labels[:, hit] = 0
     for k, (lo2, hi2) in enumerate(port.signals):
-        labels[_in_box(u, v, lo2, hi2, tol)] = k + 1
+        labels[_in_box(ua, va, lo2, hi2, tol)] = k + 1
     for k in range(len(port.signals)):
-        if not np.any(labels == k + 1):
+        if not np.any(labels[np.ix_(iu, iv)] == k + 1):
             raise ValueError(f"mode port {port.name}: signal {k} touches no node of the plane")
-    modes = solve_modes(u, v, eps_cell, labels, len(port.signals))
+    full = solve_modes(ua, va, eps_aug, labels, len(port.signals))
+    modes = replace(full, phi=full.phi[:, iu][:, :, iv])
     return modes, {"u_ax": u_ax, "v_ax": v_ax, "plane": m, "su": su, "sv": sv}
 
 

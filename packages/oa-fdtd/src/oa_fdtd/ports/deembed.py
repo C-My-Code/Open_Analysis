@@ -184,6 +184,7 @@ def add_wave_planes(
     spacing_cells: int = 16,
     max_phase: float = 2.2,
     min_phase: float = 0.6,
+    ref_position: float | None = None,
 ) -> PlaneSet:
     """Add three modal probe planes inside the line behind ``port`` and return their description.
 
@@ -196,6 +197,8 @@ def add_wave_planes(
     when no such planes exist or when their phase at the highest frequency (with the largest
     permittivity) is below ``min_phase`` [rad]: gamma would be ill-conditioned over the whole band
     (it needs about 0.3 rad, :func:`wave_sparams`), and the port S is the better estimate.
+    ``ref_position`` [m] places the reference plane (default: the port plane), for example the
+    original face of a port extension (:func:`oa_fdtd.subcell.pcb.build_model`).
     """
     from oa_fdtd.model import ModelError, ModePort
 
@@ -253,8 +256,9 @@ def add_wave_planes(
     names = tuple(f"W:{port}:{k}" for k in range(3))
     for nm, x in zip(names, pos, strict=True):
         model.mode_probes.append(replace(mp, name=nm, position=x))
-    ref = abs(float(lines[i_port]) - pos[1])
-    return PlaneSet(port, tuple(f"V:{nm}" for nm in names), d1, -ref, d2)  # type: ignore[arg-type]
+    ref_x = float(lines[i_port]) if ref_position is None else float(ref_position)
+    ref = (ref_x - pos[1]) * step  # signed, positive inwards from the middle plane
+    return PlaneSet(port, tuple(f"V:{nm}" for nm in names), d1, ref, d2)  # type: ignore[arg-type]
 
 
 def wave_sparams(

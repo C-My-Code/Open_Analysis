@@ -156,3 +156,35 @@ def test_short_uniform_line_refuses_wave_planes() -> None:
         add_wave_planes(m, "P1", 0.25e-3)
     assert ei.value.code == "FDTD_UNEQUAL_PLANES"
     assert not m.mode_probes
+
+
+def test_edge_rule_puts_no_line_on_a_metal_edge() -> None:
+    from oa_fdtd.subcell.pcb import _edge_seeds
+    from oa_model.arrays import Points
+    from oa_model.geometry import Polygon
+    from oa_testkit import builders as bld
+
+    s = 0.09e-3
+    ring = Points(bld.rect_ring(1e-3, -0.2e-3, 4e-3, 0.2e-3))
+    hole = Points(bld.circle_ring(2e-3, 0.0, 0.05e-3, 24, clockwise=True))
+    poly = Polygon(exterior=ring, holes=(hole,))
+    lo3, hi3 = (0.0, -1e-3, 0.0), (5e-3, 1e-3, 1e-3)
+    ys = sorted(round(v * 1e6, 6) for v, _ in _edge_seeds(poly, s, 1.0 / 3.0, lo3, hi3)[1])
+    # y edges at -0.2 and +0.2 mm: a line s/3 inside and one 2s/3 outside, none on the edge;
+    # the round hole adds no lines
+    assert ys == [-260.0, -170.0, 170.0, 260.0]
+    xs = sorted(round(v * 1e6, 6) for v, _ in _edge_seeds(poly, s, None, lo3, hi3)[0])
+    assert xs == [1000.0, 4000.0]  # without the rule: lines on the edges
+
+
+def test_port_extension_extrudes_the_port_face() -> None:
+    p = stripline_two_slabs(length=4e-3)
+    built = build_model(p, copper="pec", port_ext=1e-3)
+    g = built.model.grid
+    assert g.x[0] == pytest.approx(-1e-3) and g.x[-1] == pytest.approx(5e-3)
+    assert built.meta["ref_planes"] == {"P1": 0.0, "P2": pytest.approx(4e-3)}
+    pos = [q.position for q in built.model.ports]
+    assert pos == [pytest.approx(-1e-3), pytest.approx(5e-3)]
+    strip = [c for c in built.model.conductors if c.hi[1] - c.lo[1] < 1e-3]
+    assert strip
+    assert min(c.lo[0] for c in strip) <= g.x[0] and max(c.hi[0] for c in strip) >= g.x[-1]

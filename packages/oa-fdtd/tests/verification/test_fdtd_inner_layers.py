@@ -6,7 +6,7 @@ With PEC copper, df = 0 and PEC side walls the differential via must give
 ``|S11|^2 + |S21|^2 = 1``. The wave planes used to sit inside the via's stitching cage (the line
 is only 2.5 mm long), where the three-plane formula does not hold, and reported 0.35-0.67 above
 7 GHz. The planes are now confined to the uniform line; this 1.3 mm stretch cannot hold
-well-conditioned planes, so S comes from the port sheets (with a ``FDTD.PORT_S`` note).
+well-conditioned planes, so the ports are extended (``FDTD.PORT_EXT``) and S is referred back.
 """
 
 from __future__ import annotations
@@ -38,10 +38,9 @@ def test_diff_via_closed_lossless_power_balance() -> None:
     p = p.model_copy(update={"structure": st.model_copy(update={"materials": mats})})
     bnd = p.boundaries.model_copy(update={"ymax": "pec", "zmin": "pec", "zmax": "pec"})
     p = p.model_copy(update={"boundaries": bnd})
-    r = solve_problem(p, SolveOptions(copper="pec", dtype="float32", end_db=-40.0))
-    assert any(n.startswith("FDTD.PORT_S") for n in r.notes)
+    r = solve_problem(p, SolveOptions(copper="pec", dtype="float32", end_db=-60.0))
+    assert any(n.startswith("FDTD.PORT_EXT") for n in r.notes)
     power = np.abs(r.s[:, 0, 0]) ** 2 + np.abs(r.s[:, 1, 0]) ** 2
     band = r.freqs >= 1e9
-    # the port-sheet S counts only the static modal part of the sheet power (a few % low)
-    assert power[band].min() > 0.92
-    assert power.max() < 1.01
+    assert power[band].min() > 0.97
+    assert power[band].max() < 1.02

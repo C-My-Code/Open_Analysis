@@ -30,10 +30,17 @@ adapter.
   `add_wave_planes` / `wave_sparams` (S from modal waves on three planes per port, reference
   plane at the port), `uniform_length` (the uniform line behind a port, where the planes must
   lie), `gamma_from_planes`, `shift_reference`, and the `DeembedHook` for the `oa_network` 2x-thru.
-  `adapter.sim.solve_problem` uses the port S, with an `FDTD.PORT_S` note, when a port's uniform
-  line cannot hold well-conditioned planes.
+  When a port's uniform line cannot hold well-conditioned planes, `adapter.sim.solve_problem`
+  extends the wave ports (`port_extension`, note `FDTD.PORT_EXT`) and refers S back to the
+  original faces; the port S (`FDTD.PORT_S`) is the last resort. `SolveOptions.port_ext` /
+  expert `fdtd.port_ext` force a length. The static port solve runs on the port lattice refined
+  at every physical conductor edge, so the modal Z matches the 2-D FEM (49.20 vs 48.85 ohm).
 - `build_model` fills the z gap between two full dielectric slabs (an inner copper layer) with the
   lower slab's material, like the openEMS adapter and the 2-D FEM cross-section (`meta["resin_fills"]`).
+  `port_ext` [m] extrudes the wave-port faces (`meta["ref_planes"]`). Conductor edges follow the
+  thirds rule (`edge_frac=1/3`: a line 1/3 cell inside each axis-aligned metal edge and one 2/3
+  outside, no line on the edge; `None` = the old line-on-edge rule); the edge cell is `w / 4`
+  (`edge_cells`) and at most half the touching dielectric (`edge_h`).
 - `oa-fdtd run job.json` (`oa_fdtd.cli`): engine-level job; no `oa_framework` import.
 
 ## Models implemented
@@ -123,17 +130,39 @@ source is still on, is not detected. Tests: `tests/test_stability.py`.
   2.32 -> 0.21 dB, max 3.67 -> 0.61 dB (7-20 GHz max 0.18 dB; -2.50 vs -2.70 dB at 20 GHz), SDD11
   within 0.3 dB over 7-20 GHz; B-EM-01 and B-EM-02a S unchanged (bit-identical).
   Regressions: `tests/test_inner_layers.py`, `tests/verification/test_fdtd_inner_layers.py`.
-- B-EM-03 remaining: below 7 GHz SDD21 is up to 0.6 dB below openEMS (-0.83 vs -0.45 dB at 5 GHz).
-  The port S counts only the static modal part of the sheet power (see the power budget below),
-  so it reads low by a few percent; a longer uniform line behind the ports would allow the plane
-  extraction. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the gate.
-- Microstrip trace edges (B-EM-01): against the same-material FEM (DS FR-4, not the constant-Dk
-  board model) the FDTD eps_eff is 2.4 % high at 5 GHz (3.195 vs 3.119; Hammerstad-Jensen 3.110
-  with the 35 um thickness correction, 3.199 without). It is the lateral edge cell `w / 4` of the
-  mesh rule: w/12, w/24, w/48 give 3.153, 3.144, 3.141 (z refinement changes nothing). The B-EM-01
-  delay score against the corrected reference is 2.2 % at 20 GHz (IL 0.038 dB); the earlier
-  0.44 % came from the constant-Dk reference offsetting this error. The rest at 20 GHz is the
-  quasi-static reference (no microstrip dispersion, about 0.7 %) and Yee dispersion (0.4 %).
+- FIXED (B-EM-03 below 7 GHz, 0.3-0.6 dB under openEMS): three parts. (a) The -40 dB end
+  criterion truncates the low-frequency tail (SDD21 +0.36 dB at 1 GHz, +0.14 dB at 5 GHz at
+  -70 dB; -70 equals -90); the case now uses -60 dB (within 0.02 dB of -70 above 2 GHz; the
+  matrix-pencil tail cannot rescue a -40 dB stop). (b) The port-S fallback reads 0.15 dB low (sheet
+  power outside the static template); the ports are now extended by 3.66 mm and the wave planes
+  de-embedded back, which reproduces an 11 mm line shifted back by 3 mm to 0.02 dB. (c) openEMS
+  itself is non-passive there (|S11|^2 + |S21|^2 = 1.025 / 1.015 / 1.009 at 3 / 4 / 5 GHz,
+  SDD21 -0.69, -0.32, -0.01, -0.11, -0.45 dB at 1-5 GHz): its -40 dB run shows the same truncation
+  ripple. CPML vs PEC sides changes SDD21 by < 0.05 dB (2-40 GHz), so MUR vs CPML does not matter.
+  B-EM-03 now (thirds rule, extension, -60 dB): SDD21 -0.16 / -0.28 / -0.61 / -1.03 dB at
+  2 / 3 / 5 / 7 GHz (monotonic, passive), -1.69 vs openEMS -1.65 at 10 GHz, -2.90 vs -2.70 at 20,
+  -0.54 vs -0.53 at 40; mean |dS21| 0.21 dB, 7-40 GHz max 0.36 dB. Timing numbers for B-EM-03 and
+  B-PERF-01 are deferred to a run at the gate.
+- FIXED (microstrip trace edges): with a line on the metal edge the Yee strip acts about 0.37 of
+  an edge cell wider, so eps_eff was 2.4 % high at 5 GHz with `w / 4` edge cells and converged only
+  slowly. Thirds rule against the same-material FEM (3.1188 at 5 GHz with eddy-current L; +0.25 %
+  Kirschning-Jansen dispersion that the 2-D reference lacks), B-EM-01 line:
+
+  | edge cells across w | cells (old / new) | old (line on edge) | new (thirds + h/2 cap) |
+  |---|---|---|---|
+  | 2 | 65 520 / 80 496 | 3.2775 (+5.09 %) | 3.1380 (+0.62 %) |
+  | 4 (default) | 78 624 / 80 496 | 3.1947 (+2.43 %) | 3.1374 (+0.60 %, +0.35 % with dispersion) |
+  | 8 | 94 848 / 96 824 | 3.1610 (+1.35 %) | 3.1308 (+0.38 %) |
+  | 16 | 115 830 / 117 936 | 3.1463 (+0.88 %) | 3.1296 (+0.35 %) |
+
+  Other widths at 4 edge cells (FEM 2.8551 / 3.4554): 0.15 mm +1.87 % -> +0.39 %; 1.0 mm
+  +3.51 % -> +0.91 % (the h/2 cap; +1.70 % without it). The remaining ~0.35 % (edge-converged) is
+  not z resolution (3 cells across the copper: no change), domain size (2x: 0.03 %) or the SIBC fit
+  (X/R = 1.00); with PEC copper the FDTD is +0.8 % over the FEM's L_ext C, while the FEM's own
+  internal inductance (L_int/L_ext 0.78 %) exceeds R / (w L_ext) (0.49 %), so the two references
+  differ by about 0.3 % themselves. B-EM-01 (medium): IL error 0.048 -> 0.023 dB, delay error
+  1.22 % against the quasi-static reference, 0.40 % against it with Kirschning-Jansen dispersion
+  (`delay_err_kj_pct`). Golden `fdtd_physics/microstrip_thru` regenerated at the new port Z.
 - FIXED: S depended on `frequency.n_points`. Causes: static quantities (band-centre mode eps, SIBC
   fit range, Debye fit range) came from the sample list, and the plane extraction (branch
   unwrapping, smooth gamma fit) ran on the sample list, which aliases when it is sparse. Now
@@ -170,8 +199,10 @@ so WP-506 can add the near-to-far-field transform without changing the kernels o
 `packages/oa-fdtd/tests` (CPU always; `gpu` marker with `OA_RUN_GPU=1`; the graded NumPy cavity case is
 `slow`). Inner layers (`test_inner_layers.py`): resin fill, stripline delay within 0.5 % of the
 TEM (Cohn) delay, closed lossless via-through-planes box energy constant to 1e-3 (measured 2e-11),
-wave planes confined to the uniform line; `verification/test_fdtd_inner_layers.py` (GPU): the
-closed lossless B-EM-03 conserves power. Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
+wave planes confined to the uniform line, the edge rule (no line on a metal edge), the port
+extension; `test_pcb.py`: static port Z within 1.5 % of the FEM, B-EM-01 eps_eff within 0.5 %
+(GPU); `verification/test_fdtd_inner_layers.py` (GPU): the closed lossless B-EM-03 with the port
+extension conserves power (0.97-1.02). Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
 `tests/golden/fdtd_physics/{ds_line,sibc_line,microstrip_thru}` (analytic ABCD lines and the FEM
 RLGC reference of the thru; the `microstrip_thru` case runs only with `OA_RUN_GPU=1`).
 

@@ -17,7 +17,7 @@ import numpy as np
 import numpy.typing as npt
 
 from oa_fdtd.model import ModelError, ModePort
-from oa_fdtd.ports import PlaneSet, add_wave_planes, wave_sparams
+from oa_fdtd.ports import PlaneSet, add_wave_planes, shift_reference, wave_sparams
 from oa_fdtd.run import RunResult, run, sparams
 from oa_fdtd.subcell.pcb import BuiltModel, build_model
 from oa_model.em import EMProblem
@@ -31,7 +31,8 @@ _PLANE_OFFSETS = (1.5e-3, 1.0e-3, 0.5e-3, 0.25e-3)  # [m] first that the mesh ca
 
 @dataclass(frozen=True)
 class SolveOptions:
-    """Options; ``mesh.expert`` keys ``fdtd.engine|dtype|copper|plane_offset|pulse`` set these."""
+    """Options; ``mesh.expert`` keys ``fdtd.engine|dtype|copper|plane_offset|pulse|port_ext``
+    set these."""
 
     engine: str = "auto"
     dtype: str = "float32"
@@ -41,6 +42,7 @@ class SolveOptions:
     plane_offset: float | None = None
     pulse: str = "gauss_mod"  # or "gauss" (DC content, better below 0.05 f_max)
     tail: bool = True  # matrix-pencil extrapolation when the run stops at max_steps
+    port_ext: float | None = None  # [m] wave-port extension; None = only when planes need it
 
 
 @dataclass
@@ -60,6 +62,7 @@ def options_from_problem(problem: EMProblem) -> SolveOptions:
     ex = problem.mesh.expert
     conv = problem.convergence
     off = ex.get("fdtd.plane_offset")
+    pext = ex.get("fdtd.port_ext")
     return SolveOptions(
         engine=str(ex.get("fdtd.engine", "auto")),
         dtype=str(ex.get("fdtd.dtype", "float32")),
@@ -68,6 +71,7 @@ def options_from_problem(problem: EMProblem) -> SolveOptions:
         max_steps=int(conv.max_timesteps),
         plane_offset=float(off) if isinstance(off, int | float) else None,
         pulse=str(ex.get("fdtd.pulse", "gauss_mod")),
+        port_ext=float(pext) if isinstance(pext, int | float) else None,
     )
 
 
@@ -76,12 +80,14 @@ def _planes(built: BuiltModel, offset: float | None) -> tuple[list[PlaneSet], st
     long enough for well-conditioned planes (then S comes from the port sheets)."""
     model = built.model
     names = [p.name for p in model.ports if isinstance(p, ModePort)]
+    refs = built.meta.get("ref_planes", {})
     offsets = (offset,) if offset is not None else _PLANE_OFFSETS
     last: ModelError | None = None
     for off in offsets:
         n0 = len(model.mode_probes)
         try:
-            return [add_wave_planes(model, nm, off) for nm in names], None
+            planes = [add_wave_planes(model, nm, off, ref_position=refs.get(nm)) for nm in names]
+            return planes, None
         except ModelError as exc:
             del model.mode_probes[n0:]
             last = exc
@@ -91,14 +97,42 @@ def _planes(built: BuiltModel, offset: float | None) -> tuple[list[PlaneSet], st
     return [], f"FDTD.PORT_S: {last.message}; S from the port sheets (no wave-plane de-embedding)"
 
 
+def port_extension(built: BuiltModel) -> float:
+    """Wave-port extension [m] that holds three planes at the widest spacing
+    :func:`~oa_fdtd.ports.add_wave_planes` uses (2.2 rad at the top frequency, largest
+    permittivity) plus 0.5 mm clearance at each end."""
+    model = built.model
+    eps_max = max(
+        [1.0] + [r.eps_r + sum(d for d, _ in r.poles) for r in model.regions if not r.pec]
+    )
+    beta_top = 2.0 * np.pi * float(np.max(model.frequencies)) * np.sqrt(eps_max) / 299792458.0
+    return float(2.0 * 2.2 / beta_top + 2.0 * _PLANE_OFFSETS[2])
+
+
 def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> SolveResult:
-    """Solve ``problem``; raises :class:`~oa_fdtd.model.ModelError` on unsupported input."""
+    """Solve ``problem``; raises :class:`~oa_fdtd.model.ModelError` on unsupported input.
+
+    When a wave port's uniform line is too short for well-conditioned planes (a via or a bend
+    close to the port) the ports are extended (:func:`port_extension`, ``FDTD.PORT_EXT`` note)
+    and S is referred back to the original faces; ``SolveOptions.port_ext`` forces a length.
+    """
     o = opts or options_from_problem(problem)
     t0 = time.perf_counter()
-    built = build_model(problem, copper=o.copper, pulse=o.pulse)
+    ext = o.port_ext or 0.0
+    built = build_model(problem, copper=o.copper, pulse=o.pulse, port_ext=ext)
     model = built.model
     all_mode = bool(model.ports) and all(isinstance(p, ModePort) for p in model.ports)
     planes, plane_note = _planes(built, o.plane_offset) if all_mode else ([], None)
+    if all_mode and not planes and o.port_ext is None:
+        ext = port_extension(built)
+        built = build_model(problem, copper=o.copper, pulse=o.pulse, port_ext=ext)
+        model = built.model
+        planes, plane_note = _planes(built, o.plane_offset)
+        if planes:
+            plane_note = (
+                f"FDTD.PORT_EXT: wave ports extended by {ext:.3e} m (uniform line too short "
+                "for the wave planes); S referred to the original faces"
+            )
     all_mode = all_mode and bool(planes)
     req = np.asarray(model.frequencies, dtype=np.float64)
     # Extraction (branch unwrapping, smooth gamma fit) runs on a fixed internal grid united with the
@@ -123,6 +157,11 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     t2 = time.perf_counter()
     s_port = sparams(model, res)
     if all_mode:
+        if ext > 0.0:  # refer the port S (used at the lowest frequencies) to the original faces
+            _s, gam = wave_sparams(
+                res.probes, planes, res.port_r, None, freqs=model.frequencies, fit_mask=fit_mask
+            )
+            s_port = shift_reference(s_port, gam, [ext] * len(planes))
         s, _gam = wave_sparams(
             res.probes, planes, res.port_r, s_port, freqs=model.frequencies, fit_mask=fit_mask
         )
