@@ -146,7 +146,14 @@ def _ref_layer(geo: BoardGeometry, layer: str) -> _RefLayer | None:
 
 
 def _candidates(geo: BoardGeometry, layer: str, side: str) -> list[tuple[str, float]]:
-    """Reference candidate layers (nearest first) with their vertical distances."""
+    """Reference candidate layers (nearest first) with their vertical distances (memoized: it
+    is asked once per piece and side)."""
+    return geo._memoized(  # type: ignore[no-any-return]
+        ("refcands", layer, side), lambda: _candidates_uncached(geo, layer, side)
+    )
+
+
+def _candidates_uncached(geo: BoardGeometry, layer: str, side: str) -> list[tuple[str, float]]:
     me = geo.conductor(layer)
     out: list[tuple[str, float]] = []
     for c in geo.idx.conductor_layers:
@@ -430,6 +437,22 @@ def _side_intervals(
     cands = _candidates(geo, piece.seg.layer, side)
     if not cands:
         return [(0.0, total, None)]
+    first = fast.get((piece.seg.id, f"{side}:{cands[0][0]}"))
+    if first is not None and total > _EPS:
+        # the nearest candidate fully covers the footprint: one span, no merging needed
+        return [
+            (
+                0.0,
+                total,
+                RefInfo(
+                    layer=cands[0][0],
+                    net=first[2],
+                    distance=cands[0][1],
+                    coverage=1.0,
+                    edge_distance=first[3],
+                ),
+            )
+        ]
     done: list[tuple[str, float, list[Interval]]] = []
     for lid, h in cands:
         hit = fast.get((piece.seg.id, f"{side}:{lid}"))

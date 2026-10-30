@@ -8,6 +8,7 @@ Everything here works in the model frame (metres, Y up) unless a function says o
 from __future__ import annotations
 
 import math
+import os
 from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 
@@ -20,6 +21,7 @@ from shapely.geometry.base import BaseGeometry
 
 from oa_model import ArcSeg, LineSeg, Points, Polygon
 from oa_model.geometry import signed_area
+from oa_model.validate import RingKernels
 
 Arr = npt.NDArray[np.float64]
 Pt = tuple[float, float]
@@ -274,3 +276,18 @@ def path_length(path: Sequence[PathSegT]) -> float:
             r = math.hypot(s.start[0] - s.center[0], s.start[1] - s.center[1])
             total += r * abs(Arc(s.start, s.center, s.end, s.ccw).sweep())
     return total
+
+
+def ring_kernels() -> RingKernels | None:
+    """Compiled ring predicates for ``validate_board`` (``oa-native``, ``OA_NATIVE=0|1|auto``),
+    or ``None`` to use the numpy oracle."""
+    try:
+        from oa_native import get  # type: ignore[import-not-found,unused-ignore]
+    except ImportError:
+        if os.environ.get("OA_NATIVE", "auto").strip() == "1":
+            raise
+        return None
+    mod = get()
+    if mod is None or not hasattr(mod, "ring_self_intersects"):
+        return None
+    return RingKernels(mod.ring_self_intersects, mod.all_points_inside)

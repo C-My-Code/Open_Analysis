@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
@@ -24,6 +24,16 @@ from oa_model.padstack import PadShape, PolygonShape
 from oa_model.stackup import ConductorLayer, DielectricLayer, MaskLayer
 
 Arr = npt.NDArray[np.float64]
+
+
+class RingKernels(NamedTuple):
+    """Optional compiled replacements for the ring predicates below (same booleans). oa-model
+    cannot import the compiled core, so a caller above it passes the kernels in."""
+
+    self_intersects: Callable[[Arr], bool]
+    all_inside: Callable[[Arr, Arr], bool]
+
+
 _MAX_RING_CHECK = 600  # rings larger than this skip the O(n^2) self-intersection test
 
 
@@ -83,7 +93,11 @@ def _points_inside(ring: Arr, pts: Arr) -> Arr:
 
 
 def _check_polygon(
-    poly: Polygon, path: str, item: str | None, layer: str | None
+    poly: Polygon,
+    path: str,
+    item: str | None,
+    layer: str | None,
+    kernels: RingKernels | None = None,
 ) -> Iterator[Diagnostic]:
     rings = [("exterior", poly.exterior)] + [(f"holes/{i}", h) for i, h in enumerate(poly.holes)]
     for name, ring in rings:
@@ -118,7 +132,9 @@ def _check_polygon(
                 item=item,
                 layer=layer,
             )
-        if len(ring) <= _MAX_RING_CHECK and _ring_self_intersects(a):
+        if len(ring) <= _MAX_RING_CHECK and (
+            kernels.self_intersects(a) if kernels else _ring_self_intersects(a)
+        ):
             yield _diag(
                 "MODEL.POLY_INVALID",
                 "ring is self-intersecting",
@@ -130,7 +146,11 @@ def _check_polygon(
     ext = poly.exterior
     if len(ext) >= 3 and len(ext) <= _MAX_RING_CHECK:
         for i, h in enumerate(poly.holes):
-            if len(h) >= 3 and not bool(_points_inside(ext.array, h.array).all()):
+            if len(h) >= 3 and not (
+                kernels.all_inside(ext.array, h.array)
+                if kernels
+                else bool(_points_inside(ext.array, h.array).all())
+            ):
                 yield _diag(
                     "MODEL.POLY_INVALID",
                     "hole is not inside the exterior ring",
@@ -175,7 +195,9 @@ def _seg_end(s: PathSeg) -> tuple[float, float]:
     return s.end
 
 
-def validate_board(board: Board, *, strict: bool = False) -> tuple[Diagnostic, ...]:
+def validate_board(
+    board: Board, *, strict: bool = False, kernels: RingKernels | None = None
+) -> tuple[Diagnostic, ...]:
     """Semantic checks beyond pydantic structure. With strict=True any 'error' raises
     BoardValidationError. Codes: MODEL.DUP_ID, DANGLING_REF, LAYER_KIND, VIA_SPAN, BACKDRILL,
     POLY_ORIENT, POLY_INVALID, TRACK_PATH, DIFFPAIR, ZONE_FILL_LAYER, STACKUP_Z, OUTLINE."""
@@ -570,7 +592,7 @@ def validate_board(board: Board, *, strict: bool = False) -> tuple[Diagnostic, .
 
     # ---- polygons and outline ---------------------------------------------------------------
     for poly, ppath, pitem, player in _all_polygons(board):
-        out.extend(_check_polygon(poly, ppath, pitem, player))
+        out.extend(_check_polygon(poly, ppath, pitem, player, kernels))
     ext = board.outline.polygon.exterior
     if len(ext) < 3 or abs(signed_area(ext)) < GEOM_EPS * GEOM_EPS:
         add(
