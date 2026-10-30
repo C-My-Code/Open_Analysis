@@ -65,6 +65,7 @@ from ._geom import (
     fix_fractured_many,
     from_shapely,
     make_arc_seg,
+    ring_kernels,
 )
 from ._tokens import CONTEXTS
 from .graphics import (
@@ -419,7 +420,9 @@ class _Ingest:
             components=tuple(self.components),
             diagnostics=tuple(self.diags),
         )
-        extra = tuple(d for d in validate_board(board) if d.severity != "info")
+        extra = tuple(
+            d for d in validate_board(board, kernels=ring_kernels()) if d.severity != "info"
+        )
         if extra:
             board = board.model_copy(update={"diagnostics": board.diagnostics + extra})
         if getattr(self.options, "strict", False):

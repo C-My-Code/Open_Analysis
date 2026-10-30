@@ -161,6 +161,12 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - CR WP-508b-make-valid-structure: 13x faster on the 44% hot spot, but it changes hashes. WP-509 decides after area/topology equivalence tests.
 - The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
 
+## Compiled core part 2 (WP-509, partial)
+- make_valid structure adopted (area-guarded; evidence in docs/perf/PROFILE-509.md). No `--update-golden` needed: no committed golden holds a content_hash of a fractured-fill board.
+- cm5 read 0.75 to 0.23 s; ERC 10k 13.1 to 6.2 s (target 3 s); RefMap 10k about 1.3 s (50k extrapolates to about 5 s vs 3 s). Jetson not measured.
+- [ ] Native clipping kernel for ERC cut intervals and ReferenceMap (CR WP-509-native-clipping).
+- [ ] BEM assembly and profile-sampling kernels (B-IMP-01/02 gates) not started.
+
 ## GPU FDTD core (WP-505)
 - Port |S21| drift above 3 GHz: fixed in WP-506 (semi-implicit port voltage, `cos(w dt / 2)` in `run.sparams`); abs(S21) - 1 below 4e-5 to 20 GHz. `tests/golden/fdtd/tem_line/case.toml` still carries the old comment (WP-505 path).
 - WP-506 Part A gaps: no Dey-Mittra conformal PEC; static quasi-TEM mode ports with a local 2-D solver instead of `oa_impedance`; B-EM-03 (40 GHz differential via) not run; low-frequency S11 from the port S reaches -26 dB (B-EM-01 asks below -29). See `packages/oa-fdtd/README.md`.

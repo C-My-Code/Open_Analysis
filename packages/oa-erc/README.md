@@ -84,6 +84,12 @@ condition; RP-004 uses straight-line distances.
    with a different class is an error. Rules must not import other analysis packages: reach the
    impedance solver through `ctx.services().get("impedance")`.
 
+## Performance (WP-509)
+
+10k tracks, all rules, IM-002 on every net (`tests/test_builders_perf.py` board): 13.1 s before
+WP-509, 6.2 s after (`docs/perf/PROFILE-509.md`). Violation sets of the WP-102 boards (at their
+intent and at a deliberately wrong 40 ohm target) are byte-identical.
+
 ## Golden suites and tests
 
 `tests/boards/kicad10/*/expected.yaml` is the oracle (`test_boards.py`); `test_contract.py` covers

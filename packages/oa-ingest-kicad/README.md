@@ -89,6 +89,16 @@ aggregated into `INGEST.UNKNOWN_TOKEN` info diagnostics. They never fail a read.
   poses 1e-9 m / rad. The stackup z reference is computed from the raw file text by an independent scanner, because
   SWIG cannot read the stackup.
 
+## Zone-fill repair and validation (WP-509)
+
+`fix_fractured` repairs KiCad's bridged zone fills with `make_valid(method="structure")` (13x
+faster than GEOS linework). The result is accepted only when its area equals the ring's
+shoelace area; otherwise `linework` runs, as before. `tests/test_make_valid_equivalence.py`
+shows the same point set, polygon count and hole count on every WP-102 board and the cm5 and
+pic_programmer demos. Ring start vertices differ, so `content_hash()` of boards with fractured
+fills changed once (no committed golden holds such a hash). `validate_board` runs the compiled
+ring predicates when `oa-native` is installed.
+
 ## Measured performance (Windows 11, this development machine)
 
 | Board | Size | Time |

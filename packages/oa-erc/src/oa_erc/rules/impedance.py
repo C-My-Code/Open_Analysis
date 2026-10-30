@@ -222,7 +222,17 @@ class ImpedanceOutOfTolerance(ErcRule):
             )
         if not samples:
             return
-        sample_keys = [s.xs.key() for s in samples]  # key() hashes the section: once each
+        # key() hashes the section. Samples cut from one signature share their conductor and
+        # dielectric tuples (``sample_net``), so those are hashed once.
+        seen: dict[tuple[object, ...], str] = {}
+        sample_keys: list[str] = []
+        for s in samples:
+            x = s.xs
+            ident = (id(x.conductors), id(x.dielectrics), x.topology_hint, x.symmetric_about_u0)
+            k = seen.get(ident)
+            if k is None:
+                k = seen[ident] = x.key()
+            sample_keys.append(k)
         by_key: dict[str, Any] = {}
         for k, s in zip(sample_keys, samples, strict=True):
             by_key.setdefault(k, s.xs)
