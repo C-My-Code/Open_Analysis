@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, field_validator
 
 from oa_model._base import OAModel
 from oa_model.common import Frequency, ItemId, LayerId, NetId, Vec2
@@ -176,6 +176,18 @@ class RefInfo(OAModel):
         description="Lateral distance from the trace body to the nearest plane edge [m]; 0 when "
         "the trace crosses the edge. Capped at 10*distance.",
     )
+
+    @field_validator("edge_distance", mode="after")
+    @classmethod
+    def _quantize_length(cls, v: float) -> float:
+        """Lengths are canonical to 1 fm, so the GEOS and the compiled path hash identically."""
+        return round(v, 15)
+
+    @field_validator("coverage", mode="after")
+    @classmethod
+    def _quantize_ratio(cls, v: float) -> float:
+        """Relative quantities are canonical to 12 significant digits."""
+        return float(f"{v:.12g}")
 
 
 class ReferenceSpan(OAModel):

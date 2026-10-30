@@ -18,6 +18,13 @@ wheels built by maturin. Nothing depends on it: callers fall back to Python.
   (WP-509): the polygon-ring predicates of `oa_model.validate`, same f64 expressions as the
   numpy oracle (`tests/test_native_ring.py`). `oa_ingest_kicad` hands them to `validate_board`
   through `oa_model.validate.RingKernels`.
+- `_native.cut_intervals(lines, geom_of, xy, ring_start, geom_start)` and
+  `_native.rect_cover_edge(lines, r_foot, r_body, cap, geom_of, xy, ring_start, geom_start)`
+  (WP-509b): closed-set clipping of straight segments against (multi)polygons with holes, and
+  coverage of a footprint rectangle plus the capped distance of the body rectangle to the part
+  boundary. They replace the GEOS overlay in `oa_geometry.sampling._u_intervals` and
+  `oa_geometry.refmap._bulk_cover` (`oa_geometry._native` hands them over; `OA_NATIVE_CLIP=0`
+  forces the GEOS oracle). Tests: `tests/test_native_clip.py`.
 
 ## Contracts
 
@@ -39,7 +46,9 @@ None of its own; the equivalence tests above are the golden check.
 
 ## Not yet native
 
-ReferenceMap kernels (spatial index, reference-plane queries), the ERC cut-interval clipping and
-BEM assembly are still Python/GEOS/numpy. WP-509 measured them (`docs/perf/PROFILE-509.md`): the
-ReferenceMap and the cut intervals rest on GEOS polygon clipping and need a Rust clipping engine
-with GEOS-identical closed-set semantics; see `docs/change-requests/WP-509-native-clipping.md`.
+Per-sample Python in ERC and the ReferenceMap (pydantic section construction, edge and crosstalk
+buffers and distances, span assembly), and BEM assembly. Library evaluation for WP-509b:
+`i_overlay`, `geo` and a clipper2 port are general polygon overlays that snap coordinates and do
+not promise GEOS' closed-set results on boundary overlaps. The hot operations are segment and
+rectangle versus polygon-with-holes, so the kernels are purpose-built with f64 predicates
+(`docs/change-requests/WP-509b-clipping-kernel.md`).

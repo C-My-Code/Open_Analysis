@@ -27,7 +27,7 @@ import itertools
 import math
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -36,6 +36,8 @@ from scipy.spatial import cKDTree
 from shapely import STRtree
 from shapely.ops import substring
 
+from oa_geometry._native import RingSet
+from oa_geometry._native import kernels as _kernels
 from oa_geometry._shapes import as_multipolygon
 from oa_geometry.models import (
     ReferenceMap,
@@ -300,6 +302,57 @@ def _profile(geo: BoardGeometry, piece: Piece, layer: str, h: float, k: float) -
     return out
 
 
+def _cover_native(
+    kern: Any,
+    rl: _RefLayer,
+    cand: str,
+    side: str,
+    geo: BoardGeometry,
+    members: list[tuple[Piece, float]],
+    lines: npt.NDArray[np.object_],
+    widths: npt.NDArray[np.float64],
+    h: npt.NDArray[np.float64],
+    k: float,
+    out: dict[tuple[str, str], tuple[str, float, str, float]],
+) -> None:
+    """`_bulk_cover` for a group of straight pieces through the compiled rectangle kernel:
+    coverage of the footprint and the edge distance of the body, without building polygons."""
+    seg = np.array([[m[0].pts[0], m[0].pts[-1]] for m in members], dtype=np.float64)
+    r_foot = widths / 2.0 + k * h
+    ext = np.abs(np.stack((seg[:, 1, 1] - seg[:, 0, 1], seg[:, 1, 0] - seg[:, 0, 0]), axis=1))
+    ln = np.hypot(*(seg[:, 1] - seg[:, 0]).T)
+    ext = ext / np.maximum(ln, 1e-300)[:, None] * r_foot[:, None]
+    lo = np.minimum(seg[:, 0], seg[:, 1]) - ext
+    hi = np.maximum(seg[:, 0], seg[:, 1]) + ext
+    pi, pj = rl.tree.query(shapely.box(lo[:, 0], lo[:, 1], hi[:, 0], hi[:, 1]))
+    if len(pi) == 0:
+        return
+    own = np.array([m[0].seg.net for m in members], dtype=object)
+    keep = np.array([rl.nets[j] != own[i] for i, j in zip(pi, pj, strict=True)], dtype=bool)
+    pi, pj = pi[keep], pj[keep]
+    if len(pi) == 0:
+        return
+    rings = geo._memoized(("rings-parts", cand), lambda: RingSet(rl.parts))
+    cap = EDGE_FACTOR * np.maximum(h, 1e-6)
+    cov, dist = kern.rect_cover_edge(
+        np.ascontiguousarray(seg[pi]),
+        np.ascontiguousarray(r_foot[pi]),
+        np.ascontiguousarray(widths[pi] / 2.0),
+        np.ascontiguousarray(cap[pi]),
+        np.ascontiguousarray(pj, dtype=np.int64),
+        rings.xy,
+        rings.ring_start,
+        rings.geom_start,
+    )
+    first: dict[int, tuple[int, float]] = {}
+    for i, j, c, d in zip(pi.tolist(), pj.tolist(), cov, dist, strict=True):
+        if c:
+            first.setdefault(i, (j, d))
+    for i in sorted(first):
+        j, d = first[i]
+        out[(members[i][0].seg.id, f"{side}:{cand}")] = (cand, float(h[i]), rl.nets[j], float(d))
+
+
 def _bulk_cover(
     geo: BoardGeometry, pieces: list[Piece], k: float
 ) -> dict[tuple[str, str], tuple[str, float, str, float]]:
@@ -320,6 +373,10 @@ def _bulk_cover(
         lines[:] = [m[0].line for m in members]
         widths = np.array([m[0].seg.width for m in members])
         h = np.array([m[1] for m in members])
+        kern = _kernels() if all(len(m[0].pts) == 2 for m in members) else None
+        if kern is not None:
+            _cover_native(kern, rl, cand, side, geo, members, lines, widths, h, k, out)
+            continue
         foot = shapely.buffer(lines, widths / 2.0 + k * h, cap_style="flat", join_style="round")
         pi, pj = rl.tree.query(foot)
         if len(pi) == 0:

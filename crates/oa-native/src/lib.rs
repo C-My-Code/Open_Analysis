@@ -4,7 +4,9 @@
 
 use pyo3::prelude::*;
 
+mod clip;
 mod geom;
+mod rect;
 mod sexpr;
 
 /// Version of the native kernel ABI; bumped when a kernel's result contract changes.
@@ -19,5 +21,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sexpr::parse, m)?)?;
     m.add_function(wrap_pyfunction!(geom::ring_self_intersects, m)?)?;
     m.add_function(wrap_pyfunction!(geom::all_points_inside, m)?)?;
+    m.add_function(wrap_pyfunction!(clip::cut_intervals, m)?)?;
+    m.add_function(wrap_pyfunction!(rect::rect_cover_edge, m)?)?;
     Ok(())
 }

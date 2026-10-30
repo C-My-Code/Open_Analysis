@@ -56,6 +56,13 @@ layers and nets, copper intervals along the cut, partner offset) is equal share 
 | 10k | 1.4 s | 5.4 s |
 | 50k | 9.2 s | 51 s |
 
+Native clipping (WP-509b, optional `oa-native`; `OA_NATIVE_CLIP=0` forces GEOS): the cut-interval
+clipping of `sampling._u_intervals` and the footprint coverage and edge distance of
+`refmap._bulk_cover` run in Rust for straight pieces. Intervals and coverage match GEOS; the
+`edge_distance` floats differ from GEOS by up to about 3e-15 relative (different but equivalent
+arithmetic), so ReferenceMap JSON hashes of boards with covered footprints change while the
+structure, nets, layers and coverage stay identical. Compare with a relative tolerance of 1e-12.
+
 ## Typing
 
 `mypy --strict` is clean. The shapely-heavy modules disable a few error codes at the top of the
