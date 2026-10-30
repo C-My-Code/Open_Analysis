@@ -18,7 +18,7 @@ import numpy.typing as npt
 
 F64 = npt.NDArray[np.float64]
 
-__all__ = ["influence"]
+__all__ = ["influence", "influence_blocks"]
 
 _INV_2PI = 1.0 / (2.0 * np.pi)
 
@@ -50,7 +50,39 @@ def influence(
     d = ex * (
         tangent[None, :, 0] * normal[:, None, 0] + tangent[None, :, 1] * normal[:, None, 1]
     ) + ey * (nrm[None, :, 0] * normal[:, None, 0] + nrm[None, :, 1] * normal[:, None, 1])
-    idx = np.arange(min(mid.shape[0], a.shape[0]))
-    if mid.shape[0] == a.shape[0]:
+    return p, d
+
+
+_BLOCK_ENTRIES = 1 << 19  # about 4 MB per float64 temporary; the kernel holds ~20 of them
+
+
+def influence_blocks(
+    mid: F64,
+    normal: F64,
+    a: F64,
+    b: F64,
+    tangent: F64,
+    nrm: F64,
+    length: F64,
+    p_out: F64 | None = None,
+    d_out: F64 | None = None,
+    *,
+    same: bool = False,
+) -> tuple[F64, F64]:
+    """``influence`` evaluated in row blocks, so the kernel temporaries stay a few tens of MB
+    instead of ~20 copies of the full matrix. Writes into ``p_out`` / ``d_out`` when given. The
+    diagonal (panel on itself) has ``D = 0`` when ``same`` (rows and columns are
+    the same panels)."""
+    n_r, n_c = mid.shape[0], a.shape[0]
+    p = p_out if p_out is not None else np.empty((n_r, n_c))
+    d = d_out if d_out is not None else np.empty((n_r, n_c))
+    rows = max(8, _BLOCK_ENTRIES // max(n_c, 1))
+    for r0 in range(0, n_r, rows):
+        r1 = min(n_r, r0 + rows)
+        pb, db = influence(mid[r0:r1], normal[r0:r1], a, b, tangent, nrm, length)
+        p[r0:r1] = pb
+        d[r0:r1] = db
+    if same:
+        idx = np.arange(n_r)
         d[idx, idx] = 0.0
     return p, d
