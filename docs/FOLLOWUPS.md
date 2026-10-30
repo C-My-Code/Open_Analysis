@@ -189,7 +189,7 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - RE102 platforms: all of them (aircraft AF/Navy, ground Army/Navy/AF, ships and submarines, space).
 - No user pre-compliance measurements and no commercial-tool licences for now. Calibrate only against published measured-vs-simulated cases, and keep the uncertainty bands conservative.
 - 461G is verified from its PDF. 461H (17 Apr 2026) stays [verify] until the official text is obtained.
-- ARCHITECTURE.md still lists EMI under M3/M4; update it to M2 per ADR-0011.
+- [x] ARCHITECTURE.md lists EMI under M2 per ADR-0011 (section 6 table and diagram).
 
 ## CI (coordinator)
 - [x] (FIXED 2026-10-30, run on 1cf846c: all 6 OS x Python combinations green; causes: wall-clock asserts, py3.13 HTTP 422 phrase in openapi, POSIX path in a WSL test, arm64 gmsh signature and divide warning) The CI `test` job had failed on every push, on all 6 OS × Python combinations, since at least 0cc834d. lint/types, schema, reuse, pip-licenses and the wp-508 wheel builds pass. Being reproduced in a clean clone with KiCad, openEMS and CuPy hidden. PROCESS FIX: the coordinator checks the CI result of every push, and a red `test` job blocks new merges.
