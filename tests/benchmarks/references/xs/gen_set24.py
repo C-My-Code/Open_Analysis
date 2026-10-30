@@ -77,7 +77,11 @@ def _trace(id_: str, u: float, z0: float, w: float, t: float) -> XsConductor:
         id=id_,
         role="signal",
         shape=XsTrapezoid(
-            u_center=u * UM, z_bottom=z0, w_bottom=w * UM, w_top=max(w * UM - t, 0.2 * w * UM), thickness=t
+            u_center=u * UM,
+            z_bottom=z0,
+            w_bottom=w * UM,
+            w_top=max(w * UM - t, 0.2 * w * UM),
+            thickness=t,
         ),
     )
 
@@ -107,12 +111,21 @@ def build(sp: Spec, t_um: float) -> CrossSection:
         if sp.kind == "cpwg":
             half = (sp.w + 2 * sp.s) / 2.0 * UM
             cond.append(
-                XsConductor(id="g2", role="ground", shape=XsPlane(z_bottom=zt, thickness=t, u_max=-half))
+                XsConductor(
+                    id="g2", role="ground", shape=XsPlane(z_bottom=zt, thickness=t, u_max=-half)
+                )
             )
             cond.append(
-                XsConductor(id="g3", role="ground", shape=XsPlane(z_bottom=zt, thickness=t, u_min=half))
+                XsConductor(
+                    id="g3", role="ground", shape=XsPlane(z_bottom=zt, thickness=t, u_min=half)
+                )
             )
-        hint = {"microstrip": "microstrip", "coated": "general", "embedded": "embedded_microstrip", "cpwg": "cpw"}[sp.kind]
+        hint = {
+            "microstrip": "microstrip",
+            "coated": "general",
+            "embedded": "embedded_microstrip",
+            "cpwg": "cpw",
+        }[sp.kind]
     elif sp.kind == "stripline":
         zt = z0 + h  # trace bottom
         us = [-pitch, pitch] if sp.pair else [0.0]
@@ -120,7 +133,9 @@ def build(sp: Spec, t_um: float) -> CrossSection:
             cond.append(_trace(f"s{k + 1}", u, zt, sp.w, t))
         z_top_plane = zt + t + h2
         diel.append(_slab(z0, z_top_plane, sp.er))
-        cond.append(XsConductor(id="g2", role="ground", shape=XsPlane(z_bottom=z_top_plane, thickness=t)))
+        cond.append(
+            XsConductor(id="g2", role="ground", shape=XsPlane(z_bottom=z_top_plane, thickness=t))
+        )
         hint = "general"
     elif sp.kind == "broadside":
         z1 = z0 + h  # lower trace bottom
@@ -129,7 +144,9 @@ def build(sp: Spec, t_um: float) -> CrossSection:
         cond.append(_trace("s2", 0.0, z2, sp.w, t))
         z_top_plane = z2 + t + h2
         diel.append(_slab(z0, z_top_plane, sp.er))
-        cond.append(XsConductor(id="g2", role="ground", shape=XsPlane(z_bottom=z_top_plane, thickness=t)))
+        cond.append(
+            XsConductor(id="g2", role="ground", shape=XsPlane(z_bottom=z_top_plane, thickness=t))
+        )
         hint = "general"
     else:
         raise ValueError(sp.kind)
@@ -147,7 +164,12 @@ def quantities(c: Any, l_ext: Any, pair: bool) -> dict[str, float]:
     )
     if pair:
         assert m.z_diff is not None
-        return {"z": float(m.z_diff[0]), "eps_eff": float(np.mean(m.eps_eff[0])), "z_odd": float(m.z_odd[0]), "z_even": float(m.z_even[0])}  # type: ignore[index]
+        return {
+            "z": float(m.z_diff[0]),
+            "eps_eff": float(np.mean(m.eps_eff[0])),
+            "z_odd": float(m.z_odd[0]),
+            "z_even": float(m.z_even[0]),
+        }  # type: ignore[index]
     assert m.z0 is not None
     return {"z": float(m.z0[0]), "eps_eff": float(m.eps_eff[0, 0])}
 
@@ -170,21 +192,42 @@ def one(sp: Spec, t_um: float, n_levels: int) -> dict[str, Any]:
         rows.append({"level": lv.level, "h_max_m": lv.h_max, "n_dofs": lv.n_dofs, **q})
     ext = {k: rs.richardson([r[k] for r in rows]) for k in rows[0] if k in ("z", "eps_eff")}
     ref = {"z": ext["z"]["value"], "eps_eff": ext["eps_eff"]["value"]}
-    est = {"z_pct": 100 * ext["z"]["err"] / ref["z"], "eps_eff_pct": 100 * ext["eps_eff"]["err"] / ref["eps_eff"]}
+    est = {
+        "z_pct": 100 * ext["z"]["err"] / ref["z"],
+        "eps_eff_pct": 100 * ext["eps_eff"]["err"] / ref["eps_eff"],
+    }
     bem1, bem4 = bem_values(xs, 1.0, sp.pair), bem_values(xs, 4.0, sp.pair)
     pct = lambda a, b: 100.0 * (a / b - 1.0)  # noqa: E731
     return {
         "schema": "oa-bench-reference/1",
         "id": f"B-IMP-02/{sp.name}_{int(t_um)}um",
-        "geometry": {**sp.__dict__, "copper_um": t_um, "etch": "w_top = w_bottom - t", "dielectric": "lossless, static eps_r"},
+        "geometry": {
+            **sp.__dict__,
+            "copper_um": t_um,
+            "etch": "w_top = w_bottom - t",
+            "dielectric": "lossless, static eps_r",
+        },
         "quantity": "zdiff" if sp.pair else "z0",
         "reference": ref,
         "error_estimate_pct": est,
         "convergence": rows,
         "richardson_ratio": {k: v["ratio"] for k, v in ext.items()},
-        "bem_default": {**bem1, "z_err_pct": pct(bem1["z"], ref["z"]), "eps_eff_err_pct": pct(bem1["eps_eff"], ref["eps_eff"])},
-        "bem_4x": {**bem4, "z_err_pct": pct(bem4["z"], ref["z"]), "eps_eff_err_pct": pct(bem4["eps_eff"], ref["eps_eff"]), "vs_default_pct": pct(bem1["z"], bem4["z"])},
-        "provenance": {"fem": "oa_impedance.fem P2", "levels": n_levels, "wall_s": round(time.time() - t0, 1)},
+        "bem_default": {
+            **bem1,
+            "z_err_pct": pct(bem1["z"], ref["z"]),
+            "eps_eff_err_pct": pct(bem1["eps_eff"], ref["eps_eff"]),
+        },
+        "bem_4x": {
+            **bem4,
+            "z_err_pct": pct(bem4["z"], ref["z"]),
+            "eps_eff_err_pct": pct(bem4["eps_eff"], ref["eps_eff"]),
+            "vs_default_pct": pct(bem1["z"], bem4["z"]),
+        },
+        "provenance": {
+            "fem": "oa_impedance.fem P2",
+            "levels": n_levels,
+            "wall_s": round(time.time() - t0, 1),
+        },
     }
 
 
@@ -206,7 +249,15 @@ def main() -> None:
             d.mkdir(parents=True, exist_ok=True)
             doc = one(sp, float(t_um), a.levels)
             f.write_text(json.dumps(doc, indent=1), encoding="utf-8")
-            print(name, doc["reference"], doc["error_estimate_pct"], doc["bem_default"]["z_err_pct"], doc["bem_default"]["eps_eff_err_pct"], doc["provenance"]["wall_s"], flush=True)
+            print(
+                name,
+                doc["reference"],
+                doc["error_estimate_pct"],
+                doc["bem_default"]["z_err_pct"],
+                doc["bem_default"]["eps_eff_err_pct"],
+                doc["provenance"]["wall_s"],
+                flush=True,
+            )
 
 
 if __name__ == "__main__":

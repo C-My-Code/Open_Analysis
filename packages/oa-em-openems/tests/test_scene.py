@@ -209,7 +209,9 @@ def test_skin_model_meshes_both_faces_with_a_pec_core_and_real_thickness_skins()
     # on the PEC domain wall and has none
     assert sum(q["shape"] == "polygon" for q in mine) == 3
     walls = [q for q in mine if q["shape"] == "box"]
-    assert any(abs(q["start"][2] - 235.0) < 1e-6 and abs(q["stop"][2] - 270.0) < 1e-6 for q in walls)
+    assert any(
+        abs(q["start"][2] - 235.0) < 1e-6 and abs(q["stop"][2] - 270.0) < 1e-6 for q in walls
+    )
     # the PEC cores sit below the skins in priority, so the skins own the face edges
     cores = [q for q in scene.data["primitives"] if q["shape"] == "linpoly" and q["prop"] == "PEC"]
     assert len(cores) == 2

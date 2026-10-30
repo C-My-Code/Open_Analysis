@@ -6,7 +6,7 @@
 --model sheet --f 5e9 10e9`` runs one Palace job (WSL, boxed by ``oa-palace-run``: 12 GB, 800 % CPU)
 and appends a record to ``R1/palace_runs.json``. Wave ports on the x faces, ``y_half`` / ``air``
 padding of the absorbing boundary, dielectric evaluated at ``--eps-freq`` (Palace 0.18 has no
-frequency-dependent materials). Heavy: hold the token, run in the foreground, then ``wsl --shutdown``.
+frequency-dependent materials). Heavy: hold the token, run in the foreground, then shut WSL down.
 """
 
 from __future__ import annotations
@@ -124,7 +124,7 @@ def main() -> None:
     s = np.asarray(out.network.s.array)
     rec = {
         "tag": args.tag,
-        "args": {k: v for k, v in vars(args).items()},
+        "args": dict(vars(args)),
         "freqs_hz": f.tolist(),
         "il_db": (-20 * np.log10(np.abs(s[:, 1, 0]))).tolist(),
         "s11_db": (20 * np.log10(np.abs(s[:, 0, 0]))).tolist(),

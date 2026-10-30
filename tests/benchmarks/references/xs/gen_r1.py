@@ -40,7 +40,7 @@ def cascade(
     gam = np.sqrt(z * y)
     gam = np.where(gam.real < 0, -gam, gam)
     t = np.exp(-gam * length)
-    # S of a line in its own impedance: S21 = e^{-gl}, S11 = 0; in z_ref via the reflection at the ends
+    # line in its own impedance: S21 = e^{-gl}, S11 = 0; in z_ref via the end reflections
     rho = (zc - z_ref) / (zc + z_ref)
     s11 = rho * (1 - t * t) / (1 - rho * rho * t * t)
     s21 = (1 - rho * rho) * t / (1 - rho * rho * t * t)
@@ -94,7 +94,15 @@ def main() -> None:
         print(table[-1], flush=True)
     ref: dict[str, Any] = {}
     err: dict[str, Any] = {}
-    for key in ("z0", "eps_eff", "il_line_db", "il_50_db", "alpha_c_np_m", "alpha_d_np_m", "delay_s"):
+    for key in (
+        "z0",
+        "eps_eff",
+        "il_line_db",
+        "il_50_db",
+        "alpha_c_np_m",
+        "alpha_d_np_m",
+        "delay_s",
+    ):
         stack = np.stack([lv[key] for lv in per_level])  # (4, nf)
         ext = np.empty(stack.shape[1])
         e = np.empty(stack.shape[1])

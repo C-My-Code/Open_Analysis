@@ -91,7 +91,9 @@ class Options:
         port_length = ex.get("openems.port_length")
         return cls(
             conductor_model=str(ex.get("openems.conductor_model", "skin")),
-            skin_freq=float(sf) if isinstance(sf := ex.get("openems.skin_freq"), (int, float)) else None,
+            skin_freq=float(sf)
+            if isinstance(sf := ex.get("openems.skin_freq"), (int, float))
+            else None,
             dispersion=str(ex.get("openems.dispersion", "debye")),
             absorbing=str(ex.get("openems.absorbing", "PML_8")),
             port_length=float(port_length) if isinstance(port_length, (int, float)) else None,
@@ -1110,13 +1112,16 @@ def _skin_prims(
     skipped = 0
     for ring in (ex, *holes):
         pts = np.asarray(ring)
-        for a, b in zip(pts[:-1], pts[1:], strict=True):
+        for a, b in itertools.pairwise(pts):
             if math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-12:
                 continue
             if abs(a[0] - b[0]) < 1e-12 or abs(a[1] - b[1]) < 1e-12:
                 on_edge = (
-                    (abs(a[0] - b[0]) < 1e-12 and (abs(a[0] - dom_lo[0]) < 1e-9 or abs(a[0] - dom_hi[0]) < 1e-9))
-                    or (abs(a[1] - b[1]) < 1e-12 and (abs(a[1] - dom_lo[1]) < 1e-9 or abs(a[1] - dom_hi[1]) < 1e-9))
+                    abs(a[0] - b[0]) < 1e-12
+                    and (abs(a[0] - dom_lo[0]) < 1e-9 or abs(a[0] - dom_hi[0]) < 1e-9)
+                ) or (
+                    abs(a[1] - b[1]) < 1e-12
+                    and (abs(a[1] - dom_lo[1]) < 1e-9 or abs(a[1] - dom_hi[1]) < 1e-9)
                 )
                 if on_edge:
                     continue  # a wall on the domain face is inside the absorber/PEC wall

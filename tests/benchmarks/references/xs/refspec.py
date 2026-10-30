@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Canonical reference problems of WP-510 (B-EM-01, B-EM-02b, B-IMP-02) and the 2D FEM drivers.
 
-One definition per problem. Every solver (BEM, 2D FEM, Palace, openEMS, oa-fdtd) is configured from
-these numbers; ``specs/*.toml`` documents them and ``tests/benchmarks/references/xs/test_*`` pins the
-two against each other. Run the generators from the repository root with ``uv run python``.
+One definition per problem. Every solver (BEM, 2D FEM, Palace, openEMS, oa-fdtd) is set from
+two against each other. Generators run from the repository root (uv run python).
+two against each other. Run the generators from the repository root (``uv run python``).
 """
 
 from __future__ import annotations
@@ -46,7 +46,10 @@ def em_microstrip_xs(model: Any = DS_MODEL, sigma: float = SIGMA_CU) -> CrossSec
     return CrossSection(
         conductors=(
             XsConductor(
-                id="g1", role="ground", shape=XsPlane(z_bottom=0.0, thickness=EM_T), conductivity=sigma
+                id="g1",
+                role="ground",
+                shape=XsPlane(z_bottom=0.0, thickness=EM_T),
+                conductivity=sigma,
             ),
             XsConductor(
                 id="s1",
@@ -83,7 +86,9 @@ class LevelResult:
     l_ext: F64  # (n, n) [H/m]
 
 
-def fem_levels(xs: CrossSection, n_levels: int = 4, p: FemParams | None = None) -> list[LevelResult]:
+def fem_levels(
+    xs: CrossSection, n_levels: int = 4, p: FemParams | None = None
+) -> list[LevelResult]:
     """Electrostatic P2 FEM on ``n_levels`` globally refined meshes (h_max / sqrt 2 per level)."""
     p = p or FemParams(loss="none")
     h = p.h_max if p.h_max is not None else _lref(xs, p) / 4.0

@@ -7,7 +7,13 @@ R1 is the converged 2D FEM RLGC cascade of the canonical microstrip
 ports (50 ohm, as the testkit fixture) and, via ``OA_OE_PORTS=wave``, with MSL wave ports.
 
 Environment (all optional): ``OA_OE_MODEL`` (sheet | pec | skin, default skin), ``OA_OE_FMAX``
-[Hz], ``OA_OE_NPTS``, ``OA_OE_PORTS`` (lumped | wave), ``OA_OE_SKIN_FREQ`` [Hz], ``OA_OE_PRESET`` (coarse | medium | fine), ``OA_OE_YHALF`` / ``OA_OE_AIR`` (lateral half width and air above, mm), ``OA_OE_OUT``
+[Hz],
+``OA_OE_NPTS``,
+``OA_OE_PORTS`` (lumped | wave),
+``OA_OE_SKIN_FREQ`` [Hz],
+``OA_OE_PRESET`` (coarse | medium | fine),
+``OA_OE_YHALF`` / ``OA_OE_AIR`` (lateral half width and air above, mm),
+``OA_OE_OUT``
 (directory that receives the Touchstone and a JSON summary).
 """
 
@@ -70,7 +76,7 @@ def _problem() -> EMProblem:
         y_half=float(os.environ.get("OA_OE_YHALF", "2.5")) * 1e-3,
         air=float(os.environ.get("OA_OE_AIR", "1.0")) * 1e-3,
     )
-    # canonical dielectric (docs/BENCHMARKS.md B-EM-01): Djordjevic-Sarkar, not the fixture's constant
+    # canonical dielectric (BENCHMARKS B-EM-01): Djordjevic-Sarkar, not the fixture's constant
     mats = tuple(
         m.model_copy(update={"model": DjordjevicSarkar(dk=4.3, df=0.02, f_ref=1e9)})
         if isinstance(m, DielectricMaterial)
@@ -161,7 +167,11 @@ def test_il_against_r1(run: dict[str, Any], record_property: Any) -> None:
         pytest.skip("R1 reference not generated")
     ref = json.loads(R1.read_text(encoding="utf-8"))
     rf = np.array(ref["freqs_hz"])
-    r_il = np.array(ref["reference"]["il_50_db"] if run["summary"]["ports"] == "lumped" else ref["reference"]["il_line_db"])
+    r_il = np.array(
+        ref["reference"]["il_50_db"]
+        if run["summary"]["ports"] == "lumped"
+        else ref["reference"]["il_line_db"]
+    )
     f, s = run["f"], run["s"]
     il = -20 * np.log10(np.abs(s[:, 1, 0]))
     sel = (f >= rf[0]) & (f <= rf[-1])
