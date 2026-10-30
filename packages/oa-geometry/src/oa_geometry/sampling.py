@@ -124,6 +124,23 @@ def _sigma(mat: ConductorMaterial | None, temp: float | None) -> float:
     return mat.conductivity / max(1e-3, 1.0 + mat.temp_coeff * (temp - mat.t_ref))
 
 
+def _clip(lines: object, geoms: object) -> object:
+    """``shapely.intersection(lines, geoms)``, skipping the overlay for a single `geoms` that
+    covers a line entirely (its intersection is the line itself): planes cover most cuts."""
+    if not isinstance(geoms, shapely.Geometry):
+        return shapely.intersection(lines, geoms)
+    shapely.prepare(geoms)
+    covered = shapely.covers(geoms, lines)
+    if not covered.any():
+        return shapely.intersection(lines, geoms)
+    res = np.empty(len(lines), dtype=object)  # type: ignore[arg-type]
+    res[covered] = lines[covered]  # type: ignore[index]
+    rest = ~covered
+    if rest.any():
+        res[rest] = shapely.intersection(lines[rest], geoms)  # type: ignore[index]
+    return res
+
+
 def _u_intervals(
     lines: object, geoms: object, centers: F64, normals: F64
 ) -> list[list[tuple[float, float]]]:
@@ -133,7 +150,8 @@ def _u_intervals(
     out: list[list[tuple[float, float]]] = [[] for _ in range(k)]
     if k == 0:
         return out
-    parts, src = shapely.get_parts(shapely.intersection(lines, geoms), return_index=True)
+    inter = _clip(lines, geoms)
+    parts, src = shapely.get_parts(inter, return_index=True)
     if len(parts) == 0:
         return out
     ls = shapely.get_type_id(parts) == 1  # LineString
@@ -168,12 +186,23 @@ def _merge(iv: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
 
 def _layer_intervals(
-    geo: BoardGeometry, layer: str, lines: object, centers: F64, normals: F64
+    geo: BoardGeometry,
+    layer: str,
+    lines: object,
+    centers: F64,
+    normals: F64,
+    skip: frozenset[str],
 ) -> list[dict[str | None, list[tuple[float, float]]]]:
-    """u-intervals of copper on `layer` along each cut line, per net (merged)."""
+    """u-intervals of copper on `layer` along each cut line, per net (merged). Nets in `skip`
+    (the signal itself and its partner, which the section ignores) are not clipped."""
     tree = geo.strtree(layer)
     k = len(lines)  # type: ignore[arg-type]
     qi, ti = tree._tree.query(lines, predicate="intersects")
+    if skip and len(qi):
+        keep = np.fromiter(
+            (tree.net(j) not in skip for j in ti.tolist()), dtype=bool, count=len(ti)
+        )
+        qi, ti = qi[keep], ti[keep]
     per: list[dict[str | None, list[tuple[float, float]]]] = [{} for _ in range(k)]
     if len(qi):
         ivs = _u_intervals(lines[qi], tree._geoms[ti], centers[qi], normals[qi])  # type: ignore[index]
@@ -309,7 +338,9 @@ def _sections(
     lines = shapely.linestrings(
         np.stack((p - n * halves[:, None], p + n * halves[:, None]), axis=1)
     )
-    per_nets = _layer_intervals(geo, seg.layer, lines, p, n)
+    per_nets = _layer_intervals(
+        geo, seg.layer, lines, p, n, frozenset(x for x in (seg.net, pair) if x is not None)
+    )
     groups: dict[tuple[str, str | None], list[tuple[int, str]]] = {}
     for i in range(k):
         for side, ref in (("above", refs_a[i]), ("below", refs_b[i])):

@@ -161,6 +161,12 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - CR WP-508b-make-valid-structure: 13x faster on the 44% hot spot, but it changes hashes. WP-509 decides after area/topology equivalence tests.
 - The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
 
+## Compiled core part 2 (WP-509, partial)
+- make_valid structure adopted (area-guarded; evidence in docs/perf/PROFILE-509.md). No `--update-golden` needed: no committed golden holds a content_hash of a fractured-fill board.
+- cm5 read 0.75 to 0.23 s; ERC 10k 13.1 to 6.2 s (target 3 s); RefMap 10k about 1.3 s (50k extrapolates to about 5 s vs 3 s). Jetson not measured.
+- [ ] Native clipping kernel for ERC cut intervals and ReferenceMap (CR WP-509-native-clipping).
+- [ ] BEM assembly and profile-sampling kernels (B-IMP-01/02 gates) not started.
+
 ## GPU FDTD core (WP-505)
 - Port |S21| drifts above 3 GHz (3.8e-3 at 20 GHz); cause unknown. Must be fixed in WP-506 before the B-EM thru targets.
 - CPML is validated at normal incidence only.
