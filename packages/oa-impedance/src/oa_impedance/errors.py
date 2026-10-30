@@ -7,7 +7,7 @@ from __future__ import annotations
 from oa_framework.errors import ErrorInfo
 from oa_model.errors import UnsupportedFeature
 
-__all__ = ["ImpedanceUnsupported", "MethodNotAvailable"]
+__all__ = ["ImpedanceUnsupported", "MethodNotAvailable", "SectionTooLarge"]
 
 
 class ImpedanceUnsupported(UnsupportedFeature):
@@ -28,3 +28,10 @@ class MethodNotAvailable(ImpedanceUnsupported):
     """``method="fem"`` (or another registered name) has no solver registered yet."""
 
     code = "IMPEDANCE_METHOD_UNAVAILABLE"
+
+
+class SectionTooLarge(ImpedanceUnsupported):
+    """The BEM system of the section exceeds the per-section memory budget (and the iterative
+    solver's panel limit), so it is refused before any large allocation."""
+
+    code = "IMPEDANCE.SECTION_TOO_LARGE"

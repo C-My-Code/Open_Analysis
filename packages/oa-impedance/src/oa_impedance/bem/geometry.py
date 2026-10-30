@@ -34,6 +34,7 @@ from shapely.ops import unary_union  # type: ignore[import-untyped,unused-ignore
 from oa_model.xsection import (
     CrossSection,
     XsCircle,
+    XsPlane,
     XsPolygon,
     XsRegion,
     XsSlab,
@@ -59,8 +60,12 @@ class MeshParams:
     gap_ratio: float = 1.0  # panel size / distance to another conductor, in units of alpha
     s_min_rel: float = 3e-4  # smallest panel / characteristic length
     s_max_rel: float = 1.5  # largest panel / characteristic length
-    truncation: float = 20.0  # open boundaries cut at this many characteristic lengths
-    min_feature_ratio: float = 0.05  # s_min <= this * smallest conductor thickness
+    truncation: float = 20.0  # open boundaries cut at this many truncation lengths
+    plane_relax: float = 1.0  # planes: faces of thin copper may use panels up to this * distance
+    far_start: float = 3.0  # far field begins this many truncation lengths from the signals
+    far_ratio: float = 0.3  # beyond it, panels at distance d are at least far_ratio * (d - start)
+    window: bool = True  # truncation length from the signal cluster + stack height (not the window)
+    min_feature_ratio: float = 0.05  # s_min <= this * smallest conductor thickness (WP-510)
 
     def scaled(self, factor: float) -> MeshParams:
         """A uniformly refined (factor > 1) or coarsened copy."""
@@ -143,6 +148,68 @@ def _curvature_cap(sp: F64) -> float:
     return float(0.06 * np.min(radius))
 
 
+def _u_extent(s: Any) -> list[float]:
+    """Finite lateral extent [m] of a conductor shape (empty for an unbounded plane)."""
+    if isinstance(s, XsTrapezoid):
+        h = max(s.w_bottom, s.w_top) / 2
+        return [s.u_center - h, s.u_center + h]
+    if isinstance(s, XsCircle):
+        return [s.u_center - s.radius, s.u_center + s.radius]
+    if isinstance(s, XsPolygon):
+        arr = s.polygon.exterior.array
+        return [float(np.min(arr[:, 0])), float(np.max(arr[:, 0]))]
+    return [v for v in (s.u_min, s.u_max) if v is not None]
+
+
+def _curvature_caps(sp: F64) -> tuple[F64, F64]:
+    """Arc length of every interior vertex of the polyline ``sp`` and the panel length (0.06 *
+    local radius) allowed there; vertices of negligible turn are left out."""
+    if len(sp) < 3:
+        return np.zeros(0), np.zeros(0)
+    v = np.diff(sp, axis=0)
+    ln = np.hypot(v[:, 0], v[:, 1])
+    ang = np.arctan2(v[:, 1], v[:, 0])
+    turn = np.abs((np.diff(ang) + np.pi) % (2 * np.pi) - np.pi)
+    ok = turn > 1e-3
+    pos = np.concatenate([[0.0], np.cumsum(ln)])[1:-1]
+    return pos[ok], 0.06 * (0.5 * (ln[:-1] + ln[1:]))[ok] / turn[ok]
+
+
+def _plane_covers(xs: CrossSection, u_lo: float, u_hi: float) -> bool:
+    """Whether the planes of one z level together span ``[u_lo, u_hi]`` (a reference exists)."""
+    by_z: dict[float, list[tuple[float, float]]] = {}
+    for c in xs.conductors:
+        s = c.shape
+        if isinstance(s, XsPlane):
+            by_z.setdefault(round(s.z_bottom, 9), []).append(
+                (
+                    -math.inf if s.u_min is None else s.u_min,
+                    math.inf if s.u_max is None else s.u_max,
+                )
+            )
+    for ivs in by_z.values():
+        reach = u_lo
+        for a, b in sorted(ivs):
+            if a > reach + 1e-12:
+                break
+            reach = max(reach, b)
+        if reach >= u_hi:
+            return True
+    return False
+
+
+def _z_bounds(s: Any) -> list[float]:
+    """Finite z levels [m] of a conductor shape or dielectric region."""
+    if isinstance(s, XsTrapezoid | XsPlane):
+        return [s.z_bottom, s.z_bottom + s.thickness]
+    if isinstance(s, XsCircle):
+        return [s.z_center - s.radius, s.z_center + s.radius]
+    if isinstance(s, XsSlab):
+        return [s.z_bottom, s.z_top]
+    arr = s.polygon.exterior.array
+    return [float(np.min(arr[:, 1])), float(np.max(arr[:, 1]))]
+
+
 def _zone_key(model: object | None, dkz: float, bg: float) -> tuple[str, float]:
     if model is None:
         return (f"const:{bg:.12g}", 1.0)
@@ -188,7 +255,19 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
     h_span = max(zs) - min(zs)
     w_span = max(us) - min(us) if us else 0.0
     h_char = max(h_span, w_span, 1e-9)
-    u_trunc = (max(abs(v) for v in us) if us else 0.0) + params.truncation * h_char
+    h_trunc = h_char
+    if params.window:
+        # The field of the signals falls off on the scale of the stack height and of the signal
+        # cluster width when a reference plane spans the cluster; a wide window of coplanar
+        # copper then does not move the open boundary. Without a covering plane (a weakly
+        # referenced section) the field reaches the whole window, so the full length is kept.
+        sig_u = [v for c in xs.conductors if c.role == "signal" for v in _u_extent(c.shape)]
+        if sig_u:
+            lo, hi = min(sig_u), max(sig_u)
+            reach = max(h_span, hi - lo)
+            if _plane_covers(xs, lo - reach, hi + reach):
+                h_trunc = max(h_span, hi - lo, 1e-9)
+    u_trunc = (max(abs(v) for v in us) if us else 0.0) + params.truncation * h_trunc
     z_lo, z_hi = min(zs), max(zs)
 
     sig_z = [
@@ -332,6 +411,20 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
     crib_idx = [i for i, r in enumerate(cond_ribbons) if r is not None]
     tol = max(2 * grid, 1e-4 * min(t_min, h_char))
 
+    # the probe points beside each noded piece must stay inside the thinnest layer they sit on
+    z_levels = np.unique(
+        np.round(
+            np.array(
+                [z for c in xs.conductors for z in _z_bounds(c.shape)]
+                + [z for d in xs.dielectrics for z in _z_bounds(d.region)]
+            ),
+            12,
+        )
+    )
+    z_gaps = np.diff(z_levels)
+    z_gaps = z_gaps[z_gaps > 1e-11]
+    probe_max = min(0.25 * h_char, 0.1 * float(z_gaps.min())) if len(z_gaps) else 0.25 * h_char
+
     recs: list[tuple[F64, int, int, int, int]] = []  # (coords, cond, kind, zone1, zone2)
     for pc in pieces:
         coords = np.asarray(pc.coords, dtype=float)
@@ -342,7 +435,7 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         tvec = seg / np.maximum(sl, 1e-300)[:, None]
         nvec = np.stack([-tvec[:, 1], tvec[:, 0]], axis=1)
         mids = 0.5 * (coords[:-1] + coords[1:])
-        delta = np.minimum(np.maximum(1e-3 * sl, 2 * grid), 0.25 * h_char)[:, None]
+        delta = np.minimum(np.maximum(1e-3 * sl, 2 * grid), max(probe_max, 2 * grid))[:, None]
         pl, pr = mids + delta * nvec, mids - delta * nvec
         mpts = shapely.points(mids)
         nseg = len(sl)
@@ -466,6 +559,9 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         d_s = np.min(dist[:, same], axis=1) if np.any(same) else np.full(len(pts), np.inf)
         return np.asarray(d_o), np.asarray(d_s)
 
+    plane_idx = {i for i, c in enumerate(xs.conductors) if isinstance(c.shape, XsPlane)}
+    sig_geoms = [g for g, r_ in zip(geoms_c, roles, strict=True) if r_ == "signal"]
+    focus = unary_union(sig_geoms) if sig_geoms and params.far_ratio > 0 else None
     a_list, b_list, c_list, k_list, z1_list, z2_list, f_list = [], [], [], [], [], [], []
     n_samp = 33
     for sp, ci, kd, z1, z2, pid in subs:
@@ -478,6 +574,9 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         # singular points (a strip corner above a long plane refines the plane under it)
         ss = 0.5 * (1.0 - np.cos(np.linspace(0.0, math.pi, n_samp)))
         ls = ss * total
+        v_pos, v_cap = _curvature_caps(sp)
+        if len(v_pos):
+            ls = np.unique(np.concatenate([ls, v_pos]))
         if len(sing_arr):
             near = sing_arr
             chord = sp[-1] - sp[0]
@@ -503,17 +602,29 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         d_gap, d_same = gap_distance(
             pts, pid, _group(ci, kd, pid), math.isfinite(_curvature_cap(sp))
         )
-        size = np.clip(
-            np.minimum(
-                np.minimum(params.alpha * d_sing, params.gap_ratio * params.alpha * d_gap),
-                3.0 * d_same,
-            ),
-            s_min,
-            s_max,
-        )
-        size = np.minimum(size, _curvature_cap(sp))
+        raw = np.minimum(params.alpha * d_sing, params.gap_ratio * params.alpha * d_gap)
+        if focus is not None:
+            # far field: copper far from the signals carries little of their charge, so its
+            # corners are not resolved below far_ratio * distance (graded, not uniform)
+            dist_f = np.maximum(
+                shapely.distance(focus, shapely.points(pts)) - params.far_start * h_trunc, 0.0
+            )
+            raw = np.maximum(raw, params.far_ratio * dist_f)
+        cap_same = 3.0 * d_same
+        if ci >= 0 and ci in plane_idx and params.plane_relax > 0:
+            # a thin plane has two faces a few tens of um apart; capping every panel at 3x that
+            # makes uniform, needlessly fine panels over its whole length. The faces of a plane
+            # carry smooth, equal densities away from its edges, so the cap grows with the
+            # distance to the nearest edge / singular point.
+            cap_same = np.maximum(cap_same, params.plane_relax * d_sing)
+        psz = np.clip(np.minimum(raw, cap_same), s_min, s_max)
+        if len(v_pos):
+            # curvature limit near each curved vertex, relaxing away from it (not one global cap
+            # set by the tightest fillet of a long piece)
+            cap_v = np.abs(ls[:, None] - v_pos[None, :]) * params.alpha + v_cap[None, :]
+            psz = np.minimum(psz, cap_v.min(axis=1))
         # integral of dl/size, size varying linearly between samples (exact for s = alpha * d)
-        s0, s1, dl = size[:-1], size[1:], np.diff(ls)
+        s0, s1, dl = psz[:-1], psz[1:], np.diff(ls)
         ds = s1 - s0
         flat = np.abs(ds) < 1e-9 * s0
         seg = np.where(flat, dl / s0, dl * np.log(s1 / s0) / np.where(flat, 1.0, ds))
