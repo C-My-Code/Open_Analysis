@@ -128,9 +128,6 @@ def run(
     f = np.asarray(out.network.freqs.array)
     s = np.asarray(out.network.s.array)
     walls = [analysis.results[i].wall_s for i in sorted(analysis.results)]
-    z0 = None
-    if out.port_impedance is not None:
-        z0 = np.asarray(out.port_impedance.array if hasattr(out.port_impedance, "array") else out.port_impedance)
     summary = {
         "model": os.environ.get("OA_OE_MODEL", "skin"),
         "ports": os.environ.get("OA_OE_PORTS", "lumped"),
@@ -142,7 +139,6 @@ def run(
         "wall_s": walls,
         "peak_rss_mb": local_runner.peak_rss_mb,
         "cells": analysis.prepared.mesh_stats["cells"] + analysis.prepared.mesh_stats["pml_cells"],
-        "z0_ohm": None if z0 is None else np.asarray(z0).real.tolist(),
     }
     if "OA_OE_OUT" in os.environ:
         d = Path(os.environ["OA_OE_OUT"])

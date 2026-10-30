@@ -8,12 +8,14 @@ so geometry, mesh and port translation are unit-testable anywhere.
 
 Modelling choices (all documented in the README):
 
-- Copper is a zero-thickness ``ConductingSheet`` (default; carries the conductivity and the real
-  thickness) or a thick PEC body (``openems.conductor_model = "pec"``). The sheet sits on the
-  dielectric face of the layer (so the dielectric heights are preserved) or mid-layer when
-  dielectric touches both faces.
+- Copper is meshed at its real thickness (``openems.conductor_model = "skin"``, the default): a PEC
+  core shorts the two faces, and ``ConductingSheet`` skins (real conductivity and thickness, so
+  openEMS applies its skin-effect model) cover the top, bottom and side faces. Dielectric heights
+  and Z0 are those of the real copper. Alternatives: ``"sheet"``, one zero-thickness
+  ``ConductingSheet`` on the dielectric face (or mid-layer), which has no thickness, and ``"pec"``
+  (lossless thick copper).
 - Via barrels are solid PEC cylinders of the drill radius.
-- Dielectrics are one Debye pole plus conductivity fitted over the simulated band
+- Dielectrics are a multi-pole Debye fit plus conductivity over the simulated band
   (:mod:`oa_em_openems.dispersion`), or constants at band centre (``openems.dispersion``).
 - Geometry touching an absorbing region face is extended through the padding (slabs, planes) so
   the boundary does not cut the board; wave ports add their own feed line there.
@@ -75,8 +77,8 @@ _EPS = 1e-9
 class Options:
     """Adapter options. They come from ``EMProblem.mesh.expert`` keys prefixed ``openems.``."""
 
-    conductor_model: str = "sheet"  # "sheet" | "pec" | "skin"
-    skin_freq: float | None = None  # "skin": frequency [Hz] at which the face sheets equal Rs; None = f_max
+    conductor_model: str = "skin"  # "skin" | "sheet" | "pec"
+    skin_freq: float | None = None  # "skin": None/0 = real thickness; else t = delta(f) [Hz]
     dispersion: str = "debye"  # "debye" (multi-pole) | "debye1" (single pole) | "constant"
     absorbing: str = "PML_8"  # openEMS boundary string used for "absorbing"
     port_length: float | None = None  # wave-port feed length [m]; None = automatic
@@ -88,7 +90,7 @@ class Options:
         ex = problem.mesh.expert
         port_length = ex.get("openems.port_length")
         return cls(
-            conductor_model=str(ex.get("openems.conductor_model", "sheet")),
+            conductor_model=str(ex.get("openems.conductor_model", "skin")),
             skin_freq=float(sf) if isinstance(sf := ex.get("openems.skin_freq"), (int, float)) else None,
             dispersion=str(ex.get("openems.dispersion", "debye")),
             absorbing=str(ex.get("openems.absorbing", "PML_8")),
@@ -872,11 +874,14 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
             )
 
     pec_name = "PEC"
-    f_skin = opts.skin_freq if opts.skin_freq is not None else f_max
+    f_skin = opts.skin_freq if opts.skin_freq is not None else 0.0  # 0: real thickness
 
-    def skin_t(sigma: float) -> float:
-        """Sheet thickness [m] whose DC resistance 1/(sigma t) equals the surface resistance Rs at
-        ``f_skin``: t = delta(f_skin). Exact at f_skin; Rs ~ sqrt(f) is held flat elsewhere."""
+    def skin_t(sigma: float, real_t: float) -> float:
+        """Thickness [m] given to the face sheets. Default (``skin_freq`` None or 0): the real
+        thickness, for which openEMS applies its own skin-effect model to the sheet (measured
+        against the 2D FEM in WP-510); otherwise t = delta(f_skin), a flat Rs(f_skin)."""
+        if f_skin <= 0.0:
+            return real_t
         return 1.0 / math.sqrt(math.pi * f_skin * 4e-7 * math.pi * sigma)
 
     for body in bodies.values():
@@ -885,14 +890,32 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
         sheet = opts.conductor_model == "sheet" and thickness > 0 and body.conductivity < 1e12
         skin = opts.conductor_model == "skin" and thickness > 0 and body.conductivity < 1e12
         if skin:
-            pname = _skin_name(body.conductivity, skin_t)
+            st_ = skin_t(body.conductivity, thickness)
+            pname = _skin_name(body.conductivity, st_)
             props[pname] = {
                 "kind": "sheet",
                 "conductivity": body.conductivity,
-                "thickness": float(f"{skin_t(body.conductivity):.9g}"),
+                "thickness": float(f"{st_:.9g}"),
             }
             props[pec_name] = {"kind": "metal"}
             for ex, holes in body.rings:
+                # PEC volume (priority 10) shorts the two faces through the thickness, so the
+                # space between the face sheets carries no field (a real conductor has none); the
+                # sheets (priority 11) then replace the PEC on the face planes and side walls
+                kh = keyhole_ring(
+                    [(float(px), float(py)) for px, py in ex],
+                    [[(float(px), float(py)) for px, py in hole] for hole in holes],
+                )
+                prims.append(
+                    {
+                        "shape": "linpoly",
+                        "prop": pec_name,
+                        "priority": 10,
+                        "points": [[um(px), um(py)] for px, py in kh],
+                        "elevation": um(cb.z_bottom),
+                        "length": um(thickness),
+                    }
+                )
                 prims.extend(
                     _skin_prims(
                         pname, ex, holes, cb.z_bottom, cb.z_top, dom_lo, dom_hi, bcs["zmin"], diags
@@ -1044,8 +1067,8 @@ def _metal_name(body: _Body, opts: Options) -> str:
     return "PEC"  # "pec"; and "skin": the lossless wave-port feed line
 
 
-def _skin_name(sigma: float, skin_t: Any) -> str:
-    return f"CUSKIN_{sigma:.6g}_{skin_t(sigma) * 1e6:.4g}um"
+def _skin_name(sigma: float, thickness: float) -> str:
+    return f"CUSKIN_{sigma:.6g}_{thickness * 1e6:.4g}um"
 
 
 def _skin_prims(
@@ -1072,14 +1095,14 @@ def _skin_prims(
     ring_pts = [[um(px), um(py)] for px, py in kh]
     out: list[dict[str, Any]] = []
     out.append(
-        {"shape": "polygon", "prop": pname, "priority": 10, "points": ring_pts, "elevation": um(zt)}
+        {"shape": "polygon", "prop": pname, "priority": 11, "points": ring_pts, "elevation": um(zt)}
     )
     if not (zmin_bc == "pec" and abs(zb - dom_lo[2]) < 1e-9):
         out.append(
             {
                 "shape": "polygon",
                 "prop": pname,
-                "priority": 10,
+                "priority": 11,
                 "points": ring_pts,
                 "elevation": um(zb),
             }
@@ -1101,7 +1124,7 @@ def _skin_prims(
                     {
                         "shape": "box",
                         "prop": pname,
-                        "priority": 10,
+                        "priority": 11,
                         "start": [um(a[0]), um(a[1]), um(zb)],
                         "stop": [um(b[0]), um(b[1]), um(zt)],
                     }
