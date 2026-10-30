@@ -92,6 +92,45 @@ Registered as `method="fem"` only after `import oa_impedance.fem`. It is the ind
 
 `impedance.profile` samples a net with `oa_geometry.sample_net`, locates transitions by bisection (25 µm default position accuracy), merges samples into runs, de-duplicates by `CrossSection.key()` and calls `solve_many` once on the unique sections. It adds no new physics; its accuracy is that of the per-section solver.
 
+### 2.6 Screening bounds and selective BEM (`screening.py`, WP-516)
+
+A decision such as "is $Z_0$ inside $Z_t(1\pm\tau)$?" needs the field-solved value only when the closed form cannot settle it. Let $Z_\text{cf}$ be a static closed-form value and $b$ a bound with
+
+$$\left|\frac{Z_\text{cf}}{Z_\text{bem}}-1\right|\le b\quad\Longrightarrow\quad Z_\text{bem}\in\Big[\frac{Z_\text{cf}}{1+b},\ \frac{Z_\text{cf}}{1-b}\Big]=[Z^-,Z^+].$$
+
+The section passes if $[Z^-,Z^+]\subset[Z_t(1-\tau),Z_t(1+\tau)]$, fails if the two intervals are disjoint, and needs the BEM otherwise. The reference is the BEM, not the exact field, because the all-BEM path is what the decision must reproduce.
+
+**Where $b$ comes from.** It is calibrated, not quoted. The published fit errors of the formulas (Hammerstad-Jensen 0.01 to 0.3 %) are against the exact static solution for a zero-thickness, infinitely wide plane; they do not cover finite copper thickness, mean-width trapezoids or a plane that ends near the trace, which is what a board section contains. For each family `REGIMES` in `screening.py` lists the calibration box and the largest error of $Z_\text{cf}$ against the BEM on a grid (re-run by `tests/test_screening.py` on a hold-out grid); $b$ is at least 1.5 times that maximum:
+
+| Family (quantity) | Box | Largest error | $b$ |
+|---|---|---|---|
+| microstrip, HJ ($Z_0$) | $0.2\le w/h\le6$, $t/h\le0.4$, $1.5\le\varepsilon_r\le12$ | 0.95 % | 2 % |
+| embedded microstrip ($Z_0$) | $0.5\le w/h\le4$, $t/h\le0.1$, $0.2\le c/h\le1$ | 5.0 % | 10 % |
+| stripline ($Z_0$) | $0.1\le w/b\le1.5$, $t/b\le0.3$ | 0.88 % | 2 % |
+| offset stripline, formula in range | $0.1\le w/b\le0.7$, $0.2\le\min(h_1,h_2)/b\le0.5$, $t/b\le0.1$ | 0.50 % | 1.5 % |
+| offset stripline, formula `extrapolated` | same | 5.5 % | 11 % |
+| coupled microstrip ($Z_\text{diff}$) | $0.5\le w/h\le2$, $0.2\le s/h\le4$, $t/h\le0.01$ | 2.05 % | 4.5 % |
+| coupled stripline ($Z_\text{diff}$) | $0.1\le w/b\le0.4$, $0.1\le s/b\le0.8$, $t/b\le0.01$ | 0.66 % | 1.5 % |
+
+The coupled forms are only calibrated for thin copper: at $t/h=0.1$ the Kirschning-Jansen $Z_\text{diff}$ is up to 19 % from the BEM and the Cohn coupled stripline up to 55 % (narrow strips, tight gap), so thicker pairs have no bound and go to the BEM. CPW and every section with a second signal, a floating conductor, a medium other than air above a surface microstrip, a trapezoid whose top and bottom width differ by more than 2 %, or $\varepsilon_r$ outside 1.5 to 12 have no bound.
+
+**Cut planes.** The closed forms assume infinite planes. The BEM sees a plane that stops near the trace. Measured on a microstrip with the plane ending $m\,h$ beyond both trace edges: error 8.6 % at $m=1$, 3.3 % at 2, 1.9 % at 3, 1.0 % at 5, 0.58 % at 8, 0.40 % at 20 (one-sided cut: at most 2.6 % at $m=1$). A bound is therefore only issued when every plane edge is at least $8h$ (stripline: $8b$) beyond the trace edge; otherwise the section is a BEM section. This is the "plane cut nearby" regime.
+
+**What stays exact.** IM-002 reports the worst impedance of a failing run. The screening value would change that number, so the worst member of each run is made exact: a screened member can only be the worst if its largest possible deviation $\max|Z^\pm-Z_t|$ reaches the largest *guaranteed* deviation $\max_i\min|Z_i^\pm-Z_t|$ of the run; those members are solved, and the process repeats until none is left. The reported value, the evidence and the pass/fail verdict of every sample are then those of the all-BEM path, provided the bound holds (guarded by the equivalence tests). `exact_values=False` skips this and reports the screening value with `accuracy_class = "screening"` and the bound in the evidence.
+
+**Sections without a verdict.** $Z_0$ exists for a BEM result with one conductor in the RLGC matrix, $Z_\text{diff}$ for two. The matrix order is the number of signals when a ground conductor is present and one less otherwise (`bem/solver.py`, `prepare`). A section that holds a neighbouring signal therefore returns `z0 = None`, and IM-002 never compares it. These sections are not solved at all: this is exact, not an approximation, and is where almost all the time of the bus-like mix board went (357 of 383 sections).
+
+### 2.7 Frequency sweeps from one static solve
+
+For $f>0$ the BEM needs per frequency (i) $C(f)$ and (ii) $R_{ac}(f)$.
+
+- $L_\text{ext}=\mu_0\varepsilon_0 C_0^{-1}$ and the vacuum charge $\sigma^0$ do not depend on $f$ (the vacuum problem has no dielectric).
+- $R_{ac}(f)=C_0^{-1}\big[\sum_p R_s(f)K_p(f)\ell_p\,\sigma^0_p\sigma^{0\,T}_p\big]C_0^{-1}$ is the static charge weighted with the analytic $R_s(f)K_p(f)$, so it needs no further field solve. Only the weights change with $f$.
+- $C(f)=C[\varepsilon_z(f)]$ depends on $f$ only through the zone permittivities. If every zone is frequency-independent (`ConstantDkDf`, a constant complex $\varepsilon=\varepsilon'(1-j\tan\delta)$), $C$ is one complex solve and $G(f)=-\omega\,\mathrm{Im}\,C$ is exact for every $f$. This is implemented (`_freq_independent`, `n_solves == 1`): a 50-point sweep costs one vacuum solve and one dielectric solve, plus the analytic loss and modal steps (about 7 ms of 130 ms per mix section).
+- For a dispersive material $C[\varepsilon]$ is a rational function of $\varepsilon$ (the system matrix is affine in $\varepsilon$), not of low degree, so no exact one-solve form exists. The code solves at up to six log-spaced anchors and interpolates; that stays as it is.
+
+So the per-frequency path is already "one static solve plus the analytic loss/roughness model" wherever that is exact, and the B-IMP-04 cost is the static per-section cost (meshing, influence matrices, LU), not the number of frequencies.
+
 ## 3. Assumptions and validity range
 
 | Assumption | When it fails | What the code does |
