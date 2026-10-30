@@ -100,13 +100,20 @@ max |S11| -28.4 dB (target below -29 where the reference is below -30); 1.6 s ru
   radius. Suspected: spurious coupling of the via/antipad into the inner plane gaps, which end in
   the port faces and the PML. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the
   gate on a stable machine.
-- BUG (open): the S-parameters of the B-EM-03 via depend on `frequency.n_points`. With 80 and 160
-  points they agree exactly; with 60 they differ by about 0.15 dB; with 20 to 41 points S21 is
-  exactly zero between 8 and 11 GHz and wrong at 1 to 7 GHz, though the time series is identical
-  (same step count). The cause is somewhere in the per-frequency extraction (not the pulse, which
-  depends only on `f_max`). Use `n_points >= 80` until fixed. The plane-gap termination hypothesis
-  was tested and refuted: the port sheet has 0.00 % of its weight in the plane gaps, and
-  restricting it in y or z does not change S.
+- FIXED: S depended on `frequency.n_points`. Causes: static quantities (band-centre mode eps, SIBC
+  fit range, Debye fit range) came from the sample list, and the plane extraction (branch
+  unwrapping, smooth gamma fit) ran on the sample list, which aliases when it is sparse. Now
+  `Model.f_band` (0, f_max) sets the statics, and `adapter.sim.solve_problem` extracts on a fixed
+  400-point internal grid united with the requested points (the gamma fit sees the internal grid
+  only). Regression: `tests/verification/test_fdtd_n_points.py` (20/41/80/160 points, B-EM-01 and
+  B-EM-03, identical S).
+- Power budget (float64, closed lossless boxes, `.scratch`-style check): plane extraction conserves
+  `|S11|^2 + |S21|^2 = 1` to 3e-4 on the lossless stripline (B-EM-02a) and to 0.3-0.7 % on the closed
+  lossless multilayer microstrip above 5 GHz; the port-sheet power `|V|^2 / R` is 2.5 % (stripline)
+  to 3.5 % (multilayer, growing with f) below the delivered power. The sheet is a local
+  conductance on every edge of the port plane, so it also dissipates the part of the real mode that
+  is not the static template (dispersion, evanescent content), which the template-projected
+  voltage does not count. The plane waves are the reliable estimate; the port S is not.
 - `compile_model` host memory for a 400x400x120 grid with 6 ADE poles: peak 7.5 GiB (was 10.1 GiB),
   compile 12 s (was 67 s); the per-pole delta arrays (float64) dominate what remains.
 - The matrix-pencil tail extrapolation is exercised only by B-EM-05a.
