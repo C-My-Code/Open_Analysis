@@ -45,8 +45,10 @@ layers and nets, copper intervals along the cut, partner offset) is equal share 
   tolerance and the `CrossSection` canonicalization grid.
 - Segment ids: `<track>` / `<track>#k` (multi-segment track) / `<id>.j` (cut at a T-junction).
 - Cross-section `u` runs along the left normal of the travel direction. Aggressors are appended
-  as further `signal` conductors; the differential partner (from `board.diff_pairs`) is always
-  included, ordered P, N.
+  as further `signal` conductors; the differential partner (from `board.diff_pairs`) is placed
+  at its nearest routed point on the same layer, ordered P, N, unless that placement would lie on
+  the signal or on other copper the cut crosses without standing on partner copper (meanders,
+  fan-outs): the partner's real copper on the cut is then an ordinary aggressor.
 - Reference definition and thresholds: docstring of `oa_geometry.refmap`.
 
 ## Performance (synthetic 4-layer boards, `tests/synthetic.py`, Windows laptop)
