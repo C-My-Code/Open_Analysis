@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 
+import numpy as np
 import shapely
 from pydantic import Field
 
@@ -92,7 +93,10 @@ class PlaneCavity(ErcRule):
                     ov = pa.intersection(pb)
                     if ov.area < cfg.min_plane_area:
                         continue
-                    rect = shapely.minimum_rotated_rectangle(ov)
+                    # GEOS/NumPy on arm64 (macOS) warns about a harmless divide by zero for
+                    # axis-aligned shapes; the rectangle is the same on every platform.
+                    with np.errstate(divide="ignore", invalid="ignore"):
+                        rect = shapely.minimum_rotated_rectangle(ov)
                     xs = list(rect.exterior.coords)  # type: ignore[attr-defined]
                     s1 = math.dist(xs[0], xs[1])
                     s2 = math.dist(xs[1], xs[2])

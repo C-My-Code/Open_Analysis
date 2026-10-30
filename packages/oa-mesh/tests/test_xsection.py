@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 import pathlib
+import platform
 
 import numpy as np
 import pytest
@@ -215,6 +216,11 @@ def test_determinism_hash_repeatable_and_multiprocess() -> None:
 )
 def test_golden_mesh_signature(name: str) -> None:
     """Node/triangle counts and coordinate hash for a fixed gmsh version (also Linux CI)."""
+    if platform.machine().lower() not in {"amd64", "x86_64"}:
+        # The exact node/triangle counts and coordinate hash come from gmsh's floating-point path,
+        # which differs on arm64 (macOS). Mesh validity there is covered by the area, quality and
+        # determinism tests; the exact signature is checked on x86_64 (Windows and Linux CI).
+        pytest.skip("exact gmsh signature is recorded for x86_64 only")
     m = mesh_cross_section(get_case(name).xs)
     if not update_mode():
         recorded = load_case("mesh2d", f"xs_{name}").expected["gmsh_version"]
