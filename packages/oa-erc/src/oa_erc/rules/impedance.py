@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import numpy as np
@@ -14,6 +15,7 @@ from pydantic import Field
 
 from oa_erc.base import C0, ErcContext, ErcRule, RuleConfig, eps_eff, seg_point, track_id
 from oa_erc.remediation import TypedAction, TypedRemediation
+from oa_model.errors import UnsupportedFeature
 from oa_results.container import as_np
 from oa_results.violations import Violation
 
@@ -138,6 +140,77 @@ class IM002Config(RuleConfig):
         gt=0,
         description="Tolerance [fraction] when the intent gives none (IPC +-10 %).",
     )
+    screen: bool = Field(
+        default=True,
+        description="Decide a section by its closed-form value and the calibrated error bound "
+        "of that value when the target band is clear of [Z - bound, Z + bound]; the BEM runs "
+        "only where the decision depends on it. False: BEM for every section ('validated').",
+    )
+    exact_values: bool = Field(
+        default=True,
+        description="Report the worst impedance of a violation from the BEM, so the result is "
+        "identical to screen=False. False: a clearly failing run is reported with its "
+        "screening value, accuracy_class 'screening' and the bound in the evidence.",
+    )
+
+
+@dataclass
+class _Sec:
+    """One distinct cross-section of a net: how far its impedance is known."""
+
+    xs: Any
+    key: str
+    verdict: bool = False  # the result has the quantity that is judged (Z0 / Zdiff)
+    exact: bool = False  # ``z`` comes from the BEM
+    z: float | None = None
+    lo: float = 0.0  # bounds of the BEM value when not exact
+    hi: float = 0.0
+    bound: float | None = None
+    res: Any = None
+
+    def status(self, lo: float, hi: float) -> Literal["pass", "fail"] | None:
+        if not self.verdict or self.z is None:
+            return None
+        if self.exact:
+            return "pass" if lo <= self.z <= hi else "fail"
+        if lo <= self.lo and self.hi <= hi:
+            return "pass"
+        if self.hi < lo or self.lo > hi:
+            return "fail"
+        return None  # the band overlaps the error interval: the decision needs the BEM
+
+    def dev(self, target: float) -> tuple[float, float]:
+        """Interval of |Z - target| (the whole interval lies on one side of the band)."""
+        assert self.z is not None
+        if self.exact:
+            d = abs(self.z - target)
+            return d, d
+        a, b = abs(self.lo - target), abs(self.hi - target)
+        return min(a, b), max(a, b)
+
+
+def _matrix_order(xs: Any) -> int:
+    """Number of conductors of the RLGC matrix the BEM returns: the signals, or one less when
+    there is no ground (the last signal is then the reference). ``Z0`` exists for order 1 and
+    ``Zdiff`` for order 2 only."""
+    n_sig = int(sum(c.role == "signal" for c in xs.conductors))
+    return n_sig if any(c.role == "ground" for c in xs.conductors) else n_sig - 1
+
+
+def _z_of(res: Any, diff: bool) -> float | None:
+    arr = res.params.z_diff if diff else res.params.z0
+    return float(np.abs(as_np(arr)).ravel()[0]) if arr is not None else None
+
+
+def _bound_of(res: Any) -> float | None:
+    """Relative error bound of a closed-form result (``oa_impedance.screening``), or None."""
+    for f in res.validity_flags:
+        if f.code == "z_rel_bound":
+            try:
+                return float(f.message.split(";")[0])
+            except ValueError:
+                return None
+    return None
 
 
 class ImpedanceOutOfTolerance(ErcRule):
@@ -240,54 +313,125 @@ class ImpedanceOutOfTolerance(ErcRule):
         if len(keys) > cfg.max_sections:
             step = len(keys) / cfg.max_sections
             keys = [keys[int(i * step)] for i in range(cfg.max_sections)]
-        results = dict(
-            zip(
-                keys,
-                svc.solve_many([by_key[k] for k in keys], None, method=cfg.method),
-                strict=True,
-            )
-        )
-        solved = [i for i, k in enumerate(sample_keys) if k in results]
-        zs: list[float | None] = []
-        for idx in range(len(samples)):
-            r = results.get(sample_keys[idx])
-            if r is None and solved:  # thinned: reuse the nearest solved section
-                near = min(solved, key=lambda j: abs(j - idx))
-                r = results[sample_keys[near]]
-            if r is None:
-                zs.append(None)
-                continue
-            arr = r.params.z_diff if diff else r.params.z0
-            zs.append(float(np.abs(as_np(arr)).ravel()[0]) if arr is not None else None)
         lo, hi = target * (1 - tol), target * (1 + tol)
+        secs = self._evaluate(svc, cfg, keys, by_key, lo, hi, diff=diff)
+        solved = [i for i, k in enumerate(sample_keys) if k in secs]
+        sec_of: list[_Sec | None] = []
+        for idx in range(len(samples)):
+            sec = secs.get(sample_keys[idx])
+            if sec is None and solved:  # thinned: reuse the nearest solved section
+                near = min(solved, key=lambda j: abs(j - idx))
+                sec = secs[sample_keys[near]]
+            sec_of.append(sec)
         run: list[int] = []
-        for i, z in enumerate([*zs, 0.5 * (lo + hi)]):  # sentinel in tolerance flushes the run
-            bad = z is not None and not (lo <= z <= hi)
-            if bad:
+        for i in range(len(sec_of) + 1):  # the last index is a sentinel that flushes the run
+            sec = sec_of[i] if i < len(sec_of) else None
+            if sec is not None and sec.status(lo, hi) == "fail":
                 run.append(i)
                 continue
             if run:
-                yield self._report(samples, zs, run, results, nets, target, tol, (lo, hi), diff)
+                if cfg.exact_values:
+                    self._refine(svc, cfg, [sec_of[j] for j in run], target, diff)  # type: ignore[misc]
+                yield self._report(samples, sec_of, run, nets, target, tol, (lo, hi), diff)
                 run = []
+
+    def _evaluate(
+        self,
+        svc: Any,
+        cfg: IM002Config,
+        keys: Sequence[str],
+        by_key: dict[str, Any],
+        lo: float,
+        hi: float,
+        *,
+        diff: bool,
+    ) -> dict[str, _Sec]:
+        """The impedance of every kept section: screened where the closed form decides it, the
+        BEM otherwise. Only a section whose result has the judged quantity (Z0 / Zdiff) is
+        solved: the others (a neighbouring signal in the section) are never compared, so the
+        BEM would only discard its answer."""
+        secs = {k: _Sec(xs=by_key[k], key=k) for k in keys}
+        if cfg.method != "bem":  # a chosen method is used as given, on every section
+            results = svc.solve_many([by_key[k] for k in keys], None, method=cfg.method)
+            for k, r in zip(keys, results, strict=True):
+                z = _z_of(r, diff)
+                secs[k].verdict, secs[k].exact, secs[k].z, secs[k].res = z is not None, True, z, r
+            return secs
+        need = 2 if diff else 1
+        todo: list[_Sec] = []
+        for sec in secs.values():
+            if not self._has_verdict(sec.xs, need):
+                continue
+            sec.verdict = True
+            if cfg.screen and self._screen(svc, sec, diff) and sec.status(lo, hi) is not None:
+                continue
+            todo.append(sec)
+        self._solve(svc, cfg, todo, diff)
+        return secs
+
+    @staticmethod
+    def _has_verdict(xs: Any, need: int) -> bool:
+        return _matrix_order(xs) == need
+
+    @staticmethod
+    def _screen(svc: Any, sec: _Sec, diff: bool) -> bool:
+        """Fill ``sec`` from the closed form when it has a calibrated error bound."""
+        quick = getattr(svc, "quick", None)
+        if quick is None:
+            return False
+        try:
+            res = quick(sec.xs)
+        except (UnsupportedFeature, ValueError, ArithmeticError):
+            return False  # no formula for this section, or the formula is undefined here
+        bound, z = _bound_of(res), _z_of(res, diff)
+        if res.validity == "invalid" or bound is None or z is None or not 0 < bound < 1 or z <= 0:
+            return False
+        sec.res, sec.z, sec.bound = res, z, bound
+        sec.lo, sec.hi = z / (1 + bound), z / (1 - bound)  # Z_cf / Z_bem - 1 in [-b, b]
+        return True
+
+    @staticmethod
+    def _solve(svc: Any, cfg: IM002Config, secs: Sequence[_Sec], diff: bool) -> None:
+        if not secs:
+            return
+        for sec, r in zip(
+            secs, svc.solve_many([s.xs for s in secs], None, method=cfg.method), strict=True
+        ):
+            sec.res, sec.exact, sec.z, sec.bound = r, True, _z_of(r, diff), None
+
+    def _refine(
+        self, svc: Any, cfg: IM002Config, run: Sequence[_Sec], target: float, diff: bool
+    ) -> None:
+        """Make the worst section of a failing run exact. A screened section can only be the
+        worst when its largest possible deviation reaches the largest guaranteed deviation of
+        the run; those are solved (rarely more than one round), so the value that is reported
+        is the BEM value the all-BEM path reports."""
+        while True:
+            floor = max(s.dev(target)[0] for s in run)
+            todo = {s.key: s for s in run if not s.exact and s.dev(target)[1] >= floor}
+            if not todo:
+                return
+            self._solve(svc, cfg, list(todo.values()), diff)
 
     def _report(
         self,
         samples: Any,
-        zs: list[float | None],
+        sec_of: list[_Sec | None],
         run: list[int],
-        results: dict[str, Any],
         nets: tuple[str, ...],
         target: float,
         tol: float,
         bounds: tuple[float, float],
         diff: bool,
     ) -> Violation:
-        vals = [(abs(zs[i] - target), i) for i in run if zs[i] is not None]  # type: ignore[operator]
+        vals = [(abs(sec.z - target), i) for i in run if (sec := sec_of[i]) and sec.z is not None]
         _, worst_i = max(vals)
-        worst = float(zs[worst_i])  # type: ignore[arg-type]
+        worst_sec = sec_of[worst_i]
+        assert worst_sec is not None and worst_sec.z is not None
+        worst = float(worst_sec.z)
         limit = bounds[1] if worst > target else bounds[0]
         mid = samples[run[len(run) // 2]]
-        res = results.get(samples[worst_i].xs.key()) or next(iter(results.values()))
+        res = worst_sec.res
         layers = tuple(dict.fromkeys(samples[i].layer for i in run))
         items = tuple(dict.fromkeys(track_id(samples[i].seg_id) for i in run))
         kind = "Zdiff" if diff else "Z0"
@@ -318,6 +462,19 @@ class ImpedanceOutOfTolerance(ErcRule):
                 confidence="low",
             ),
         ]
+        evidence: dict[str, Any] = {
+            "z_ohm": worst,
+            "target_ohm": target,
+            "tolerance": tol,
+            "method": res.method,
+            "model": res.model_name,
+            "accuracy_class": res.accuracy_class,
+            "validity": res.validity,
+            "n_samples": len(run),
+        }
+        if not worst_sec.exact and worst_sec.bound is not None:  # exact_values = False
+            evidence["z_rel_bound"] = worst_sec.bound
+            evidence["z_interval_ohm"] = [worst_sec.lo, worst_sec.hi]
         return self.violation(
             message=f"{kind} of {'/'.join(nets)} on {layers[0]} is {worst:.1f} ohm; target "
             f"{target:g} ohm +-{tol:.0%}.",
@@ -332,16 +489,7 @@ class ImpedanceOutOfTolerance(ErcRule):
                 summary=f"Change the geometry of {'/'.join(nets)} so {kind} is within "
                 f"{lo_hi(bounds)} ohm.",
                 actions=tuple(actions),
-                evidence={
-                    "z_ohm": worst,
-                    "target_ohm": target,
-                    "tolerance": tol,
-                    "method": res.method,
-                    "model": res.model_name,
-                    "accuracy_class": res.accuracy_class,
-                    "validity": res.validity,
-                    "n_samples": len(run),
-                },
+                evidence=evidence,
             ),
         )
 

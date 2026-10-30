@@ -25,6 +25,7 @@ from oa_impedance.bem import MeshParams, solve_bem
 from oa_impedance.bem.solver import batch as _bem_batch
 from oa_impedance.errors import ImpedanceUnsupported
 from oa_impedance.modal import modal_decomposition
+from oa_impedance.screening import BOUND_FLAG, screening_bound
 from oa_model.arrays import Floats, NDArray
 from oa_model.xsection import CrossSection
 from oa_physics.constants import C0
@@ -192,6 +193,10 @@ def closed_form_result(
         flags.append(ValidityFlag(code="formula_range", ok=False, message="; ".join(msgs)))
     else:
         flags.append(ValidityFlag(code="formula_range", ok=True, message="inside published range"))
+    if all(f == 0.0 for f in freqs) and worst != "invalid":
+        bound, why = screening_bound(topo, xs, extrapolated=worst == "extrapolated")
+        if bound is not None:
+            flags.append(ValidityFlag(code=BOUND_FLAG, ok=True, message=f"{bound:.4g}; {why}"))
     delay = np.sqrt(ee) / C0
     kw: dict[str, Floats] = {}
     if n == 1:

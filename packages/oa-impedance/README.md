@@ -69,6 +69,20 @@ Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
 `[even-like, odd-like]`. A section without a ground conductor uses its last signal as reference
 (N-1 mutual modes, noted in the result).
 
+### Screening bounds (WP-516, `oa_impedance.screening`)
+
+A *static* closed-form result (`freqs` = `None` or `[0.0]`) carries a `ValidityFlag` with code
+`z_rel_bound` (`oa_impedance.screening.BOUND_FLAG`) when its geometry is inside a calibrated
+regime. Its message starts with the number `b`: `|Z_cf / Z_bem - 1| <= b`, so the field-solved
+value lies in `[Z_cf / (1 + b), Z_cf / (1 - b)]`. The result stays `accuracy_class = "screening"`;
+no flag means no bound (CPW, thick coupled pairs, a plane edge nearer than 8 h, a second signal,
+trapezoid skew over 2 %, `eps_r` outside 1.5 to 12, a medium other than air above a surface
+microstrip, any non-static frequency). The bounds are calibrated against the BEM, not taken from the
+papers: table and derivation in [THEORY.md](THEORY.md) section 2.6, grid in
+`tests/test_screening.py`. IM-002 in `oa-erc` uses it to run the BEM only where a decision depends
+on it. Frequency sweeps already use one static BEM solve plus the analytic loss/roughness model for
+frequency-independent materials (THEORY section 2.7); nothing changed there.
+
 ## Golden suites
 
 - `tests/golden/impedance_closedform/` : HJ/Wheeler table (1e-6 lock + report values), Cohn
@@ -232,11 +246,10 @@ it is slow above ~5000 panels); `cross_section_at` is unchanged (its window is
 already physical; the truncation lives in the BEM). One cm5 section (3 conductors) has a singular
 vacuum matrix, with the old code too.
 
-<<<<<<< HEAD
 ## Theory and validation
 
 Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).
-=======
+
 ## GPU path (WP-504)
 
 `oa-impedance` depends on `oa-accel`. `solve_bem` asks `oa_accel.select` (env `OA_DEVICE`; `auto`
@@ -267,4 +280,3 @@ the GPU (cm5: 5849 panels, no coarsening). Any device failure falls back to the 
   the pool is released after every section.
 - `_loss` evaluates roughness and surface resistance once per (conductor, face) class.
 - Tests: `tests/test_bem_gpu.py` (GPU cases need `OA_RUN_GPU=1`).
->>>>>>> worktree-agent-aafff0952159978c7
