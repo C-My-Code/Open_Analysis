@@ -10,6 +10,7 @@ edge, area weighted). Index 0 is reserved for PEC. Kernels rebuild ``ca, cb`` fr
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -89,6 +90,7 @@ class Conductor:
     sigma: float = 5.8e7  # [S/m]
     thickness: float | None = None  # [m] slab thickness for Zs; None = smallest box extent
     roughness_rms: float = 0.0  # [m] RMS roughness (Hammerstad-Jensen factor); 0 = smooth
+    k_func: Callable[[FloatArray], FloatArray] | None = None  # K(f) [-] overrides roughness_rms
     model: str = "thick_sibc"  # "thick_sibc" | "pec"
 
 
@@ -351,7 +353,7 @@ def _compile_conductors(
     top = wf.f0 + 0.5 * wf.bandwidth if wf.kind == "gauss_mod" else wf.bandwidth
     f_hi = float(max(np.max(freqs), top))
     f_lo = max(float(np.min(freqs)) * 0.5, f_hi * 1e-3, 1e5)
-    fits: dict[tuple[float, float, float], int] = {}
+    fits: dict[tuple[float, float, float, int], int] = {}
     mats: list[SibcFit] = []
     pre_pec = [p.copy() for p in pec]
     boxes = []
@@ -372,10 +374,14 @@ def _compile_conductors(
         )
         if thick <= 0:
             raise ModelError("FDTD_BAD_CONDUCTOR", "conductor box has zero thickness")
-        key = (cd.sigma, float(thick), cd.roughness_rms)
+        key = (cd.sigma, float(thick), cd.roughness_rms, id(cd.k_func))
         if key not in fits:
             fits[key] = len(mats)
-            mats.append(fit_surface_impedance(cd.sigma, thick, f_lo, f_hi, rms=cd.roughness_rms))
+            mats.append(
+                fit_surface_impedance(
+                    cd.sigma, thick, f_lo, f_hi, rms=cd.roughness_rms, roughness=cd.k_func
+                )
+            )
         boxes.append((edges, fits[key]))
     parts: list[tuple[Any, ...]] = []
     for edges, m in boxes:

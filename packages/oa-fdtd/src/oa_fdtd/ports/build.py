@@ -145,7 +145,7 @@ def build_mode_port(
         flats.append(flat)
     t_e = np.concatenate(tmpl)
     vol_e = np.concatenate(vol)
-    s_e = np.sqrt(np.maximum(np.concatenate(eps_e), 1.0))
+    s_e = np.maximum(np.concatenate(eps_e), 1.0)
     norm = float(np.sum(s_e * t_e**2 * vol_e))
     if norm <= 0:
         raise ValueError(f"mode port {port.name}: zero template (no field on the plane)")

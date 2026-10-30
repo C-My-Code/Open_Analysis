@@ -13,7 +13,11 @@ requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 dependencies = [
     "numpy>=1.26",
+    "scipy>=1.11",
     "oa-accel",
+    "oa-mesh",
+    "oa-model",
+    "oa-physics",
 ]
 
 [project.scripts]
@@ -27,3 +31,6 @@ packages = ["src/oa_fdtd"]
 
 [tool.uv.sources]
 oa-accel = { workspace = true }
+oa-mesh = { workspace = true }
+oa-model = { workspace = true }
+oa-physics = { workspace = true }

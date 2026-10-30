@@ -92,7 +92,7 @@ def test_mode_port_debye_and_deembedding(engine: str) -> None:
     res = run(m, engine=engine, dtype=dtype, end_db=-60.0, max_steps=40000)
     s = sparams(m, res)
     eps = fit.eval(freqs)
-    s11, s21 = dielectric_line_s(freqs, eps, length, float(res.port_r[0]))
+    _, s21 = dielectric_line_s(freqs, eps, length, float(res.port_r[0]))
     assert np.abs(_db(s[1, 0]) - _db(s21)).max() < 0.05
     assert np.abs(np.angle(s[1, 0] / s21, deg=True)).max() < 2.0
     # gamma from the three probe planes against the analytic line
