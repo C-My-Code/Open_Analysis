@@ -37,6 +37,17 @@ at 1e-12 relative where the impedance solver amplifies a last-bit input differen
 - `packages/oa-erc/src/oa_erc/rules/crosstalk.py` (bounding-box query instead of a round buffer);
 - `tools/bench/gen_synth_board.py` (`--mix`: known ERC violation mix).
 
+## Equivalence evidence (native vs GEOS, `OA_NATIVE_CLIP=0`)
+- Synthetic 10k board and cm5_minima: ReferenceMap JSON byte-identical (cm5: 2190 segments, 190 MB).
+- cm5_minima ERC (non-impedance rules, 184 violations): byte-identical. The impedance rules
+  (IM-*) on cm5 build dense BEM matrices (3668 panels and larger) and exceed the 8 GB cap whatever
+  the clipping path; they are not compared there.
+- Mix board (`gen_synth_board.py --tracks 1500 --mix`, 144 violations: ED-002 50, IM-002 1,
+  RP-001 20, XT-001 73): violation sets byte-identical. Its ERC takes 120 s either way, so the
+  violation path (remediation), not clipping, dominates once violations exist.
+- WP-102 boards and pic_programmer/interf_u: identical violation hashes except two impedance
+  values (combined) that differed by 4e-12 relative before the 1 fm rounding was added.
+
 ## Remaining gap
 ERC 10k is bound by per-sample Python and pydantic work (`_sections`, crosstalk and edge
 buffers/distances, `net_runs`), not by clipping. The next step is batching cross-section

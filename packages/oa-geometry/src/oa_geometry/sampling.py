@@ -412,7 +412,9 @@ def _sections(
         idx = np.array([i for i, _ in mem], dtype=np.intp)
         cu = geo.copper(lyr, net)
         rings = (
-            geo._memoized(("rings-cu", lyr, net), lambda cu=cu: RingSet(np.array([cu], dtype=object)))
+            geo._memoized(
+                ("rings-cu", lyr, net), lambda cu=cu: RingSet(np.array([cu], dtype=object))
+            )
             if _kernels() is not None
             else None
         )
