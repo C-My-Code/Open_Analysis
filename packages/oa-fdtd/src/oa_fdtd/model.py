@@ -122,7 +122,9 @@ class Model:
     ports: list[LumpedPort] = field(default_factory=list)
     sources: list[SoftSource] = field(default_factory=list)
     probes: list[Probe] = field(default_factory=list)
-    drive: FloatArray | None = None  # (B, channels) amplitude per batch member; channels: ports, sources
+    drive: FloatArray | None = (
+        None  # (B, channels) amplitude per batch member; channels: ports, sources
+    )
     courant: float = 0.95  # [-]
 
     @property
@@ -192,7 +194,9 @@ def _edge_average(
     w = [g.cell_weights(a)[: g.n[a] + 2] for a in range(3)]
     others = [a for a in range(3) if a != comp]
     p, q = others  # transverse axes, p < q
-    num_e = num_s = den = 0.0
+    num_e: FloatArray = np.zeros((nz + 1, ny + 1, nx + 1))
+    num_s = np.zeros_like(num_e)
+    den = np.zeros_like(num_e)
     for da in (0, 1):
         for db in (0, 1):
             off = [0, 0, 0]
@@ -203,9 +207,9 @@ def _edge_average(
             wq = w[q][1 - db : g.n[q] + 2 - db]
             wgt = np.ones((nz + 1, ny + 1, nx + 1))
             wgt = wgt * _bshape(wp, p) * _bshape(wq, q)
-            num_e = num_e + wgt * eps[sl]
-            num_s = num_s + wgt * sig[sl]
-            den = den + wgt
+            num_e += wgt * eps[sl]
+            num_s += wgt * sig[sl]
+            den += wgt
     return num_e / den, num_s / den
 
 
@@ -245,10 +249,10 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         pec.append(~valid)
     # PEC walls (tangential E), PEC and CPML outer planes
     for a in range(3):
-        for s in (0, 1):
-            if model.walls[2 * a + s] == "pmc":
+        for side in (0, 1):
+            if model.walls[2 * a + side] == "pmc":
                 continue
-            plane = 0 if s == 0 else g.n[a]  # node index in the (n+1)-sized arrays
+            plane = 0 if side == 0 else g.n[a]  # node index in the (n+1)-sized arrays
             for c in range(3):
                 if c == a:
                     continue
@@ -263,7 +267,7 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
             for a in range(3):
                 node_type = a != c
                 co = g.coords(a, node_type)
-                tol = 1e-6 * float(g.d(a).min())
+                tol = 1e-6 * float(np.min(g.d(a)))
                 ids = np.flatnonzero((co >= r.lo[a] - tol) & (co <= r.hi[a] + tol))
                 sl2[2 - a] = ids if ids.size else np.array([], dtype=np.intp)
             pec[c][np.ix_(sl2[0], sl2[1], sl2[2])] = True
@@ -329,7 +333,9 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
             )
         else:
             raise ModelError("FDTD_BAD_PROBE", f"probe {pr.name}: weight {pr.weight!r}")
-        probes.append({"name": pr.name, "kind": pr.kind, "comp": pr.axis, "flat": flat, "weights": w})
+        probes.append(
+            {"name": pr.name, "kind": pr.kind, "comp": pr.axis, "flat": flat, "weights": w}
+        )
 
     # table of averaged materials
     idx: list[npt.NDArray[np.uint16]] = []

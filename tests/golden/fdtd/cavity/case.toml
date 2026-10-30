@@ -1,0 +1,17 @@
+source = "analytic: f_mnp = (c / 2) sqrt((m/a)^2 + (n/b)^2 + (p/d)^2), PEC box (ADR-0010 section 9 case 1)"
+
+[tolerance]
+rtol = 5e-4  # after Richardson extrapolation over 3 grids; observed order 2
+
+[inputs]
+a_m = 0.030
+b_m = 0.025
+d_m = 0.035
+base_cells = [10, 8, 12]
+grids = ["uniform", "graded 1.05"]
+t_end_s = 30e-9
+
+[expected]
+te101_hz = 6580833082.124073
+te011_hz = 7368320675.20633
+tm110_hz = 7804846493.112532

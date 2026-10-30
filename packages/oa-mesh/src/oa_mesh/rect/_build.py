@@ -10,6 +10,7 @@ coarse/medium/fine), the thirds rule at metal edges (1/3 inside, 2/3 outside), a
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 
 import numpy as np
@@ -23,7 +24,7 @@ QUALITY_N = {"coarse": 15, "medium": 20, "fine": 30}  # cells per wavelength [-]
 def max_cell_size(f_max: float, eps_r_max: float, quality: str | int = "medium") -> float:
     """``lambda_min / N`` in the densest dielectric [m]; ``f_max`` [Hz], ``eps_r_max`` [-]."""
     n = QUALITY_N[quality] if isinstance(quality, str) else int(quality)
-    return C0 / (f_max * eps_r_max**0.5) / n
+    return float(C0 / (f_max * eps_r_max**0.5) / n)
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,7 @@ def build_axis(spec: AxisSpec) -> AxisMesh:
     seeds: list[tuple[float, float]] = [(spec.lo, spec.d_max), (spec.hi, spec.d_max)]
     layer_pos = sorted({p for p in spec.layers if spec.lo < p < spec.hi})
     bounds = [spec.lo, *layer_pos, spec.hi]
-    for a, b in zip(bounds[:-1], bounds[1:], strict=True):
+    for a, b in itertools.pairwise(bounds):
         size = min(spec.d_max, (b - a) / spec.min_cells)
         seeds += [(a, size), (b, size), (0.5 * (a + b), size)]
     for cf in spec.copper_faces:
@@ -64,7 +65,7 @@ def build_axis(spec: AxisSpec) -> AxisMesh:
         seeds += [(outer, size), (inner, size)]
     seeds += [(p, min(s, spec.d_max)) for p, s in spec.features]
     mesh = smooth_axis(seeds, spec.d_max, spec.grading)
-    for a, b in zip(bounds[:-1], bounds[1:], strict=True):
+    for a, b in itertools.pairwise(bounds):
         n = int(np.count_nonzero((mesh.lines[:-1] >= a - 1e-12) & (mesh.lines[1:] <= b + 1e-12)))
         if n < spec.min_cells:
             raise ValueError(f"layer [{a}, {b}] has {n} cells, below {spec.min_cells}")

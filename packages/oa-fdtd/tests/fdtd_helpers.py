@@ -5,12 +5,10 @@
 from __future__ import annotations
 
 import numpy as np
-
 from oa_fdtd.analysis import matrix_pencil
 from oa_fdtd.grid import C0, Grid
-from oa_fdtd.model import Model, Probe, SoftSource, Waveform
+from oa_fdtd.model import Model, Probe, SoftSource, Waveform, compile_model
 from oa_fdtd.reference import NumpyEngine
-from oa_fdtd.model import compile_model
 
 
 def graded_lines(length: float, n: int, ratio: float) -> np.ndarray:
@@ -69,3 +67,47 @@ def cavity_frequencies(
     for t in targets:
         found.append(float(f[np.argmin(np.abs(f - t))]))
     return found
+
+
+def line_model(
+    ny: int, d: float, freqs: np.ndarray, src_y: int, probe_y: int, cells: int = 10, dc: bool = True
+) -> Model:
+    """Uniform TEM line (cubic cells, PMC x, PEC z, CPML along y); E_z plane source and probe."""
+    from oa_fdtd.pml import CpmlSpec
+
+    lines = np.arange(3) * d
+    g = Grid(lines, np.arange(ny + 1) * d, lines)
+    m = Model(
+        g,
+        Waveform("gauss", bandwidth=45e9) if dc else Waveform("gauss_mod", 20e9, 40e9),
+        freqs,
+        walls=("pmc", "pmc", "cpml", "cpml", "pec", "pec"),
+        cpml=CpmlSpec(cells=cells),
+    )
+    ext = (0.0, 2 * d)
+    m.sources.append(SoftSource("s", 2, (ext[0], src_y * d, 0.0), (ext[1], src_y * d, 2 * d)))
+    m.probes.append(
+        Probe("p", "E", 2, (ext[0], probe_y * d, 0.0), (ext[1], probe_y * d, 2 * d), "mean")
+    )
+    return m
+
+
+def cpml_reflection(
+    freqs: np.ndarray, dtype: str, engine: str, cells: int = 10, steps: int = 3000, side: str = "hi"
+) -> np.ndarray:
+    """|reflected / incident| at ``freqs`` for normal incidence on one CPML of ``cells`` cells."""
+    from oa_fdtd.run import run
+
+    d = 299792458.0 / 40e9 / 20.0
+    n = 2 * cells + 60
+    extra = 1400
+    s0, p0 = cells + 10, cells + 30  # source and probe cells from the near end
+    if side == "hi":
+        short = line_model(n, d, freqs, s0, p0, cells)
+        long_ = line_model(n + extra, d, freqs, s0, p0, cells)
+    else:  # mirror: the wave runs towards the low-y CPML
+        short = line_model(n, d, freqs, n - s0, n - p0, cells)
+        long_ = line_model(n + extra, d, freqs, n - s0 + extra, n - p0 + extra, cells)
+    a = run(short, engine=engine, dtype=dtype, end_db=None, max_steps=steps).probes["p"][0]
+    b = run(long_, engine=engine, dtype=dtype, end_db=None, max_steps=steps).probes["p"][0]
+    return np.abs(a - b) / np.abs(b)

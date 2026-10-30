@@ -1,0 +1,16 @@
+source = "analytic: parallel-plate line, Z0 = eta0 h / w, |S21| = 1 lossless (ADR-0010 section 9 case 3)"
+
+[tolerance]
+s21_abs_dev = 1e-4  # up to 3 GHz at 0.5 mm cells; grows as f^2 above (3.8e-3 at 20 GHz)
+s11_max_db = -60.0
+
+[inputs]
+w_m = 0.008
+h_m = 0.004
+cells = [4, 120, 4]
+dy_m = 0.0005
+f_hz = [5e8, 1e9, 1.5e9, 2e9, 2.5e9, 3e9]
+
+[expected]
+z0_ohm = 188.36
+s21_abs = 1.0

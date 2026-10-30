@@ -113,8 +113,8 @@ class Grid:
 
     def dt(self, courant: float = 0.95, c_max: float = C0) -> float:
         """Courant limit for the non-uniform grid [s] (ADR-0010 section 2)."""
-        s = sum(1.0 / float(self.d(a).min()) ** 2 for a in range(3))
-        return courant / (c_max * s**0.5)
+        s = sum(1.0 / float(np.min(self.d(a))) ** 2 for a in range(3))
+        return float(courant / (c_max * s**0.5))
 
     def valid(self, kind: str, comp: int) -> tuple[tuple[int, int], ...]:
         """Storage index ranges ``[lo, hi)`` per axis (x, y, z) that carry real edges.
@@ -140,7 +140,7 @@ class Grid:
         for a in range(3):
             node_type = (a != comp) if kind == "E" else (a == comp)
             c = self.coords(a, node_type)
-            tol = 1e-6 * float(self.d(a).min())
+            tol = 1e-6 * float(np.min(self.d(a)))
             idx = np.flatnonzero((c >= lo[a] - tol) & (c <= hi[a] + tol)) + 1
             if idx.size == 0 and hi[a] - lo[a] <= 2.0 * tol:  # point box: snap to the nearest
                 idx = np.array([int(np.argmin(np.abs(c - 0.5 * (lo[a] + hi[a])))) + 1])

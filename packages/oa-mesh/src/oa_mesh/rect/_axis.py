@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Open_Analysis contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Rectilinear mesh generation (ported from ``oa_em_openems.mesh``, WP-505): fixed lines with local target sizes, graded in between.
+"""Rectilinear mesh generation, ported from ``oa_em_openems.mesh`` (WP-505).
+
+Fixed lines with local target sizes, graded in between.
 
 Each fixed line carries a *seed size* (the cell size wanted next to it). The local target size at
 position ``x`` is ``min(d_max, min_i(seed_i + (grading - 1) * |x - x_i|))``, so cells grow at most

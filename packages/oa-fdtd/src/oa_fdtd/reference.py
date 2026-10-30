@@ -18,7 +18,7 @@ from oa_fdtd.model import Compiled
 from oa_fdtd.pml import E_TERMS, H_TERMS
 
 FloatArray = npt.NDArray[np.float64]
-Rng = tuple[tuple[int, int], tuple[int, int], tuple[int, int]]
+Rng = tuple[tuple[int, int], ...]
 
 
 def _view(f: Any, rng: Rng, axis: int = -1, shift: int = 0) -> Any:
@@ -59,7 +59,7 @@ class NumpyEngine:
         self.dtmu = dt.type(c.dt / MU0)
         self.ip = [g.inv_primal(a).astype(dt) for a in range(3)]
         self.idd = [g.inv_dual(a).astype(dt) for a in range(3)]
-        full: Rng = tuple((1, g.n[a] + 2) for a in range(3))  # type: ignore[assignment]
+        full: Rng = tuple((1, g.n[a] + 2) for a in range(3))
         self.full = full
         self.psi = [np.zeros((b, *corr.shape), dt) for corr in c.pml.corrections]
         self.pmc = [(a, s) for a in range(3) for s in (0, 1) if c.walls[2 * a + s] == "pmc"]
@@ -82,7 +82,9 @@ class NumpyEngine:
             for c_, a, b_, sign in H_TERMS:
                 if c_ != ci:
                     continue
-                d = (_view(self.E[b_], rng, a, 1) - _view(self.E[b_], rng)) * _coef(self.ip[a], a, rng)
+                d = (_view(self.E[b_], rng, a, 1) - _view(self.E[b_], rng)) * _coef(
+                    self.ip[a], a, rng
+                )
                 term = d if sign > 0 else -d
                 acc = term if acc is None else acc + term
             _view(self.H[ci], rng)[...] += self.dtmu * acc
@@ -94,7 +96,9 @@ class NumpyEngine:
             for c_, a, b_, sign in E_TERMS:
                 if c_ != ci:
                     continue
-                d = (_view(self.H[b_], rng) - _view(self.H[b_], rng, a, -1)) * _coef(self.idd[a], a, rng)
+                d = (_view(self.H[b_], rng) - _view(self.H[b_], rng, a, -1)) * _coef(
+                    self.idd[a], a, rng
+                )
                 term = d if sign > 0 else -d
                 acc = term if acc is None else acc + term
             e = _view(self.E[ci], rng)
@@ -136,8 +140,8 @@ class NumpyEngine:
                 h = self.H[comp]
                 ax = 3 - a  # array axis of the (B, z, y, x) layout
                 dst, src = (0, 1) if s == 0 else (g.n[a] + 1, g.n[a])
-                d_sl = [slice(None)] * 4
-                s_sl = [slice(None)] * 4
+                d_sl: list[Any] = [slice(None)] * 4
+                s_sl: list[Any] = [slice(None)] * 4
                 d_sl[ax], s_sl[ax] = dst, src
                 h[tuple(d_sl)] = -h[tuple(s_sl)]
 
@@ -146,9 +150,9 @@ class NumpyEngine:
         for ci, ch in enumerate(c.channels):
             w = float(ch["waveform"](np.array([(step + 0.5) * c.dt]))[0])
             f = self.E[ch["comp"]].reshape(c.batch, -1)
-            f[:, ch["flat"]] += (
-                (c.drive[:, ci : ci + 1] * w) * ch["amps"][None, :]
-            ).astype(self.dtype)
+            f[:, ch["flat"]] += ((c.drive[:, ci : ci + 1] * w) * ch["amps"][None, :]).astype(
+                self.dtype
+            )
 
     def _record(self, kind: str, t: float) -> None:
         probes = self.t_e if kind == "E" else self.t_h
@@ -202,8 +206,10 @@ class NumpyEngine:
             eps = (c.eps_tab[c.idx[ci]] * EPS0)[None]
             total += 0.5 * float(np.sum(eps * w * self.E[ci].astype(np.float64) ** 2))
             wh = self._weights("H", ci)
-            total += 0.5 * MU0 * float(
-                np.sum(wh * h_prev[ci].astype(np.float64) * self.H[ci].astype(np.float64))
+            total += (
+                0.5
+                * MU0
+                * float(np.sum(wh * h_prev[ci].astype(np.float64) * self.H[ci].astype(np.float64)))
             )
         return total
 
