@@ -122,12 +122,21 @@ _SMALL_BATCH_N = 1500  # panels below which a small batch stays on the host (dev
 _BATCH_DEV: dict[int, Any] = {}  # backends whose pool free is deferred to the end of a batch
 
 
+def _blas_threads() -> int:
+    """BLAS threads of one solve (``OA_IMPEDANCE_BLAS_THREADS``, default 1): the LU of concurrent
+    sections does not run in parallel across Python threads, so a batch can set more here."""
+    try:
+        return max(1, int(os.environ.get("OA_IMPEDANCE_BLAS_THREADS", "1")))
+    except ValueError:
+        return 1
+
+
 def _enter_single_thread() -> None:
     global _ST_DEPTH, _ST_CTX
     with _ST_LOCK:
         _ST_DEPTH += 1
         if _ST_DEPTH == 1 and threadpool_limits is not None:
-            _ST_CTX = threadpool_limits(limits=1)
+            _ST_CTX = threadpool_limits(limits=_blas_threads())
 
 
 def _exit_single_thread() -> None:
