@@ -126,6 +126,56 @@ def _bbox2(body: ConductorBody) -> tuple[float, float, float, float]:
     )
 
 
+def _edge_seeds(
+    poly: Any,
+    size: float,
+    frac: float | None,
+    lo3: tuple[float, float, float],
+    hi3: tuple[float, float, float],
+) -> list[list[tuple[float, float]]]:
+    """Mesh seeds ``[x seeds, y seeds]`` for the edges of one polygon.
+
+    ``frac=None`` puts a line on every vertex coordinate. Otherwise an axis-aligned edge gets the
+    edge rule: a line ``frac`` of a cell inside the metal and ``1 - frac`` outside, so that no line
+    lies on the edge (1/3 is the openEMS thirds rule). A staircased Yee conductor whose metal ends
+    on a line acts as if it were about half a cell wider (the singular edge field is sampled half a
+    cell out); placing the last metal line inside the edge cancels that to first order.
+    Edges on the problem box and slanted outline edges keep vertex lines; slanted hole edges
+    (round antipads) add none.
+    """
+    out: list[list[tuple[float, float]]] = [[], []]
+    rings = [np.asarray(poly.exterior.array)] + [np.asarray(h.array) for h in poly.holes]
+    for r_i, ring in enumerate(rings):
+        nxt = np.roll(ring, -1, axis=0)
+        for p0, p1 in zip(ring, nxt, strict=True):
+            const = [abs(p1[a] - p0[a]) < 1e-12 for a in (0, 1)]
+            if not (const[0] or const[1]):
+                # slanted: vertex lines on both axes for the outline; none for holes (a round
+                # antipad's 24 vertices would put sub-micron cells next to the via lines)
+                if r_i == 0:
+                    for a in (0, 1):
+                        out[a] += [(float(p0[a]), size), (float(p1[a]), size)]
+                continue
+            a = 0 if const[0] else 1  # the edge sits at a fixed coordinate of axis a
+            b = 1 - a
+            if abs(p1[b] - p0[b]) < 1e-12:
+                continue  # degenerate segment
+            v = float(p0[a])
+            if frac is None or abs(v - lo3[a]) < 1e-9 or abs(v - hi3[a]) < 1e-9:
+                out[a].append((v, size))
+                continue
+            mid = 0.5 * float(p0[b] + p1[b])
+            off = np.array([v + 1e-3 * size, v - 1e-3 * size])
+            pts = (off, np.array([mid])) if a == 0 else (np.array([mid]), off)
+            inside = _poly_mask(poly, *pts).ravel()
+            if inside[0] == inside[1]:
+                out[a].append((v, size))
+                continue
+            sign = -1.0 if inside[0] else 1.0  # outward normal of the metal along axis a
+            out[a] += [(v + sign * (1.0 - frac) * size, size), (v - sign * frac * size, size)]
+    return out
+
+
 def _via_side(r_outer: float) -> float:
     """Side [m] of the square PEC barrel that replaces a round via of radius ``r_outer``.
 
@@ -145,8 +195,21 @@ def build_model(
     pml_cells: int = 10,
     bandwidth: float = 1.4,
     pulse: str = "gauss_mod",
+    port_ext: float = 0.0,
+    edge_frac: float | None = 1.0 / 3.0,
+    edge_cells: float = 4.0,
+    edge_h: float = 0.5,
 ) -> BuiltModel:
-    """Translate ``problem`` into an engine model; raises :class:`ModelError` on bad input."""
+    """Translate ``problem`` into an engine model; raises :class:`ModelError` on bad input.
+
+    ``port_ext`` [m] extrudes the cross-section of every wave-port face outwards by that length
+    (a uniform line behind the port, the waveguide-port assumption) and moves the port sheet to
+    the end of it; ``meta["ref_planes"]`` keeps the original faces, where S is referred.
+    ``edge_frac`` is the conductor edge rule (:func:`_edge_seeds`; ``None`` = a line on the edge)
+    and ``edge_cells`` the number of edge cells across a conductor narrower than 8 cells; the
+    edge cell is also at most ``edge_h`` times the thinnest dielectric slab the conductor touches
+    (the edge field varies on the scale of the gap to the reference plane, not of the width).
+    """
     st = problem.structure
     box = st.bbox
     diag: list[str] = []
@@ -191,23 +254,33 @@ def build_model(
     for f, bc in bcs.items():
         wall[f] = "pmc" if f in wave_faces else ("cpml" if bc in ("absorbing", "pml") else bc)
     has_pml = {f: wall[f] == "cpml" for f in _FACES}
+    ext = {f: (port_ext if f in wave_faces else 0.0) for f in _FACES}
 
     # ---- mesh seeds
     lo3 = (box.xmin, box.ymin, box.zmin)
     hi3 = (box.xmax, box.ymax, box.zmax)
     seeds: list[list[tuple[float, float]]] = [[(lo3[a], d_max), (hi3[a], d_max)] for a in range(3)]
+    glo = [lo3[a] - ext[_FACES[2 * a]] for a in range(3)]  # grid extent with the port extensions
+    ghi = [hi3[a] + ext[_FACES[2 * a + 1]] for a in range(3)]
+    for a in range(3):
+        seeds[a] += [(glo[a], d_max), (ghi[a], d_max)]
     locked: list[float] = []
     thin: list[tuple[ConductorBody, float]] = []
     for body in st.conductors:
         x0, y0, x1, y1 = _bbox2(body)
         w = min(x1 - x0, y1 - y0)
-        s_edge = min(d_max, w / 4.0) if w < 8.0 * d_max else d_max
+        h_adj = [
+            sl.z_top - sl.z_bottom
+            for sl in st.slabs
+            if abs(sl.z_top - body.z_bottom) < 1e-9 or abs(sl.z_bottom - body.z_top) < 1e-9
+        ]
+        s_narrow = min([d_max, w / edge_cells] + [edge_h * h for h in h_adj])
+        s_edge = s_narrow if w < 8.0 * d_max else d_max
         for p in body.polygons:
-            ring = np.asarray(p.exterior.array)
-            for a in (0, 1):
-                for v in np.unique(np.round(ring[:, a], 9)):
-                    if lo3[a] - 1e-9 <= v <= hi3[a] + 1e-9:
-                        seeds[a].append((float(v), s_edge))
+            for a, sd in enumerate(_edge_seeds(p, s_edge, edge_frac, lo3, hi3)):
+                seeds[a] += [
+                    (round(v, 12), sz) for v, sz in sd if lo3[a] - 1e-9 <= v <= hi3[a] + 1e-9
+                ]
         t = body.z_top - body.z_bottom
         seeds[2] += [(body.z_bottom, min(t, d_max)), (body.z_top, min(t, d_max))]
         locked += [body.z_bottom, body.z_top]
@@ -240,7 +313,7 @@ def build_model(
                          (y + port.width / 2.0, min(d_max, port.width / 2.0))]  # fmt: skip
     lines: list[FloatArray] = []
     for a in range(3):
-        seeds_a = [s for s in seeds[a] if lo3[a] - 1e-9 <= s[0] <= hi3[a] + 1e-9]
+        seeds_a = [s for s in seeds[a] if glo[a] - 1e-9 <= s[0] <= ghi[a] + 1e-9]
         mesh = smooth_axis(seeds_a, d_max, grading, locked if a == 2 else ())
         ln = np.asarray(mesh.lines, dtype=np.float64)
         n_lo = pml_cells if has_pml[_FACES[2 * a]] else 0
@@ -252,6 +325,13 @@ def build_model(
         lines.append(ln)
     grid = Grid(*lines)
     cx, cy = grid.centers(0), grid.centers(1)
+    # cells in a port extension take the cross-section of their port face
+    if ext["xmin"] or ext["xmax"]:
+        cx = np.where(cx < box.xmin, box.xmin + 1e-9, cx) if ext["xmin"] else cx
+        cx = np.where(cx > box.xmax, box.xmax - 1e-9, cx) if ext["xmax"] else cx
+    if ext["ymin"] or ext["ymax"]:
+        cy = np.where(cy < box.ymin, box.ymin + 1e-9, cy) if ext["ymin"] else cy
+        cy = np.where(cy > box.ymax, box.ymax - 1e-9, cy) if ext["ymax"] else cy
 
     # ---- dielectric slabs
     regions: list[Region] = []
@@ -332,7 +412,16 @@ def build_model(
                 z_hi,
             )
             conductors.append(
-                Conductor(lo, hi, sigma, t, 0.0, k_func, "pec" if copper == "pec" else "thick_sibc")
+                Conductor(
+                    lo,
+                    hi,
+                    sigma,
+                    t,
+                    0.0,
+                    k_func,
+                    "pec" if copper == "pec" else "thick_sibc",
+                    edge_frac or 0.0,
+                )
             )
             n_box += 1
     for v in st.vias:
@@ -357,6 +446,7 @@ def build_model(
 
     # ---- ports
     by_id = {b.id: b for b in st.conductors}
+    ref_planes: dict[str, float] = {}
     ports: list[LumpedPort | ModePort] = []
     for port in problem.ports:
         if isinstance(port, EMLumpedPort):
@@ -374,7 +464,12 @@ def build_model(
             )
         elif isinstance(port, EMWavePort):
             n = 0 if port.face.startswith("x") else 1
-            pos = getattr(box, port.face)
+            face_pos = float(getattr(box, port.face))
+            pos = (
+                face_pos - ext[port.face]
+                if port.face.endswith("min")
+                else face_pos + ext[port.face]
+            )
             sigs = []
             for sid in port.signal_conductors:
                 body = by_id[sid]
@@ -383,6 +478,7 @@ def build_model(
                 sigs.append(((u0, body.z_bottom), (u1, body.z_top)))
             for mode in range(port.n_modes):
                 name = port.name if port.n_modes == 1 else f"{port.name}:m{mode}"
+                ref_planes[name] = face_pos
                 ports.append(
                     ModePort(
                         name,
@@ -427,5 +523,7 @@ def build_model(
         "debye_err": {k: (v.err_eps, v.err_tand) for k, v in fits.items()},
         "conductor_boxes": n_box,
         "resin_fills": n_fill,
+        "port_ext": port_ext,
+        "ref_planes": ref_planes,
     }
     return BuiltModel(model, meta, diag)

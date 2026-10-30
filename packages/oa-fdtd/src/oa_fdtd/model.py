@@ -92,6 +92,9 @@ class Conductor:
     roughness_rms: float = 0.0  # [m] RMS roughness (Hammerstad-Jensen factor); 0 = smooth
     k_func: Callable[[FloatArray], FloatArray] | None = None  # K(f) [-] overrides roughness_rms
     model: str = "thick_sibc"  # "thick_sibc" | "pec"
+    # [-] edge rule of the x/y faces: the physical edge lies this fraction of the outward cell
+    # beyond the face (0 = on the face); the static port solve restores it
+    edge_frac: float = 0.0
 
 
 @dataclass(frozen=True)

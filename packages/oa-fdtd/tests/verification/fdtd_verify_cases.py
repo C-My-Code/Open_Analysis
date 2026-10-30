@@ -402,7 +402,17 @@ def diff_via(
         zmax="absorbing",
     )
     return _problem(
-        f"diff_via_8l_{half}", st, ports, bnd, f_max, n_points, quality, energy_db=-40.0, cpw=cpw
+        # -60 dB: at -40 dB the truncated low-frequency tail moves SDD21 by 0.15 dB below 3 GHz
+        # (-60 is within 0.02 dB of -70 above 2 GHz)
+        f"diff_via_8l_{half}",
+        st,
+        ports,
+        bnd,
+        f_max,
+        n_points,
+        quality,
+        energy_db=-60.0,
+        cpw=cpw,
     )
 
 

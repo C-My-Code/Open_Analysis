@@ -173,6 +173,27 @@ def cascade_s(
     return (a * z_ref + b - c * z_ref * z_ref - a * z_ref) / den, 2 * z_ref / den
 
 
+def kj_dispersed(
+    freqs: FloatArray, rlgc: dict[str, FloatArray], width: float = 0.38e-3, h: float = 0.2e-3
+) -> dict[str, FloatArray]:
+    """The quasi-static microstrip RLGC with the Kirschning-Jansen eeff(f) / eeff(0) factor on L
+    and C (each by its square root, so Z is unchanged): the full-wave dispersion that the 2-D
+    reference lacks (0.25 % in eps_eff at 5 GHz, 1.6 % at 20 GHz for the B-EM-01 line)."""
+    from oa_impedance.closed_form.microstrip import kj_eeff
+    from oa_model.materials import DjordjevicSarkar
+    from oa_physics.dielectric import eps_complex
+
+    er = eps_complex(DjordjevicSarkar(dk=4.3, df=0.02, f_ref=1e9), rlgc["freqs"]).real
+    e0 = rlgc["L"] * rlgc["C"] * C0**2
+    d = np.array(
+        [
+            kj_eeff(width / h, f * 1e-9 * h * 1e3, float(e), float(q)) / float(q)
+            for f, e, q in zip(rlgc["freqs"], er, e0, strict=True)
+        ]
+    )
+    return {**rlgc, "L": rlgc["L"] * np.sqrt(d), "C": rlgc["C"] * np.sqrt(d)}
+
+
 def thru_scores(
     f: FloatArray, s: ComplexArray, z0: FloatArray, ref: tuple[ComplexArray, ComplexArray]
 ) -> dict[str, float]:
@@ -272,6 +293,11 @@ def score(
         ref = cascade_s(f, rlgc, 25e-3, float(z0[0]))
         out = thru_scores(f, s, z0, ref)
         out["reference"] = "rlgc (FEM, converged)"
+        if case == "bem01":  # the same with the microstrip dispersion of the full-wave line
+            ref_kj = cascade_s(f, kj_dispersed(f, rlgc), 25e-3, float(z0[0]))
+            kj = thru_scores(f, s, z0, ref_kj)
+            out["delay_err_kj_pct"] = kj["delay_err_pct"]
+            out["il_err_kj_max_db"] = kj["il_err_max_db"]
     elif case == "bem02a":
         out = stripline_exact_scores(f, s, 4.0, 25e-3)
         from fdtd_verify_cases import cohn_z0
