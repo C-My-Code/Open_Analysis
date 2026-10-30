@@ -165,3 +165,22 @@ def test_unsupported_physics_is_a_value_error() -> None:
     )
     with pytest.raises(ValueError, match="fullwave_driven"):
         build_config(p, groups("microstrip_thru"), mesh_file="m.msh")
+
+
+def test_plan_bands_bound_the_dielectric_change_and_cover_the_sweep() -> None:
+    from oa_em_palace import plan_bands
+    from oa_em_palace.config import _band_deviation, sweep_frequencies
+
+    problem = coarse(FIXTURES["microstrip_thru"]())
+    opts = PalaceOptions(banded=True)
+    bands = plan_bands(problem, opts)
+    freqs = sweep_frequencies(problem, opts)
+    assert len(bands) > 1
+    assert sum(len(b.freqs) for b in bands) == freqs.size
+    for b in bands:
+        assert b.f_lo <= b.f_fit <= b.f_hi
+        d_er, d_td = _band_deviation(problem, b.f_fit, b.f_lo, b.f_hi)
+        assert d_er <= opts.eps_tol and d_td <= opts.tand_tol
+    cfg, info = build_config(problem, groups("microstrip_thru"), mesh_file="model.msh", band=bands[0])
+    assert cfg["Solver"]["Driven"]["Samples"][0]["Type"] == "Point"
+    assert info.eps_freq == bands[0].f_fit
