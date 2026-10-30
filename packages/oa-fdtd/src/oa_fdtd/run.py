@@ -125,6 +125,20 @@ def run(
     )
 
 
+def port_voltage_factor(dt: float, frequencies: FloatArray) -> ComplexArray:
+    """Map the recorded ``E^{n+1}`` DFT (stamped ``t_{n+1}``) to the voltage the port resistor sees.
+
+    The lumped-port loss is semi-implicit: the resistor carries the time average
+    ``(E^n + E^{n+1}) / 2`` at ``t_{n+1/2}``, the stamp of the source. In the frequency domain that
+    is the real factor ``cos(w dt / 2)`` (the DFT carries absolute time stamps, so no phase).
+    Without it the power waves are normalised with a voltage that is too large by ``1 / cos(w dt / 2)``, an O(f^2) error in abs(S) (3.8e-3 at
+    20 GHz for a 0.5 mm cell at Courant 0.95) that was mistaken for a port discretisation error.
+    """
+    x = np.pi * np.asarray(frequencies, dtype=np.float64) * dt
+    out: ComplexArray = np.cos(x).astype(np.complex128)
+    return out
+
+
 def sparams(model: Model, res: RunResult) -> ComplexArray:
     """Power-wave S-parameters ``S[i, j, f]`` of the lumped ports (drive = identity batch)."""
     ports = model.ports
@@ -136,4 +150,5 @@ def sparams(model: Model, res: RunResult) -> ComplexArray:
         for i in range(n):
             v[i, j] = res.probes[f"V:{ports[i].name}"][j]
     vs = res.source_dft[:n]
+    v = v * port_voltage_factor(res.dt, model.frequencies)
     return power_wave_s(v, vs, np.array([p.r_ohm for p in ports]))
