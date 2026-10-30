@@ -16,6 +16,7 @@ are read from; level B merges the pins of a regulator/load group.
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -149,6 +150,23 @@ def sheet_pins(net: DcNetwork, s: Sheet) -> list[Pin]:
     return list(seen.values())
 
 
+def _mesh_workers(cfg: Any, pieces: list[SheetPiece]) -> int | None:
+    """Worker processes for meshing: explicit, else OA_MESH_WORKERS, else up to 8 when large."""
+    if cfg.mesh_workers is not None:
+        return int(cfg.mesh_workers)
+    if os.environ.get("OA_MESH_WORKERS") is not None or len(pieces) < 2:
+        return None
+    area = sum(p.area for pc in pieces for p in map(_to_shapely, pc.polygons))
+    cells = area / (cfg.h_plane * cfg.h_plane) if cfg.h_far is None else 0.0
+    if cells <= 5e5:
+        return None
+    return max(1, min(len(pieces), 8, os.cpu_count() or 1))
+
+
+def _to_shapely(p: Polygon) -> Any:
+    return shapely.Polygon(p.exterior.array, [h.array for h in p.holes])
+
+
 def mesh_network(net: DcNetwork, tracks: Any = ()) -> list[MeshedSheet]:
     """Mesh all sheets (pads removed, barrel rings as embedded contacts)."""
     cfg = net.cfg.mesh
@@ -206,7 +224,13 @@ def mesh_network(net: DcNetwork, tracks: Any = ()) -> list[MeshedSheet]:
         )
         owners.append(s)
     try:
-        meshes = mesh_copper_sheets(pieces, h_default=cfg.h_plane, size_fields=fields)
+        meshes = mesh_copper_sheets(
+            pieces,
+            h_default=cfg.h_plane,
+            size_fields=fields,
+            h_far=cfg.h_far,
+            workers=_mesh_workers(cfg, pieces),
+        )
     except MeshError as exc:
         raise PiGeometryError(
             f"meshing failed: {exc}",

@@ -115,6 +115,25 @@ class MeshConfig(OAModel):
     via_ring_segments: int = Field(
         default=16, ge=8, le=256, description="Mesh nodes around every via/pad contact ring [1]."
     )
+    h_far: Length | None = Field(
+        default=None,
+        gt=0.0,
+        description=(
+            "Opt-in interior coarsening [m]: the element edge stays h_plane within 3 x h_plane of "
+            "any copper boundary, pad or via ring and grows to h_far beyond. None = uniform "
+            "h_plane. Accuracy class 'converged': the resistance changes by < 0.2 % against the "
+            "uniform mesh on the power_plane board (WP-514), at 10 to 20 times fewer unknowns."
+        ),
+    )
+    mesh_workers: int | None = Field(
+        default=None,
+        ge=1,
+        le=8,
+        description=(
+            "Parallel gmsh processes, one sheet per task [1]. None = OA_MESH_WORKERS, else up to "
+            "8 for large meshes (> 5e5 estimated cells) and 1 otherwise. Results are identical."
+        ),
+    )
     solver: Literal["auto", "superlu", "pardiso", "cholmod", "amg"] = Field(
         default="auto",
         description=(
