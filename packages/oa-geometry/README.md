@@ -60,3 +60,7 @@ layers and nets, copper intervals along the cut, partner offset) is equal share 
 
 `mypy --strict` is clean. The shapely-heavy modules disable a few error codes at the top of the
 file because shapely's array-vs-scalar overloads are not expressible in the stubs.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

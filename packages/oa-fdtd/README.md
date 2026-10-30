@@ -112,3 +112,7 @@ so WP-506 can add the near-to-far-field transform without changing the kernels o
 `slow`). Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
 `tests/golden/fdtd_physics/{ds_line,sibc_line,microstrip_thru}` (analytic ABCD lines and the FEM
 RLGC reference of the thru; the `microstrip_thru` case runs only with `OA_RUN_GPU=1`).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

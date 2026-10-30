@@ -110,3 +110,7 @@ uv pip install --python .oa/tools/openems/venv/Scripts/python.exe --no-index `
   (acceptance, nightly) are not done.
 - CPW, coax and coupled/differential wave ports are not implemented.
 - Cancellation, memory limits and WSL/Docker path translation belong to the runner (`oa_jobs`).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

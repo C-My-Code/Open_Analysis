@@ -193,3 +193,7 @@ closed form / exact): `tests/golden/impedance_fem/crosscheck/table.{md,csv,json}
 - Eddy solves are slow compared with the BEM (tens of seconds per frequency when the conductor
   interior is meshed at skin-depth resolution); the IBC regime is a few seconds.
 - No dispersion (quasi-static), no anisotropy.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

@@ -133,3 +133,7 @@ recommended Palace input; solid copper is now also well conditioned.
 `pytest packages/oa-mesh` (the 100 x 80 mm / 900-feature case is marked `slow`).
 Golden suite `tests/golden/mesh2d/` holds regression signatures (counts + hash, self-generated, not
 independent references; skipped when the gmsh version differs from the recorded one).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

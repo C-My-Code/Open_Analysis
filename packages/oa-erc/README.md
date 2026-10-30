@@ -96,3 +96,7 @@ intent and at a deliberately wrong 40 ohm target) are byte-identical.
 the AI contract, SARIF validity, waivers, DRU and the analytic checks (stub resonance, cavity
 f10 = 1.807 GHz); `test_builders_perf.py` has negative/injected fixtures and the 10k-track timing.
 Change requests: `docs/change-requests/WP-201-*.md`.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

@@ -168,3 +168,7 @@ warning. Memory: p2 above about 1 M DOF with AMS exceeds a 12 GB box.
 - The Windows `wsl` runner test needs a Palace in WSL; CI runners without it skip.
 - `oa_testkit.plugin.tool_available("palace")` only searches the host PATH; the adapter's
   `tests/conftest.py` lifts that skip when `discover()` finds Palace (CR WP-301).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).
