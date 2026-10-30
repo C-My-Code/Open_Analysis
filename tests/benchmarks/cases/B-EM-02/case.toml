@@ -18,7 +18,7 @@ id = "oa_fdtd"
 title = "oa-fdtd on B-EM-02"
 pending = "pending"
 owner = "WP-505/506/507"
-reason = "oa-fdtd does not exist yet"
+reason = "oa-fdtd exists (WP-505/506/506A) but this case is not gated or run yet"
 devices = ["cpu", "cuda"]
 
 [sub.targets.cpu]

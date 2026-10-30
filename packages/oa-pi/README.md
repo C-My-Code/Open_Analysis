@@ -68,3 +68,7 @@ h/4: < 1 %), the analysis through `oa_testkit.harness`, 3e5-unknown timing (`slo
 
 Not done: the nightly `external` kicad-irdrop oracle (needs a network download), KiPI/padne
 comparison, multi-rail trees and series elements.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

@@ -10,9 +10,9 @@ fixture = "via_transition"
 [expected]
 nx = 135
 ny = 83
-nz = 49
-cells = 527424
-mesh_hash = "63a8eab7cf882eae"
+nz = 53
+cells = 571376
+mesh_hash = "4766479d22288dc0"
 min_cell_x = 16.666000000001077
 min_cell_y = 23.333
-min_cell_z = 35.0
+min_cell_z = 17.5

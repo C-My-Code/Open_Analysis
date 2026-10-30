@@ -459,8 +459,9 @@ class LongStub(ErcRule):
     Config = IM005Config
     explanation = (
         "Open stubs (T-branches, test points, dead-end pads) reflect energy. A stub is "
-        "electrically short when its round trip is below a tenth of the rise time, "
-        "l < t_rise * v / 10; `max_stub_length` caps it when no rise time is known. Via stubs "
+        "electrically short when its one-way delay is below a tenth of the rise time, "
+        "l < t_rise * v / 10 (round trip below t_rise / 5, the rule of docs/research/06 "
+        "section 3.2); `max_stub_length` caps it when no rise time is known. Via stubs "
         "are handled by VI-001."
     )
 

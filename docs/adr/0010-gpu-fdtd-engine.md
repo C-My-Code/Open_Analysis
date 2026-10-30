@@ -83,3 +83,8 @@ Cross-solver: openEMS 0.37 on an identical grid (mesh lines from `oa_mesh.rect`,
   - SIBC and conformal stability corner cases. Mitigation: verification cases 5 and 6, and a late-time energy-growth detector that aborts a run with `FDTD.UNSTABLE`.
   - The quasi-TEM port template above a few tens of GHz on thick dielectrics. Mitigation: the port-length variation check; full-wave port modes after M1P.
   - HIP compile differences. Mitigation: kernels restricted to the common subset, and a ROCm smoke lane when hardware exists.
+
+## Amendments
+
+### 2026-10-30 (WP-513): coarse mesh preset
+The coarse mesh preset is now 10 cells per wavelength, matching `oa_fdtd`, openEMS and `oa_em`, so all three solvers see the same coarse grid. The occ3d FEM path (Palace) keeps its own 6/10/15 cells per wavelength for coarse/medium/fine.

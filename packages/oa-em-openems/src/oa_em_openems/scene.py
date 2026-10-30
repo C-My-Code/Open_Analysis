@@ -8,12 +8,14 @@ so geometry, mesh and port translation are unit-testable anywhere.
 
 Modelling choices (all documented in the README):
 
-- Copper is a zero-thickness ``ConductingSheet`` (default; carries the conductivity and the real
-  thickness) or a thick PEC body (``openems.conductor_model = "pec"``). The sheet sits on the
-  dielectric face of the layer (so the dielectric heights are preserved) or mid-layer when
-  dielectric touches both faces.
+- Copper is meshed at its real thickness (``openems.conductor_model = "skin"``, the default): a PEC
+  core shorts the two faces, and ``ConductingSheet`` skins (real conductivity and thickness, so
+  openEMS applies its skin-effect model) cover the top, bottom and side faces. Dielectric heights
+  and Z0 are those of the real copper. Alternatives: ``"sheet"``, one zero-thickness
+  ``ConductingSheet`` on the dielectric face (or mid-layer), which has no thickness, and ``"pec"``
+  (lossless thick copper).
 - Via barrels are solid PEC cylinders of the drill radius.
-- Dielectrics are one Debye pole plus conductivity fitted over the simulated band
+- Dielectrics are a multi-pole Debye fit plus conductivity over the simulated band
   (:mod:`oa_em_openems.dispersion`), or constants at band centre (``openems.dispersion``).
 - Geometry touching an absorbing region face is extended through the padding (slabs, planes) so
   the boundary does not cut the board; wave ports add their own feed line there.
@@ -30,7 +32,14 @@ from typing import Any
 
 import numpy as np
 
-from oa_em_openems.dispersion import DebyeFit, constant_equivalent, eval_eps, fit_debye
+from oa_em_openems.dispersion import (
+    DebyeFit,
+    MultiDebyeFit,
+    constant_equivalent,
+    eval_eps,
+    fit_debye,
+    fit_debye_multi,
+)
 from oa_em_openems.geom2d import keyhole_ring, ring_edge_normals
 from oa_em_openems.mesh import (
     AxisMesh,
@@ -68,8 +77,9 @@ _EPS = 1e-9
 class Options:
     """Adapter options. They come from ``EMProblem.mesh.expert`` keys prefixed ``openems.``."""
 
-    conductor_model: str = "sheet"  # "sheet" | "pec"
-    dispersion: str = "debye"  # "debye" | "constant"
+    conductor_model: str = "skin"  # "skin" | "sheet" | "pec"
+    skin_freq: float | None = None  # "skin": None/0 = real thickness; else t = delta(f) [Hz]
+    dispersion: str = "debye"  # "debye" (multi-pole) | "debye1" (single pole) | "constant"
     absorbing: str = "PML_8"  # openEMS boundary string used for "absorbing"
     port_length: float | None = None  # wave-port feed length [m]; None = automatic
     pulse: str = "bandpass"  # "bandpass" (no DC content) | "baseband" (tutorial Gaussian 0..f_max)
@@ -80,7 +90,10 @@ class Options:
         ex = problem.mesh.expert
         port_length = ex.get("openems.port_length")
         return cls(
-            conductor_model=str(ex.get("openems.conductor_model", "sheet")),
+            conductor_model=str(ex.get("openems.conductor_model", "skin")),
+            skin_freq=float(sf)
+            if isinstance(sf := ex.get("openems.skin_freq"), (int, float))
+            else None,
             dispersion=str(ex.get("openems.dispersion", "debye")),
             absorbing=str(ex.get("openems.absorbing", "PML_8")),
             port_length=float(port_length) if isinstance(port_length, (int, float)) else None,
@@ -443,34 +456,47 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
         eps_at_fmax = float(eval_eps(model, np.array([f_max]))[0].real)
         eps_hi_f = max(eps_hi_f, eps_at_fmax, eps_at_fmax * ratio)
         rec: dict[str, Any] = {"name": name}
-        if opts.dispersion == "debye" and model.kind != "constant":
-            fit: DebyeFit = fit_debye(model, max(f_lo, f_max / 20.0), f_max)
-            fits[name] = fit.as_dict()
+        if opts.dispersion in ("debye", "debye1") and model.kind != "constant":
+            if opts.dispersion == "debye1":
+                fit1: DebyeFit = fit_debye(model, max(f_lo, f_max / 20.0), f_max)
+                fits[name] = fit1.as_dict()
+                eps_inf, kap, poles = fit1.eps_inf, fit1.kappa, [(fit1.delta_eps, fit1.tau)]
+                e_eps, e_tand, label = fit1.max_rel_err_eps, fit1.max_rel_err_tand, "single-pole"
+            else:
+                fit: MultiDebyeFit = fit_debye_multi(model, max(f_lo, f_max / 20.0), f_max)
+                fits[name] = fit.as_dict()
+                eps_inf, kap, poles = fit.eps_inf, fit.kappa, list(fit.poles)
+                e_eps, e_tand, label = fit.max_rel_err_eps, fit.max_rel_err_tand, "multi-pole"
             rec.update(
                 epsilon=[
-                    round(fit.eps_inf, 9),
-                    round(fit.eps_inf, 9),
-                    round(fit.eps_inf * ratio, 9),
+                    round(eps_inf, 9),
+                    round(eps_inf, 9),
+                    round(eps_inf * ratio, 9),
                 ],
-                kappa=[round(fit.kappa, 12)] * 2 + [round(fit.kappa * ratio, 12)],
+                kappa=[round(kap, 12)] * 2 + [round(kap * ratio, 12)],
                 debye={
-                    "eps_delta": [
-                        round(fit.delta_eps, 9),
-                        round(fit.delta_eps, 9),
-                        round(fit.delta_eps * ratio, 9),
-                    ],
-                    "eps_relax": float(f"{fit.tau:.9e}"),
+                    "poles": [
+                        {
+                            "eps_delta": [
+                                round(dl, 9),
+                                round(dl, 9),
+                                round(dl * ratio, 9),
+                            ],
+                            "eps_relax": float(f"{tau:.9e}"),
+                        }
+                        for dl, tau in poles
+                    ]
                 },
             )
-            if fit.max_rel_err_tand > 0.1 or fit.max_rel_err_eps > 0.02:
+            if e_tand > 0.1 or e_eps > 0.02:
                 diags.append(
                     Diagnostic(
                         severity="warning",
                         code="OPENEMS.DEBYE_FIT_ERROR",
                         message=(
-                            f"single-pole fit of {name}: eps' error {fit.max_rel_err_eps:.1%}, "
-                            f"tan(d) error {fit.max_rel_err_tand:.1%} over "
-                            f"{fit.f_lo / 1e9:.3g}-{fit.f_hi / 1e9:.3g} GHz"
+                            f"{label} fit of {name}: eps' error {e_eps:.1%}, "
+                            f"tan(d) error {e_tand:.1%} over "
+                            f"{max(f_lo, f_max / 20.0) / 1e9:.3g}-{f_max / 1e9:.3g} GHz"
                         ),
                         hint="Narrow the frequency band or use openems.dispersion='constant'.",
                     )
@@ -706,7 +732,7 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
     for body in bodies.values():
         if opts.conductor_model == "sheet":
             breaks.add(body.sheet_z)
-        else:
+        else:  # "pec" and "skin": the real thickness is meshed
             breaks.update((body.cb.z_bottom, body.cb.z_top))
     for v in st.vias:
         breaks.update((v.z_bottom, v.z_top))
@@ -850,10 +876,54 @@ def build_scene(problem: EMProblem, options: Options | None = None) -> Scene:
             )
 
     pec_name = "PEC"
+    f_skin = opts.skin_freq if opts.skin_freq is not None else 0.0  # 0: real thickness
+
+    def skin_t(sigma: float, real_t: float) -> float:
+        """Thickness [m] given to the face sheets. Default (``skin_freq`` None or 0): the real
+        thickness, for which openEMS applies its own skin-effect model to the sheet (measured
+        against the 2D FEM in WP-510); otherwise t = delta(f_skin), a flat Rs(f_skin)."""
+        if f_skin <= 0.0:
+            return real_t
+        return 1.0 / math.sqrt(math.pi * f_skin * 4e-7 * math.pi * sigma)
+
     for body in bodies.values():
         cb = body.cb
         thickness = cb.z_top - cb.z_bottom
         sheet = opts.conductor_model == "sheet" and thickness > 0 and body.conductivity < 1e12
+        skin = opts.conductor_model == "skin" and thickness > 0 and body.conductivity < 1e12
+        if skin:
+            st_ = skin_t(body.conductivity, thickness)
+            pname = _skin_name(body.conductivity, st_)
+            props[pname] = {
+                "kind": "sheet",
+                "conductivity": body.conductivity,
+                "thickness": float(f"{st_:.9g}"),
+            }
+            props[pec_name] = {"kind": "metal"}
+            for ex, holes in body.rings:
+                # PEC volume (priority 10) shorts the two faces through the thickness, so the
+                # space between the face sheets carries no field (a real conductor has none); the
+                # sheets (priority 11) then replace the PEC on the face planes and side walls
+                kh = keyhole_ring(
+                    [(float(px), float(py)) for px, py in ex],
+                    [[(float(px), float(py)) for px, py in hole] for hole in holes],
+                )
+                prims.append(
+                    {
+                        "shape": "linpoly",
+                        "prop": pec_name,
+                        "priority": 10,
+                        "points": [[um(px), um(py)] for px, py in kh],
+                        "elevation": um(cb.z_bottom),
+                        "length": um(thickness),
+                    }
+                )
+                prims.extend(
+                    _skin_prims(
+                        pname, ex, holes, cb.z_bottom, cb.z_top, dom_lo, dom_hi, bcs["zmin"], diags
+                    )
+                )
+            continue
         if sheet:
             pname = f"CU_{body.conductivity:.6g}_{thickness * 1e6:.4g}um"
             props[pname] = {
@@ -996,7 +1066,86 @@ def _metal_name(body: _Body, opts: Options) -> str:
     thickness = cb.z_top - cb.z_bottom
     if opts.conductor_model == "sheet" and thickness > 0 and body.conductivity < 1e12:
         return f"CU_{body.conductivity:.6g}_{thickness * 1e6:.4g}um"
-    return "PEC"
+    return "PEC"  # "pec"; and "skin": the lossless wave-port feed line
+
+
+def _skin_name(sigma: float, thickness: float) -> str:
+    return f"CUSKIN_{sigma:.6g}_{thickness * 1e6:.4g}um"
+
+
+def _skin_prims(
+    pname: str,
+    ex: np.ndarray,
+    holes: list[np.ndarray],
+    zb: float,
+    zt: float,
+    dom_lo: list[float],
+    dom_hi: list[float],
+    zmin_bc: str,
+    diags: list[Diagnostic],
+) -> list[dict[str, Any]]:
+    """Face sheets of a thick conductor: top and bottom polygons plus the axis-aligned side walls.
+
+    The bottom sheet is omitted where it lies on a PEC domain face. Walls of non-axis-aligned
+    edges are not drawn (one warning per body); they are a few percent of the perimeter of a PCB
+    trace (thickness over width).
+    """
+    kh = keyhole_ring(
+        [(float(px), float(py)) for px, py in ex],
+        [[(float(px), float(py)) for px, py in hole] for hole in holes],
+    )
+    ring_pts = [[um(px), um(py)] for px, py in kh]
+    out: list[dict[str, Any]] = []
+    out.append(
+        {"shape": "polygon", "prop": pname, "priority": 11, "points": ring_pts, "elevation": um(zt)}
+    )
+    if not (zmin_bc == "pec" and abs(zb - dom_lo[2]) < 1e-9):
+        out.append(
+            {
+                "shape": "polygon",
+                "prop": pname,
+                "priority": 11,
+                "points": ring_pts,
+                "elevation": um(zb),
+            }
+        )
+    skipped = 0
+    for ring in (ex, *holes):
+        pts = np.asarray(ring)
+        for a, b in itertools.pairwise(pts):
+            if math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-12:
+                continue
+            if abs(a[0] - b[0]) < 1e-12 or abs(a[1] - b[1]) < 1e-12:
+                on_edge = (
+                    abs(a[0] - b[0]) < 1e-12
+                    and (abs(a[0] - dom_lo[0]) < 1e-9 or abs(a[0] - dom_hi[0]) < 1e-9)
+                ) or (
+                    abs(a[1] - b[1]) < 1e-12
+                    and (abs(a[1] - dom_lo[1]) < 1e-9 or abs(a[1] - dom_hi[1]) < 1e-9)
+                )
+                if on_edge:
+                    continue  # a wall on the domain face is inside the absorber/PEC wall
+                out.append(
+                    {
+                        "shape": "box",
+                        "prop": pname,
+                        "priority": 11,
+                        "start": [um(a[0]), um(a[1]), um(zb)],
+                        "stop": [um(b[0]), um(b[1]), um(zt)],
+                    }
+                )
+            else:
+                skipped += 1
+    if skipped:
+        diags.append(
+            Diagnostic(
+                severity="warning",
+                code="OPENEMS.SKIN_WALLS",
+                message=f"{skipped} non-axis-aligned conductor edge(s) have no side-wall sheet",
+                hint="Side walls add the thickness-over-width share of the conductor loss.",
+            )
+        )
+    return out
 
 
 def _via_prim(v: ViaBody) -> dict[str, Any]:

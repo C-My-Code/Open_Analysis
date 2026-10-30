@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 
-from oa_impedance._physics_compat import ETA0
+from oa_physics.constants import ETA0
 
 from ._common import CFResult, RangeCheck
 

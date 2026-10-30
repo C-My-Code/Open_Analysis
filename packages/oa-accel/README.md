@@ -42,3 +42,7 @@ Install: `uv sync` gives the CPU path only. GPU: `oa-accel[cuda12]` (CuPy + nvma
 `packages/oa-accel/tests`: CPU tests always run; tests marked `gpu` (and the `cuda` parametrization
 of `test_backends.py`) need `OA_RUN_GPU=1` and a CuPy device, otherwise they skip. No golden suites.
 Micro-benchmark: `OA_RUN_GPU=1 python packages/oa-accel/bench/micro.py [--json]`.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

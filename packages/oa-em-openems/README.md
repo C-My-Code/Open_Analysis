@@ -31,14 +31,26 @@ quality report, region provenance).
   edges (1/3 cell inside, 2/3 outside); at least 4 cells across every dielectric layer and across
   via diameters; growth limited to `max_grading` (1.3) in graded regions (up to ~1.5 across
   fixed lines, the achieved value is in the stats).
-- **Copper**: a `ConductingSheet` with the real conductivity and thickness (default), placed on the
-  dielectric face of the layer or mid-layer; or thick PEC (`openems.conductor_model = "pec"`).
+- **Copper** (`openems.conductor_model`):
+  - `skin` (default, WP-510): copper at its real thickness. A PEC core shorts the two faces through
+    the thickness (priority 10); `ConductingSheet` skins with the real conductivity and thickness
+    (priority 11) cover the top face, the bottom face and the axis-aligned side walls, so openEMS
+    applies its own skin-effect model to each face. The z mesh gets lines on both faces. A face
+    on a PEC domain wall gets no skin. Side walls of non-axis-aligned edges are not drawn (warning
+    `OPENEMS.SKIN_WALLS`). `openems.skin_freq` [Hz] > 0 instead sets t = delta(f), a flat Rs(f);
+    that over-estimates the loss by about 1.4 at 10 GHz and is kept only for experiments. Without
+    the PEC core the space between the skins carries a spurious inner TEM mode (resonances of
+    several tenths of a dB), which is why the core is needed.
+  - `sheet`: one zero-thickness `ConductingSheet` on the dielectric face (or mid-layer); no
+    thickness, so Z0 is about 4 % off the 35 um line.
+  - `pec`: thick lossless copper.
   Polygons with holes (antipads) become keyhole polygons. Vias are solid PEC cylinders.
-- **Dielectrics**: one Debye pole plus conductivity fitted to the model over `[f_max/20, f_max]`
-  (`openems.dispersion = "debye"`), with the max error reported (a single pole cannot follow the
-  flat loss tangent of Djordjevic-Sarkar: about 10 % in tan(d) over a 20:1 band, a warning is
-  issued above 10 %), or constants at band centre (`"constant"`). Resin fills copper layers
-  between equal slabs.
+- **Dielectrics**: a multi-pole Debye fit plus conductivity over `[f_max/20, f_max]`
+  (`openems.dispersion = "debye"`, ADR-0010 section 5; relaxation times on a log grid, two poles
+  per decade, non-negative least squares): 6 poles follow Djordjevic-Sarkar to 0.05 % in tan(d)
+  over 10:1 and 20:1 bands. `"debye1"` is the old single pole (about 11 % in tan(d), warning
+  above 10 %), `"constant"` holds the values at band centre. Resin fills copper layers between
+  equal slabs.
 - **Boundaries**: `pec`/`pmc` map directly; `absorbing` is `PML_8` (`openems.absorbing = "MUR"`
   possible). Geometry reaching an absorbing face is extended through the padding (lambda/4 at
   f_max unless `air_padding`).
@@ -101,8 +113,20 @@ uv pip install --python .oa/tools/openems/venv/Scripts/python.exe --no-index `
 - Regenerate snapshots with `pytest --update-golden`; regenerate the raw data by running the
   microstrip fixture and copying `exc_*/ports.npz`, `run.json` and the last 200 stdout lines.
 
+## Accuracy against the 2D reference (WP-510)
+
+B-EM-01 (canonical 25 mm microstrip, 35 um copper, Djordjevic-Sarkar, lumped 50 ohm ports,
+`tests/benchmarks/references/xs/R1`): with `skin` copper and the multi-pole fit the insertion loss
+is within 0.03 dB of R1 from 1 to 10 GHz, and within 0.05 dB to 13 GHz; the difference then grows
+as f squared to +0.13 dB at 20 GHz, which is the part of the 3D problem the quasi-static R1 does
+not contain (dielectric and geometric dispersion of eps_eff, FDTD numerical dispersion). Run time
+is 17-22 s per excitation for 0.05-20 GHz, 182k-223k cells, under 100 MB. Run it with
+`OA_RUN_SLOW=1 pytest packages/oa-em-openems/tests/test_external_openems_skin.py -m external`
+(environment variables in the module docstring).
+
 ## Known gaps
 
+- The `skin` model is validated for microstrip only; its side walls follow axis-aligned edges.
 - Stripline (closed box) runs do not reach the energy end criterion (stall near -33 dB, slow
   decay of low-frequency energy in the PML) and give unreliable S-parameters at the iteration cap.
   Not validated; only the microstrip-with-lumped-ports path is.
@@ -110,3 +134,7 @@ uv pip install --python .oa/tools/openems/venv/Scripts/python.exe --no-index `
   (acceptance, nightly) are not done.
 - CPW, coax and coupled/differential wave ports are not implemented.
 - Cancellation, memory limits and WSL/Docker path translation belong to the runner (`oa_jobs`).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

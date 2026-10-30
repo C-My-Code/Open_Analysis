@@ -58,8 +58,8 @@ zero-thickness ribbons whose free charge is recovered from the interface operato
 what makes true thin strips (t = 1e-6) accurate where thick-face pairs are ill-conditioned.
 Open boundaries are truncated at `20 * characteristic length` (note in every result). L comes from
 the vacuum capacitance (`L = mu0 C0^-1`), R(f) from the surface-impedance perturbation using the
-vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (`_physics_compat.py`
-shim until `oa_physics` lands). Complex permittivity gives C(f), G(f); dispersive materials are
+vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (all material and roughness
+physics comes from `oa_physics`; tabulated Dk/Df is interpolated in ln f). Complex permittivity gives C(f), G(f); dispersive materials are
 solved at up to 6 log-spaced anchors and interpolated (cubic, log f). Pure NumPy/SciPy; BLAS is
 limited to one thread for these small systems (`threadpoolctl`), which matters on loaded machines.
 Numba is not used: the NumPy kernel meets the budget.
@@ -91,7 +91,7 @@ Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
 3. **Cannonball geometry.** 14 spheres of radius r in a three-layer square-based pyramid
    (9 + 4 + 1) on a *square* 6r x 6r tile (Polar AP8195 / Simonovich 2015); the hexagonal tile is
    the earlier DesignCon 2015 variant. Stack height `(2 + 2 sqrt 2) r = 4.83 r`, so `r = Rz / 4.83`;
-   surface ratio `14 * 4 pi r^2 / 36 r^2`. Used by `_physics_compat.roughness_factor`.
+   surface ratio `14 * 4 pi r^2 / 36 r^2`. Used by `oa_physics.roughness_factor`.
    (Secondary-source level check: the primary white paper was not fetched.)
 
 ## Known limitations
@@ -193,3 +193,46 @@ closed form / exact): `tests/golden/impedance_fem/crosscheck/table.{md,csv,json}
 - Eddy solves are slow compared with the BEM (tens of seconds per frequency when the conductor
   interior is meshed at skin-depth resolution); the IBC regime is a few seconds.
 - No dispersion (quasi-static), no anisotropy.
+
+## Memory safety and scaling on real boards (WP-512)
+
+A real board section (cm5_minima IM-002) used to build 2000-35000 panels and dense matrices that
+exhausted 8 GB. Root causes, in order of weight:
+
+1. **Uniform fine panels on thin copper.** Faces of a plane were capped at 3x the distance to the
+   other face of the same conductor (15 um) over the whole 20 x window length (thousands of
+   panels per face); one global curvature cap set by the tightest fillet of a mask region did the
+   same to dielectric interfaces. The plane cap now relaxes with the distance to the nearest edge
+   (`MeshParams.plane_relax`) and the curvature cap is local to each curved vertex.
+2. **Kernel temporaries.** `influence` held ~20 copies of the n x n matrix at once (about 2 GB at
+   n = 3700, times the 4 `solve_many` threads). It is now evaluated in row blocks
+   (`influence_blocks`); the system matrix is assembled in Fortran order and factored in place.
+3. **Zone probes wider than thin layers (accuracy bug).** The points that classify the dielectric
+   beside a noded piece sat at 1e-3 x its length, which is outside a 10 um mask layer on pieces
+   longer than 10 mm: long sections had wrong zones (1.6-4 % Z0 error on cm5). The offset is now
+   bounded by 0.1 x the thinnest z gap.
+
+Further controls (`MeshParams`, defaults tuned on cm5 sections and the testkit):
+
+- `window`: open boundary at `truncation` x max(stack height, signal cluster width) when a
+  reference plane spans the signals; otherwise the old full length (a weakly referenced section is
+  open to the whole window). Z0 changes < 0.02 % against the untruncated solve on 40 cm5 sections.
+- `far_start`, `far_ratio`: beyond `far_start` truncation lengths from the signals, panels are at
+  least `far_ratio x (distance - start)`. The near field is untouched, so the goldens do not move.
+- Memory budget: `solve_bem(..., budget=)`, `ImpedanceServiceImpl(section_budget_mb=)` or
+  `OA_IMPEDANCE_SECTION_MB` (default 512 MB per section). The dense peak is estimated before
+  assembly (`dense_peak_bytes`). Over budget, the grading is coarsened (up to 3 steps of 1.25x,
+  noted in the result), then the matrix-free block-Jacobi GMRES path (`bem/iterative.py`) runs,
+  then `SectionTooLarge` (`IMPEDANCE.SECTION_TOO_LARGE`, with a hint) is raised. A process-wide
+  gate (`OA_IMPEDANCE_TOTAL_MB`, default 1536) keeps concurrent `solve_many` threads inside a
+  total.
+
+Gaps: GMRES with the block-Jacobi preconditioner stagnates above ~1800 panels (1e-3 residual after
+120 iterations), so it is a last resort, not a speed path; no H-matrix/ACA; no oa-accel GPU dense
+LU (oa-impedance does not depend on oa-accel); `cross_section_at` is unchanged (its window is
+already physical; the truncation lives in the BEM). One cm5 section (3 conductors) has a singular
+vacuum matrix, with the old code too.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

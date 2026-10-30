@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import threading
 from collections import OrderedDict
 from collections.abc import MutableMapping, Sequence
@@ -16,14 +17,15 @@ from typing import Literal
 
 import numpy as np
 
-from oa_impedance import _physics_compat as phys
 from oa_impedance import methods as _methods
 from oa_impedance import topology as topo_mod
+from oa_impedance._dielectric import eps_at
 from oa_impedance.bem import MeshParams, solve_bem
 from oa_impedance.errors import ImpedanceUnsupported
 from oa_impedance.modal import modal_decomposition
 from oa_model.arrays import Floats, NDArray
 from oa_model.xsection import CrossSection
+from oa_physics.constants import C0
 from oa_results.container import ValidityFlag
 from oa_results.rlgc import RLGC, ImpedanceResult, LineParams
 
@@ -52,14 +54,17 @@ def _freqs(freqs: Sequence[float] | None) -> tuple[float, ...]:
 
 
 def _quasi_static_fmax(xs: CrossSection, h_char: float) -> float:
-    er_max = max([xs.background_dk] + [phys.eps_complex(d.model, 0.0).real for d in xs.dielectrics])
-    return 0.1 * phys.C0 / (math.sqrt(er_max) * h_char)
+    er_max = max([xs.background_dk] + [eps_at(d.model, 0.0).real for d in xs.dielectrics])
+    return 0.1 * C0 / (math.sqrt(er_max) * h_char)
 
 
 def bem_to_result(
-    xs: CrossSection, freqs: tuple[float, ...], mesh: MeshParams | None = None
+    xs: CrossSection,
+    freqs: tuple[float, ...],
+    mesh: MeshParams | None = None,
+    budget: int | None = None,
 ) -> ImpedanceResult:
-    sol = solve_bem(xs, list(freqs), mesh)
+    sol = solve_bem(xs, list(freqs), mesh, budget=budget)
     fs = sol.freqs
     nf, n = len(fs), len(sol.conductor_ids)
     w = 2.0 * np.pi * fs
@@ -91,7 +96,8 @@ def bem_to_result(
         **params_kwargs,
     )
     notes = list(sol.notes)
-    notes.append(f"{sol.n_panels} boundary panels, {sol.n_solves} dense solve(s)")
+    kind = "dense" if sol.mode == "dense" else f"GMRES ({sol.iterations} it)"
+    notes.append(f"{sol.n_panels} boundary panels, {sol.n_solves} {kind} solve(s)")
     validity: Literal["in_range", "extrapolated", "invalid"] = "in_range"
     f_qs = _quasi_static_fmax(xs, sol.h_char)
     if len(fs) and float(np.max(fs)) > f_qs:
@@ -184,7 +190,7 @@ def closed_form_result(
         flags.append(ValidityFlag(code="formula_range", ok=False, message="; ".join(msgs)))
     else:
         flags.append(ValidityFlag(code="formula_range", ok=True, message="inside published range"))
-    delay = np.sqrt(ee) / phys.C0
+    delay = np.sqrt(ee) / C0
     kw: dict[str, Floats] = {}
     if n == 1:
         kw["z0"] = Floats(z0)
@@ -229,12 +235,16 @@ class ImpedanceServiceImpl:
         mesh: MeshParams | None = None,
         job_cache: MutableMapping[str, str] | None = None,
         max_workers: int = 4,
+        section_budget_mb: float | None = None,
     ) -> None:
         self._lru: OrderedDict[str, ImpedanceResult] = OrderedDict()
         self._size = cache_size
         self.mesh = mesh or MeshParams()
         self.job_cache = job_cache
         self.max_workers = max_workers
+        if section_budget_mb is None:
+            section_budget_mb = float(os.environ.get("OA_IMPEDANCE_SECTION_MB", "512"))
+        self.section_budget = int(section_budget_mb * 2**20)
         self._lock = threading.Lock()
         self.stats = {"bem": 0, "closed_form": 0, "plugin": 0, "hits": 0}
 
@@ -341,7 +351,7 @@ class ImpedanceServiceImpl:
             method = "bem"
         if method == "bem":
             self.stats["bem"] += 1
-            return bem_to_result(xs, fs, self.mesh)
+            return bem_to_result(xs, fs, self.mesh, self.section_budget)
         solver = _methods.get(method)  # raises MethodNotAvailable for unknown / unregistered
         self.stats["plugin"] += 1
         return solver(xs, fs)

@@ -111,9 +111,11 @@ Palace 0.18.1, wave ports, coarse WP-206 mesh (228k tets, 293k DOFs), order 1, A
 | delay | within 5 % of Hammerstad-Jensen | within 5 % | 5 % |
 | Z0 | 50.7 ohm | not exported (see below) | Hammerstad-Jensen 50.7 ohm checked |
 
-The 0.5 dB excess over openEMS is mostly dielectric loss: Palace holds tan d fixed at its 5 GHz
-value (0.020) and the two-sided sheet conductor model adds conductor loss; Pozar's closed form
-lies between the two solvers. Z0: Palace 0.18 exports no Z0(f) for wave ports unless GSLIB
+The 1.24 dB (against openEMS 0.74 dB) is dominated by the first-order absorbing boundary 1 mm /
+2.5 mm from the line, about 0.25 dB of it (WP-501, see "WP-501 findings" below). With 5 mm / 6 mm
+padding Palace p2 gives 0.949 dB against 0.845 dB for the BEM RLGC cascade; the remaining 0.10 dB
+is about 0.07 dB from Palace's one-sided finite-thickness copper impedance and 0.03 dB from fixing
+the Djordjevic-Sarkar dielectric at 5 GHz. Pozar's closed form lies between the solvers. Z0: Palace 0.18 exports no Z0(f) for wave ports unless GSLIB
 (`VoltagePath`) is built in, so the check is S11 against the port's own modal reference.
 
 Cost (one full run, 2 excitations, 3 frequencies, through the WSL runner and `oa-palace-run`):
@@ -148,8 +150,8 @@ the adapter defaults to `Solver.Linear.Type = "AMS"` (GMRES, 28 to 61 iterations
 
 ## WP-501 findings (microstrip IL)
 
-The 1.24 dB above is mostly the first-order absorbing boundary 1 mm / 2.5 mm from the line (about
-+0.25 dB at 10 GHz); with 5 mm / 6 mm padding Palace p2 gives 0.949 dB (BEM 0.845). See
+The 1.24 dB above is mainly the first-order absorbing boundary 1 mm / 2.5 mm from the line (about
++0.25 dB at 10 GHz, the largest single term); with 5 mm / 6 mm padding Palace p2 gives 0.949 dB (BEM 0.845). See
 `docs/change-requests/WP-501-palace-il-root-cause.md` for the table, the new banded-dielectric
 option (`palace.banded`, `eps_tol`, `tand_tol`), the `occ.*` mesh keys and the `PALACE.ABC_NEAR`
 warning. Memory: p2 above about 1 M DOF with AMS exceeds a 12 GB box.
@@ -168,3 +170,7 @@ warning. Memory: p2 above about 1 M DOF with AMS exceeds a 12 GB box.
 - The Windows `wsl` runner test needs a Palace in WSL; CI runners without it skip.
 - `oa_testkit.plugin.tool_available("palace")` only searches the host PATH; the adapter's
   `tests/conftest.py` lifts that skip when `discover()` finds Palace (CR WP-301).
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

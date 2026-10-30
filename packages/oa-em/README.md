@@ -51,3 +51,7 @@ from oa_em import EmSparams, EmSparamsConfig, build_problem
 `oa_testkit.harness`. `external("openems")` tests (`test_external_openems.py`) run the real thing
 through `LocalJobService`: microstrip thru vs the analytic line and the via transition.
 `docs/change-requests/WP-205-*.md` lists the contract issues.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

@@ -17,6 +17,8 @@ Formulation (all lengths SI, eps0 = 1 inside, charges are sigma~ = sigma / eps0)
 
 from __future__ import annotations
 
+import os
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
@@ -26,8 +28,11 @@ import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import CubicSpline  # type: ignore[import-untyped,unused-ignore]
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
+from oa_impedance._dielectric import eps_at, is_frequency_independent
+from oa_impedance.errors import SectionTooLarge
 from oa_model.xsection import CrossSection
+from oa_physics.constants import EPS0, MU0
 
 from .geometry import (
     FACE_BOTTOM,
@@ -38,12 +43,27 @@ from .geometry import (
     Problem,
     build_problem,
 )
-from .kernels import influence
+from .iterative import EpsOperator, gmres_lockstep
+from .kernels import influence_blocks
 
 C128 = npt.NDArray[np.complex128]
 F64 = npt.NDArray[np.float64]
 
-__all__ = ["BemGeometry", "BemSolution", "prepare", "solve_bem"]
+__all__ = [
+    "DEFAULT_BUDGET_BYTES",
+    "ITERATIVE_MAX_PANELS",
+    "BemGeometry",
+    "BemSolution",
+    "dense_peak_bytes",
+    "prepare",
+    "solve_bem",
+]
+
+DEFAULT_BUDGET_BYTES = 512 * 2**20  # per section: influence matrices + system matrix + LU
+GATE_BYTES = int(float(os.environ.get("OA_IMPEDANCE_TOTAL_MB", "1536")) * 2**20)
+_MAX_COARSEN = 3  # at most 1.25**3 = 1.95x coarser than the requested mesh
+_COARSEN_STEP = 1.25
+ITERATIVE_MAX_PANELS = 20_000  # beyond this the matrix-free sweeps are too slow to be useful
 
 _MAX_ANCHORS = 6
 
@@ -51,6 +71,30 @@ try:  # BLAS thread pools oversubscribe badly for these small (N ~ 300) dense sy
     from threadpoolctl import threadpool_limits  # type: ignore[import-untyped,unused-ignore]
 except ImportError:  # pragma: no cover - optional
     threadpool_limits = None
+
+
+class _MemoryGate:
+    """Caps the summed working-memory estimate of the BEM solves running at once (threads of
+    ``solve_many``): a solve waits until its estimate fits, and runs alone if it never would."""
+
+    def __init__(self, total: int) -> None:
+        self.total = total
+        self.used = 0
+        self._cv = threading.Condition()
+
+    def acquire(self, nbytes: int) -> None:
+        with self._cv:
+            while self.used > 0 and self.used + nbytes > self.total:
+                self._cv.wait()
+            self.used += nbytes
+
+    def release(self, nbytes: int) -> None:
+        with self._cv:
+            self.used -= nbytes
+            self._cv.notify_all()
+
+
+_GATE = _MemoryGate(GATE_BYTES)
 
 
 @contextmanager
@@ -65,12 +109,16 @@ class BemGeometry:
     """Frequency-independent part of a BEM problem (mesh + influence matrices)."""
 
     prob: Problem
-    P: F64
-    D: F64
+    P: F64 | None  # None in the iterative (matrix-free) mode
+    D: F64 | None
     sig_idx: list[int]  # conductor indices of the matrix conductors (reference excluded)
     ref_idx: list[int]  # grounded conductors (or the pseudo-reference)
     float_idx: list[int]
     notes: list[str] = field(default_factory=list)
+    mode: str = "dense"  # "dense" (LU) or "gmres" (matrix-free)
+    peak_bytes: int = 0  # estimated peak working memory of the chosen mode
+    iterations: int = 0
+    reserved: int = 0  # bytes held in the memory gate (released by solve_bem)
 
     @property
     def n_panels(self) -> int:
@@ -90,18 +138,83 @@ class BemSolution:
     n_panels: int
     n_solves: int
     h_char: float
+    mode: str = "dense"
+    peak_bytes: int = 0
+    iterations: int = 0
 
 
-def prepare(xs: CrossSection, mesh: MeshParams | None = None) -> BemGeometry:
-    prob = build_problem(xs, mesh or MeshParams())
-    pan = prob.panels
-    nrm = pan.normal
-    # source "normal" in kernels is the panel normal; targets use their own normal
-    p, d = influence(pan.mid, pan.normal, pan.a, pan.b, pan.tangent, nrm, pan.length)
+def dense_peak_bytes(n: int, n_cond: int, *, complex_: bool = False) -> int:
+    """Estimated peak working memory [B] of the dense path: both influence matrices, the system
+    matrix (real or complex) factored in place, or the conductor-only vacuum system."""
+    item = 16 if complex_ else 8
+    return 16 * n * n + max(item * (n + 1) ** 2, 8 * n_cond * n_cond) + (8 << 20)
+
+
+def _iterative_peak_bytes(n: int, n_rhs: int) -> int:
+    # Krylov bases + preconditioner blocks + kernel temporaries
+    return 8 * n * (60 + 2) * (n_rhs + 1) * 2 + 8 * n * 192 + (16 << 20)
+
+
+def prepare(
+    xs: CrossSection,
+    mesh: MeshParams | None = None,
+    budget: int | None = None,
+    *,
+    reserve: bool = False,
+) -> BemGeometry:
+    mesh = mesh or MeshParams()
+    limit = DEFAULT_BUDGET_BYTES if budget is None else budget
+    notes: list[str] = []
+    n0 = 0
+    for step in range(_MAX_COARSEN + 1):
+        prob = build_problem(xs, mesh)
+        pan = prob.panels
+        n = pan.n
+        n0 = n0 or n
+        n_cond = int(np.count_nonzero(pan.kind != KIND_INTERFACE))
+        est = dense_peak_bytes(n, n_cond, complex_=not _freq_independent(prob))
+        if est <= limit or step == _MAX_COARSEN:
+            break
+        # adaptive panelization: coarsen the whole grading (same shape, fewer panels) until the
+        # dense system fits; the accuracy cost is noted in the result
+        mesh = mesh.scaled(1.0 / _COARSEN_STEP)
+    if step:
+        notes.append(
+            f"mesh coarsened {_COARSEN_STEP**step:.2f}x ({n0} -> {n} panels) to fit the "
+            f"{limit / 2**20:.0f} MB section budget"
+        )
+    p: F64 | None = None
+    d: F64 | None = None
+    mode = "dense"
+    peak = est
+    if est > limit:
+        # the conductor-only vacuum system stays dense
+        peak = max(_iterative_peak_bytes(n, 8), 8 * n_cond * n_cond + (8 << 20))
+        if n > ITERATIVE_MAX_PANELS or peak > limit:
+            raise SectionTooLarge(
+                f"BEM section needs {n} panels (~{est / 2**20:.0f} MB dense, budget "
+                f"{limit / 2**20:.0f} MB)",
+                path="xsection",
+                hint="Reduce the window (fewer aggressors / coplanar grounds), use a coarser "
+                "MeshParams.alpha, or raise the section budget (OA_IMPEDANCE_SECTION_MB).",
+            )
+        mode = "gmres"
+        notes.append(
+            f"{n} panels: dense system ~{est / 2**20:.0f} MB exceeds the "
+            f"{limit / 2**20:.0f} MB section budget; matrix-free GMRES with block-Jacobi used"
+        )
+    if reserve:
+        _GATE.acquire(peak)
+    if mode == "dense":
+        p = np.empty((n, n))
+        d = np.empty((n, n))
+        # source "normal" in kernels is the panel normal; targets use their own normal
+        influence_blocks(
+            pan.mid, pan.normal, pan.a, pan.b, pan.tangent, pan.normal, pan.length, p, d, same=True
+        )
     sig = [i for i, r in enumerate(prob.cond_roles) if r == "signal"]
     gnd = [i for i, r in enumerate(prob.cond_roles) if r == "ground"]
     flt = [i for i, r in enumerate(prob.cond_roles) if r == "floating"]
-    notes: list[str] = []
     if not gnd:
         ref = sig[-1]
         gnd = [ref]
@@ -110,18 +223,29 @@ def prepare(xs: CrossSection, mesh: MeshParams | None = None) -> BemGeometry:
             f"no ground conductor: signal {prob.cond_ids[ref]!r} is the reference; "
             "results are the N-1 mutual (differential-type) quantities"
         )
-    return BemGeometry(prob, p, d, sig, gnd, flt, notes)
+    return BemGeometry(prob, p, d, sig, gnd, flt, notes, mode, peak, 0, peak if reserve else 0)
 
 
 def _zone_eps(prob: Problem, f: float) -> C128:
     out = np.empty(len(prob.zone_models), dtype=np.complex128)
     for k, m in enumerate(prob.zone_models):
-        out[k] = prob.background_dk if m is None else phys.eps_complex(m, f)
+        out[k] = prob.background_dk if m is None else eps_at(m, f)
     return out
 
 
 def _freq_independent(prob: Problem) -> bool:
-    return all(m is None or phys.is_frequency_independent(m) for m in prob.zone_models)
+    return all(m is None or is_frequency_independent(m) for m in prob.zone_models)
+
+
+def _chunks(idx: npt.NDArray[np.intp], size: int = 256) -> Iterator[npt.NDArray[np.intp]]:
+    for k in range(0, len(idx), size):
+        yield idx[k : k + size]
+
+
+def _lu_solve(a: Any, rhs: Any) -> Any:
+    from scipy.linalg import solve as _solve  # type: ignore[import-untyped,unused-ignore]
+
+    return _solve(a, rhs, overwrite_a=True, check_finite=False)
 
 
 def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
@@ -129,22 +253,29 @@ def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
     prob, pan = geo.prob, geo.prob.panels
     n = pan.n
     kind, cond = pan.kind, pan.cond
+    is_if = kind == KIND_INTERFACE
+    nf = len(geo.float_idx)
+    size = n + 1 + nf
+    rhs: Any = np.zeros((size, len(geo.sig_idx)))
+    for m, ci in enumerate(geo.sig_idx):
+        rhs[:n][(cond == ci) & ~is_if, m] = 1.0
+    if geo.P is None:
+        return _solve_eps_gmres(geo, ez_in, rhs)
+    assert geo.D is not None
     real = not np.any(ez_in.imag)
     ez: Any = ez_in.real if real else ez_in
     e1 = ez[pan.zone1]
     e2 = np.where(pan.zone2 >= 0, ez[np.maximum(pan.zone2, 0)], 0.0)
     avg = 0.5 * (e1 + e2)
     diff = e1 - e2
-    nf = len(geo.float_idx)
-    size = n + 1 + nf
-    A = np.zeros((size, size), dtype=np.float64 if real else np.complex128)
-    is_if = kind == KIND_INTERFACE
-    # conductor rows
-    A[:n][~is_if, :n] = geo.P[~is_if]
+    # Fortran order: the LU then overwrites A instead of copying it
+    A = np.zeros((size, size), dtype=np.float64 if real else np.complex128, order="F")
+    for ch in _chunks(np.nonzero(~is_if)[0]):  # conductor rows
+        A[ch, :n] = geo.P[ch]
     A[:n][~is_if, n] = 1.0
-    # interface rows
-    ii = np.nonzero(is_if)[0]
-    A[ii, :n] = diff[ii, None] * geo.D[ii]
+    ii = np.nonzero(is_if)[0]  # interface rows
+    for ch in _chunks(ii):
+        A[ch, :n] = diff[ch, None] * geo.D[ch]
     A[ii, ii] += avg[ii]
     # free charge functional per conductor
     ncnd = len(prob.cond_ids)
@@ -161,11 +292,23 @@ def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
         A[rows, n + 1 + j] = -1.0
         A[n + 1 + j, :n] = Q[fi]
     A[n, :n] = Q.sum(axis=0)
-    rhs = np.zeros((size, len(geo.sig_idx)), dtype=A.dtype)
-    for m, ci in enumerate(geo.sig_idx):
-        rhs[:n][(cond == ci) & ~is_if, m] = 1.0
-    x = np.linalg.solve(A, rhs)
+    x: Any = _lu_solve(A, rhs.astype(A.dtype))
     return np.asarray(Q[geo.sig_idx] @ x[:n]).astype(np.complex128)
+
+
+def _solve_eps_gmres(geo: BemGeometry, ez_in: C128, rhs: Any) -> C128:
+    pan = geo.prob.panels
+    op = EpsOperator(pan, len(geo.prob.cond_ids), geo.float_idx, ez_in)
+    x, its, res = gmres_lockstep(op, rhs.astype(op.dtype), op.preconditioner())
+    geo.iterations = max(geo.iterations, its)
+    if res > 1e-6:
+        raise SectionTooLarge(
+            f"GMRES did not converge on a {pan.n}-panel section (residual {res:.2g})",
+            path="xsection",
+            hint="Use a coarser MeshParams.alpha or reduce the section window.",
+        )
+    q = op.charge_of(x)
+    return np.asarray(q[geo.sig_idx]).astype(np.complex128)
 
 
 def _vacuum(geo: BemGeometry) -> tuple[F64, F64, npt.NDArray[np.intp]]:
@@ -176,7 +319,23 @@ def _vacuum(geo: BemGeometry) -> tuple[F64, F64, npt.NDArray[np.intp]]:
     nf = len(geo.float_idx)
     size = nc + 1 + nf
     A = np.zeros((size, size))
-    A[:nc, :nc] = geo.P[np.ix_(cidx, cidx)]
+    if geo.P is not None:
+        A[:nc, :nc] = geo.P[np.ix_(cidx, cidx)]
+    else:
+        p_blk = np.empty((nc, nc))
+        influence_blocks(
+            pan.mid[cidx],
+            pan.normal[cidx],
+            pan.a[cidx],
+            pan.b[cidx],
+            pan.tangent[cidx],
+            pan.normal[cidx],
+            pan.length[cidx],
+            p_blk,
+            np.empty((nc, nc)),
+            same=True,
+        )
+        A[:nc, :nc] = p_blk
     A[:nc, nc] = 1.0
     cond = pan.cond[cidx]
     ncnd = len(prob.cond_ids)
@@ -217,12 +376,12 @@ def _loss(
     for fi, f in enumerate(freqs):
         if f <= 0.0:
             continue
-        rs = np.array([phys.surface_resistance(f, s) for s in sigma])
+        rs = np.sqrt(np.pi * f * MU0 / sigma)  # surface resistance 1/(sigma delta) [ohm/sq]
         kfac = np.ones(len(cidx))
         for p in range(len(cidx)):
             top, bot, side = prob.cond_rough[cond[p]]
             rough = top if face[p] == FACE_TOP else (bot if face[p] == FACE_BOTTOM else side)
-            kfac[p] = phys.roughness_factor(rough, f, float(sigma[p]))
+            kfac[p] = float(phys.roughness_factor(rough, f, float(sigma[p]))[0])
         w = rs * kfac * length
         s_mat = (sig * w[:, None]).T @ sig
         r_ac[fi] = c0inv @ s_mat @ c0inv
@@ -240,10 +399,14 @@ def solve_bem(
     mesh: MeshParams | None = None,
     *,
     geo: BemGeometry | None = None,
+    budget: int | None = None,
 ) -> BemSolution:
-    """Solve the cross-section at ``freqs`` [Hz] (0.0 = static, lossless)."""
+    """Solve the cross-section at ``freqs`` [Hz] (0.0 = static, lossless).
+
+    ``budget`` [B] is the per-section working-memory limit (default 512 MB): above it the
+    matrix-free GMRES path is used, and above its limits ``SectionTooLarge`` is raised."""
     with _single_thread():
-        return _solve_bem(xs, freqs, mesh, geo)
+        return _solve_bem(xs, freqs, mesh, geo, budget)
 
 
 def _solve_bem(
@@ -251,8 +414,18 @@ def _solve_bem(
     freqs: list[float] | F64,
     mesh: MeshParams | None,
     geo: BemGeometry | None,
+    budget: int | None,
 ) -> BemSolution:
-    geo = geo or prepare(xs, mesh)
+    geo = geo or prepare(xs, mesh, budget, reserve=True)
+    try:
+        return _solve_prepared(geo, freqs)
+    finally:
+        if geo.reserved:
+            _GATE.release(geo.reserved)
+            geo.reserved = 0
+
+
+def _solve_prepared(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:
     prob = geo.prob
     fs = np.asarray(freqs, dtype=float)
     ns = len(geo.sig_idx)
@@ -261,7 +434,7 @@ def _solve_bem(
 
     c0hat, sig0, cidx = _vacuum(geo)
     c0hat = 0.5 * (c0hat + c0hat.T)
-    L_ext: npt.NDArray[Any] = phys.MU0 * np.linalg.inv(c0hat)  # NDArray[Any]: see _vacuum
+    L_ext: npt.NDArray[Any] = MU0 * np.linalg.inv(c0hat)  # NDArray[Any]: see _vacuum
 
     pos = fs[fs > 0.0]
     const = _freq_independent(prob)
@@ -309,14 +482,14 @@ def _solve_bem(
                         f"C(f) solved at {len(anchors)} log-spaced frequencies and interpolated"
                     )
             C[fs > 0.0] = interp
-    C = C * phys.EPS0
+    C = C * EPS0
     C = 0.5 * (C + C.transpose(0, 2, 1))
 
     r_ac, r_dc = _loss(geo, sig0, cidx, c0hat, fs, True)
     return BemSolution(
         freqs=fs,
         C=C,
-        C0=c0hat * phys.EPS0,
+        C0=c0hat * EPS0,
         L_ext=L_ext,
         R_ac=r_ac,
         R_dc=r_dc,
@@ -325,4 +498,7 @@ def _solve_bem(
         n_panels=geo.n_panels,
         n_solves=n_solves,
         h_char=prob.h_char,
+        mode=geo.mode,
+        peak_bytes=geo.peak_bytes,
+        iterations=geo.iterations,
     )

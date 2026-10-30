@@ -51,12 +51,30 @@ layers and nets, copper intervals along the cut, partner offset) is equal share 
 
 ## Performance (synthetic 4-layer boards, `tests/synthetic.py`, Windows laptop)
 
+Before WP-509 (`reference_map()` in pure Python):
+
 | tracks | build + copper unions | `reference_map()` |
 |---|---|---|
 | 10k | 1.4 s | 5.4 s |
 | 50k | 9.2 s | 51 s |
 
+Native clipping (WP-509b, optional `oa-native`; `OA_NATIVE_CLIP=0` forces GEOS): the cut-interval
+clipping of `sampling._u_intervals` and the footprint coverage and edge distance of
+`refmap._bulk_cover` run in Rust for straight pieces. Intervals and coverage match GEOS; the
+`edge_distance` floats differ from GEOS by up to about 3e-15 relative (different but equivalent
+arithmetic), so ReferenceMap JSON hashes of boards with covered footprints change while the
+structure, nets, layers and coverage stay identical. Compare with a relative tolerance of 1e-12.
+
+After WP-509 (memoized candidate layers and a single-span fast path, `docs/perf/PROFILE-509.md`):
+`reference_map()` on the 10k board takes about 1.3 s (including a one-off 0.4 s scipy import); 50k
+extrapolated to about 5 s against the 3 s target. WP-509b then added the native clipping kernel
+described above (10k: 1.01 s → about 0.6 s; 50k extrapolates to about 3.3 s, not yet measured).
+
 ## Typing
 
 `mypy --strict` is clean. The shapely-heavy modules disable a few error codes at the top of the
 file because shapely's array-vs-scalar overloads are not expressible in the stubs.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

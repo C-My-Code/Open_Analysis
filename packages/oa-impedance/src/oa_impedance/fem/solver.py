@@ -16,7 +16,8 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
+from oa_impedance._dielectric import eps_at
 from oa_impedance.fem._mesh import FemMesh, build
 from oa_impedance.fem.eddy import EddySolution, characteristic_thickness, solve_eddy
 from oa_impedance.fem.electrostatic import (
@@ -30,6 +31,7 @@ from oa_impedance.service import SOLVER_VERSION
 from oa_mesh import mesh_cross_section
 from oa_model.arrays import Floats, NDArray
 from oa_model.xsection import CrossSection, XsPlane
+from oa_physics.constants import C0
 from oa_results.container import ValidityFlag
 from oa_results.rlgc import RLGC, ImpedanceResult, LineParams
 
@@ -156,7 +158,7 @@ def _volume_set(xs: CrossSection, f: float, ratio: float) -> set[int]:
         t = characteristic_thickness(c.shape)
         if t < _MIN_VOLUME_T:  # thinner than 1 um: a sheet, not a meshable volume
             continue
-        if f <= 0.0 or phys.skin_depth(f, c.conductivity) >= t / ratio:
+        if f <= 0.0 or float(phys.skin_depth(c.conductivity, f)[0]) >= t / ratio:
             out.add(k)
     return out
 
@@ -169,7 +171,7 @@ def _run_eddy(
     setup_e = setup
     if vol_any:
         deltas = [
-            phys.skin_depth(float(f), xs.conductors[k].conductivity)
+            float(phys.skin_depth(xs.conductors[k].conductivity, float(f))[0])
             for f in fs
             if f > 0
             for k in _volume_set(xs, float(f), p.ibc_ratio)
@@ -199,8 +201,8 @@ def _run_eddy(
 
 
 def _quasi_static_fmax(xs: CrossSection, h_char: float) -> float:
-    er_max = max([xs.background_dk] + [phys.eps_complex(d.model, 0.0).real for d in xs.dielectrics])
-    return 0.1 * phys.C0 / (math.sqrt(er_max) * h_char)
+    er_max = max([xs.background_dk] + [eps_at(d.model, 0.0).real for d in xs.dielectrics])
+    return 0.1 * C0 / (math.sqrt(er_max) * h_char)
 
 
 def _result(

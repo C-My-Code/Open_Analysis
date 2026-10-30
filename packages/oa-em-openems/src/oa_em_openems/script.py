@@ -47,17 +47,19 @@ def build_properties(csx, scene):
         if kind == "material":
             if p.get("debye"):
                 # CSXCAD exposes Debye media only through its generic property factory
+                poles = p["debye"]["poles"]
                 prop = csx._ContinuousStructure__CreateProperty(
                     "DebyeMaterial",
                     name,
-                    order=1,
+                    order=len(poles),
                     epsilon=vec(p["epsilon"]),
                     kappa=vec(p["kappa"]),
                 )
-                delta = vec(p["debye"]["eps_delta"])
-                relax = p["debye"]["eps_relax"]
-                relax = relax if np.ndim(delta) == 0 else [relax] * 3
-                prop.SetDispersiveMaterialProperty(0, eps_delta=delta, eps_relax=relax)
+                for k, pole in enumerate(poles):
+                    delta = vec(pole["eps_delta"])
+                    relax = pole["eps_relax"]
+                    relax = relax if np.ndim(delta) == 0 else [relax] * 3
+                    prop.SetDispersiveMaterialProperty(k, eps_delta=delta, eps_relax=relax)
             else:
                 prop = csx.AddMaterial(name, epsilon=vec(p["epsilon"]), kappa=vec(p["kappa"]))
         elif kind == "metal":

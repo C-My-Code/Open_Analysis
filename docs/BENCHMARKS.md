@@ -56,7 +56,7 @@ Rule 10's defaults (2 threads, 8 GB) still apply to all other tests. The harness
 | B-EM-04 | CPWG launch with via fence, to 40 GHz | \|S21\| ≤ 0.1 dB; \|S11\| ≤ 2 dB above −25 dB | FDTD ≤ 3 min GPU; Palace ≤ 15 min GPU | 6 GB GPU; Palace 12 GB | not run |
 | B-EM-05 | 2.4 GHz antennas (patch, IFA) | f_res ≤ 0.5 % (converged), ≤ 1 % (published); S11 min ≤ 1 dB | FDTD ≤ 60 s GPU; openEMS ≤ 10 min | 4 GB GPU | not run |
 | B-EM-06 | High-Q filters (10 GHz hairpin; MSL notch) | f_c ≤ 0.2 %; passband IL ≤ 0.1 dB; BW ≤ 1 % | Palace fast sweep ≤ 10 min GPU / ≤ 30 min CPU; FDTD ≤ 15 min GPU | 12 GB | not run |
-| B-PERF-01 | FDTD kernel throughput | float32 vs float64 \|ΔS\| ≤ 1e-4 | ≥ 3.0 Gcells/s plain; ≥ 1.5 Gcells/s ADE+CPML | - | no engine |
+| B-PERF-01 | FDTD kernel throughput | float32 vs float64 \|ΔS\| ≤ 1e-4 | ≥ 3.0 Gcells/s plain; ≥ 1.5 Gcells/s ADE+CPML | - | engine exists; plain 6.0 / 3.2 Gcells/s (f32 / f64) measured, ADE+CPML not measured |
 
 ---
 
@@ -343,6 +343,26 @@ These cases gate **M2**, not M1P. They use the same reference machine, `bench` p
 ### Parity statement (EMC)
 - Ansys EMC Plus, HFSS/SIwave and CST Studio Suite with Cable Studio publish no reproducible accuracy or runtime numbers for these cases that we could find [verify]. We compare against analytic, converged and published-measured references only.
 - A licensed user may contribute runs with permission (TASKS open question 14).
+
+## 5b. M2: uncertainty-quantification cases (ADR-0012)
+
+These cases gate the UQ package ([ADR-0012](adr/0012-uncertainty-quantification.md), WP-430 to WP-436). They test the statistics, not the physics, so every case has a reference that is exact or computed independently of `oa-uq`. They run on the CPU by default. "Accuracy" is the agreement of `oa-uq` output with the reference. All are `not built` today.
+
+| ID | Case | Reference | Accuracy gate | Today |
+|---|---|---|---|---|
+| B-UQ-01 | Linear model, Gaussian inputs | analytic: P(pass) = Phi((L - a - b.mu) / sqrt(b.Sigma.b)). Example: b = (1, 2, -1), independent inputs with sigma = (1, 0.5, 1), mu = 0, L = 3 gives Phi(sqrt(3)) = 0.95837 | MC with N = 1e5: exact value inside the reported 95 % CI; first-order estimate exact to 1e-12; first-order shares exact | not built |
+| B-UQ-02 | Interval coverage | statistical: B-UQ-01 repeated with 1000 seeds | the 95 % CI contains the exact value in 93 % to 97 % of repeats (binomial range); same for LHS and Sobol, whose CIs may be narrower but not over-confident | not built |
+| B-UQ-03 | Ishigami function, Sobol indices | analytic (a = 7, b = 0.1): S1 = 0.3139, S2 = 0.4424, S3 = 0, ST1 = 0.5576, ST2 = 0.4424, ST3 = 0.2437 **[verify: check these values against the source at implementation]** | indices <= 0.01 absolute with N = 2^14 Sobol points; PCE-derived indices <= 0.005 | not built |
+| B-UQ-04 | DC resistance of a strip with a uniform width | analytic: R = c / W with c = Rs L = 24.63 mohm mm (the `power_strip` board: 4.926 mohm at W = 5 mm); W ~ U(4.5, 5.5) mm; spec R <= 5.2 mohm; exact P(pass) = P(W >= c / 5.2) = 0.7634 | exact value inside the CI; first-order estimate flagged with a nonlinear-response warning when it differs from exact by more than the CI; adjoint sensitivity dR/dW equal to the analytic -c/W^2 within 1e-6 relative | not built |
+| B-UQ-05 | PCE and surrogate adequacy | analytic: B-UQ-04 response and Ishigami | PCE order 8 vs exact CDF: Kolmogorov distance <= 0.01; leave-one-out error predicts held-out error within a factor 2; an under-sampled design is refused with `UQ.SURROGATE_INADEQUATE` | not built |
+| B-UQ-06 | Model-error calibration recovery | synthetic solver with known bias and spread | recovered mean and spread inside their reported 95 % intervals in 93 % to 97 % of 1000 synthetic suites; fewer than the minimum number of independent cases gives `calibration = "insufficient"`, never `calibrated`; self-computed cases do not enter the fit | not built |
+| B-UQ-07 | Determinism and backend parity | bitwise on one backend | repeat runs bitwise identical; CPU and GPU batches agree within the ADR-0009 tolerance classes; the case passes with `OA_DEVICE=cpu` | not built |
+| B-UQ-08 | EMC margin with correlated model error | analytic: two frequencies, margin M = 0 at both, Gaussian model error with equal spread and correlation rho; P(both pass) = 1/4 + arcsin(rho) / (2 pi), which is 1/3 for rho = 0.5. Single frequency: P = Phi(M / sigma) | exact value inside the CI; the ADR-0011 RSS budget reproduced to 0.01 dB when all terms are independent Gaussians; the product of per-frequency probabilities is shown to be wrong for rho != 0 | not built |
+| B-UQ-09 | Honesty rules | contract tests | a `UqResult` cannot be built without `inputs` and `model_error`; `summary()` always includes the assumptions and the calibration status and stays within the size caps; an out-of-domain run returns `UQ.OUT_OF_DOMAIN` with no `p_pass`; accuracy is capped at `estimate` when any calibration is `insufficient` | not built |
+
+Notes:
+- B-UQ-04 uses the `power_strip` geometry and the analytic strip resistance already checked in the DC IR suite ([validation](validation/dc-ir.md)); the distribution on W is an arbitrary test input, not a fabrication tolerance.
+- Real-solver UQ runs (impedance, DC IR, SI, EMC) have no separate exact reference. They inherit the accuracy gates of the cases in sections 2 and 5 and are reported with the model-error status of ADR-0012 section 3, not as gated B-UQ results.
 
 ## 6. Changing this file
 Targets may be **tightened** at any time. Loosening a target needs an ADR amendment that records the measured evidence and the project owner's sign-off. References marked [verify] become gating only in the commit that adds the checked citation to the case's `case.toml`.

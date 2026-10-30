@@ -15,8 +15,9 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
 from oa_impedance import closed_form as cf
+from oa_impedance._dielectric import eps_at
 from oa_model.xsection import (
     CrossSection,
     XsCircle,
@@ -26,6 +27,7 @@ from oa_model.xsection import (
     XsSlab,
     XsTrapezoid,
 )
+from oa_physics.constants import ETA0
 
 F64 = npt.NDArray[np.float64]
 
@@ -260,7 +262,7 @@ def _er(topo: Topology, bg: float, f: float) -> tuple[float, float]:
     """(Re er, tan delta) at ``f`` for the topology's dielectric."""
     if topo.model is None:
         return bg, 0.0
-    e = phys.eps_complex(topo.model, f)
+    e = eps_at(topo.model, f)
     return e.real, (-e.imag / e.real if e.real else 0.0)
 
 
@@ -284,7 +286,7 @@ def evaluate(topo: Topology, xs: CrossSection, f: float) -> cf.CFResult:
     if k in ("cpw", "cpwg"):
         return cf.cpw(p["s"], p["g"], p["t"], er, p.get("h"), backside=(k == "cpwg"))
     if k == "wire_over_plane":
-        z = phys.ETA0 / (2 * math.pi * math.sqrt(er)) * math.acosh((p["h"] + 0.0) / p["r"])
+        z = ETA0 / (2 * math.pi * math.sqrt(er)) * math.acosh((p["h"] + 0.0) / p["r"])
         return cf.CFResult(
             model="wire_over_plane_exact",
             z0=z,
@@ -303,8 +305,8 @@ def loss_db_per_m(topo: Topology, xs: CrossSection, f: float, res: cf.CFResult) 
     sig = topo.signals[0]
     sigma = sig.conductivity
     kr = 0.5 * (
-        phys.roughness_factor(sig.roughness_top, f, sigma)
-        + phys.roughness_factor(sig.roughness_bottom, f, sigma)
+        float(phys.roughness_factor(sig.roughness_top, f, sigma)[0])
+        + float(phys.roughness_factor(sig.roughness_bottom, f, sigma)[0])
     )
     er, tand = _er(topo, xs.background_dk, f)
     alpha_c = 0.0

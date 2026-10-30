@@ -52,7 +52,7 @@ IM-002 needs an impedance target (net class, diff pair or intent).
 | IM-001 | Width differs from net-class width | 2 %; skipped with an impedance target |
 | IM-002 | Z0/Zdiff (BEM) out of tolerance | intent tolerance, 10 % |
 | IM-003 | Neck-down too long | 5 mm |
-| IM-005 | Stub too long | 3 mm or t_r v / 10 |
+| IM-005 | Stub too long | 3 mm or t_r v / 10 (one-way delay < t_r / 10) |
 | DP-001 / 002 / 003 | Uncoupled length, skew, gap variation | 2 mm, 1 ps, 25 % over 2 mm |
 | VI-001 | Via stub length / resonance | 0.25 mm; dead-end vias skipped |
 | VI-002 | Vias per routed net | 4 |
@@ -96,3 +96,7 @@ intent and at a deliberately wrong 40 ohm target) are byte-identical.
 the AI contract, SARIF validity, waivers, DRU and the analytic checks (stub resonance, cavity
 f10 = 1.807 GHz); `test_builders_perf.py` has negative/injected fixtures and the 10k-track timing.
 Change requests: `docs/change-requests/WP-201-*.md`.
+
+## Theory and validation
+
+Equations, numerical method, validity range, error budget and validation evidence: [THEORY.md](THEORY.md).

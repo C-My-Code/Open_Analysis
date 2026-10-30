@@ -165,7 +165,7 @@ Ingest and ReferenceMap at scale. Spec: [docs/BENCHMARKS.md#b-ing-01-ingest-and-
 
 FDTD kernel throughput. Spec: [docs/BENCHMARKS.md#b-perf-01-fdtd-kernel-throughput](../../../docs/BENCHMARKS.md).
 
-- Targets (verbatim from BENCHMARKS.md section 2): Accuracy: float32 vs float64 |dS| <= 1e-4. Runtime: >= 3.0 Gcells/s plain; >= 1.5 Gcells/s ADE+CPML. Today: no engine
+- Targets (verbatim from BENCHMARKS.md section 2): Accuracy: float32 vs float64 |dS| <= 1e-4. Runtime: >= 3.0 Gcells/s plain; >= 1.5 Gcells/s ADE+CPML. Today: 6.0 / 3.2 Gcells/s measured on 256^3 + CPML; ADE+CPML not measured
 - Reference class: converged. float64 engine on ADR-0010 section 9 cases 1-3
 - Reference data: `none`
 - Case file: `tests/benchmarks/cases/B-PERF-01/case.toml`
