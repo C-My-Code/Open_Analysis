@@ -1,0 +1,79 @@
+{
+ "schema": "oa-bench-reference/1",
+ "id": "B-IMP-02/cpwg_35um",
+ "geometry": {
+  "name": "cpwg",
+  "kind": "cpwg",
+  "h": 150,
+  "w": 200,
+  "er": 4.0,
+  "s": 150,
+  "h2": 0.0,
+  "er2": 0.0,
+  "pair": false,
+  "copper_um": 35.0,
+  "etch": "w_top = w_bottom - t",
+  "dielectric": "lossless, static eps_r"
+ },
+ "quantity": "z0",
+ "reference": {
+  "z": 56.19312465067098,
+  "eps_eff": 2.63808428417828
+ },
+ "error_estimate_pct": {
+  "z_pct": 0.1584168226604691,
+  "eps_eff_pct": 0.15394244786876354
+ },
+ "convergence": [
+  {
+   "level": 0,
+   "h_max_m": 0.000125,
+   "n_dofs": 52071,
+   "z": 55.90428507304593,
+   "eps_eff": 2.6481779852213827
+  },
+  {
+   "level": 1,
+   "h_max_m": 8.838834764831844e-05,
+   "n_dofs": 126602,
+   "z": 55.98816606516339,
+   "eps_eff": 2.645851635024524
+  },
+  {
+   "level": 2,
+   "h_max_m": 6.25e-05,
+   "n_dofs": 307530,
+   "z": 56.05804955064713,
+   "eps_eff": 2.6437007094986162
+  },
+  {
+   "level": 3,
+   "h_max_m": 4.419417382415922e-05,
+   "n_dofs": 773382,
+   "z": 56.10410528804575,
+   "eps_eff": 2.6421454157021853
+  }
+ ],
+ "richardson_ratio": {
+  "z": 0.6590360666733414,
+  "eps_eff": 0.7230811935129787
+ },
+ "bem_default": {
+  "z": 56.18281754529997,
+  "eps_eff": 2.6374779533545616,
+  "z_err_pct": -0.018342289088013608,
+  "eps_eff_err_pct": -0.022983754816130464
+ },
+ "bem_4x": {
+  "z": 56.146737426248194,
+  "eps_eff": 2.6401952490335647,
+  "z_err_pct": -0.08254964412667265,
+  "eps_eff_err_pct": 0.08001885565009914,
+  "vs_default_pct": 0.06426040177163195
+ },
+ "provenance": {
+  "fem": "oa_impedance.fem P2",
+  "levels": 4,
+  "wall_s": 64.5
+ }
+}

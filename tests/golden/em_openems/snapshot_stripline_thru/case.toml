@@ -10,9 +10,9 @@ fixture = "stripline_thru"
 [expected]
 nx = 78
 ny = 32
-nz = 11
-cells = 23870
-mesh_hash = "d083e7f05209eb2f"
+nz = 13
+cells = 28644
+mesh_hash = "0b3884f8364e98a2"
 min_cell_x = 49.937
 min_cell_y = 45.858000000000004
-min_cell_z = 35.0
+min_cell_z = 17.5

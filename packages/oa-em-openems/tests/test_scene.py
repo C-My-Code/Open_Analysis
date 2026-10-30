@@ -24,8 +24,14 @@ def _prims(scene, shape):  # type: ignore[no-untyped-def]
     return [p for p in scene.data["primitives"] if p["shape"] == shape]
 
 
+def _sheet_model(p):  # type: ignore[no-untyped-def]
+    """The single-sheet copper model (mesh and primitive rules of WP-108)."""
+    expert = {"openems.conductor_model": "sheet"}
+    return p.model_copy(update={"mesh": p.mesh.model_copy(update={"expert": expert})})
+
+
 def test_microstrip_mesh_follows_the_rules() -> None:
-    p = microstrip_thru_problem()
+    p = _sheet_model(microstrip_thru_problem())
     scene = build_scene(p)
     st = scene.stats
     # lambda/20 at f_max in the densest dielectric (eps' at 10 GHz is about 4.17)
@@ -63,7 +69,7 @@ def test_microstrip_domain_and_boundaries() -> None:
 
 
 def test_microstrip_geometry_primitives() -> None:
-    scene = build_scene(microstrip_thru_problem())
+    scene = build_scene(_sheet_model(microstrip_thru_problem()))
     props = scene.data["properties"]
     sheets = {k: v for k, v in props.items() if v["kind"] == "sheet"}
     assert len(sheets) == 1  # 35 um copper, one conducting-sheet property
@@ -177,13 +183,49 @@ def test_frequency_grid_and_options() -> None:
     p = microstrip_thru_problem(n_points=201, f_max=10e9)
     f = frequency_grid(p)
     assert f.size == 201 and f[-1] == pytest.approx(10e9) and f[0] == pytest.approx(50e6)
-    assert Options.from_problem(p).conductor_model == "sheet"
+    assert Options.from_problem(p).conductor_model == "skin"
     p2 = p.model_copy(
         update={"mesh": p.mesh.model_copy(update={"expert": {"openems.conductor_model": "pec"}})}
     )
     scene = build_scene(p2)
     assert any(v["kind"] == "metal" for v in scene.data["properties"].values())
     assert _prims(scene, "linpoly")
+
+
+def test_skin_model_meshes_both_faces_with_a_pec_core_and_real_thickness_skins() -> None:
+    p = microstrip_thru_problem(f_max=10e9)
+    assert Options.from_problem(p).conductor_model == "skin"
+    scene = build_scene(p)
+    z = np.array(scene.data["mesh"]["z"])
+    for face in (0.0, 35.0, 235.0, 270.0):  # plane faces, trace bottom and top [um]
+        assert np.isclose(z, face, atol=1e-6).any(), face
+    sheets = {k: v for k, v in scene.data["properties"].items() if v["kind"] == "sheet"}
+    assert len(sheets) == 1
+    (sheet,) = sheets.values()
+    assert sheet["thickness"] == pytest.approx(35e-6) and sheet["conductivity"] == 5.8e7
+    sheet_name = next(iter(sheets))
+    mine = [q for q in scene.data["primitives"] if q["prop"] == sheet_name]
+    # trace: top + bottom skin and the two axis-aligned side walls; the plane's bottom face is
+    # on the PEC domain wall and has none
+    assert sum(q["shape"] == "polygon" for q in mine) == 3
+    walls = [q for q in mine if q["shape"] == "box"]
+    assert any(
+        abs(q["start"][2] - 235.0) < 1e-6 and abs(q["stop"][2] - 270.0) < 1e-6 for q in walls
+    )
+    # the PEC cores sit below the skins in priority, so the skins own the face edges
+    cores = [q for q in scene.data["primitives"] if q["shape"] == "linpoly" and q["prop"] == "PEC"]
+    assert len(cores) == 2
+    assert all(q["priority"] < min(m["priority"] for m in mine) for q in cores)
+    assert max(scene.stats["max_grading"]) <= 2.0  # the extra face lines stay gently graded
+
+
+def test_skin_freq_option_sets_a_flat_surface_resistance() -> None:
+    p = microstrip_thru_problem(f_max=10e9)
+    expert = {"openems.conductor_model": "skin", "openems.skin_freq": 10e9}
+    p = p.model_copy(update={"mesh": p.mesh.model_copy(update={"expert": expert})})
+    (sheet,) = (v for v in build_scene(p).data["properties"].values() if v["kind"] == "sheet")
+    rs = math.sqrt(math.pi * 10e9 * 4e-7 * math.pi / sheet["conductivity"])
+    assert 1.0 / (sheet["conductivity"] * sheet["thickness"]) == pytest.approx(rs, rel=1e-6)
 
 
 def test_translation_is_deterministic() -> None:

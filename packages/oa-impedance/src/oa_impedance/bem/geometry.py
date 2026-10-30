@@ -57,10 +57,10 @@ class MeshParams:
 
     alpha: float = 0.4
     gap_ratio: float = 1.0  # panel size / distance to another conductor, in units of alpha
-    s_min_rel: float = 1e-3  # smallest panel / characteristic length
+    s_min_rel: float = 3e-4  # smallest panel / characteristic length
     s_max_rel: float = 1.5  # largest panel / characteristic length
     truncation: float = 20.0  # open boundaries cut at this many characteristic lengths
-    min_feature_ratio: float = 0.25  # s_min <= this * smallest conductor thickness
+    min_feature_ratio: float = 0.05  # s_min <= this * smallest conductor thickness
 
     def scaled(self, factor: float) -> MeshParams:
         """A uniformly refined (factor > 1) or coarsened copy."""
@@ -520,7 +520,21 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         cumi = np.concatenate([[0.0], np.cumsum(seg)])
         n_pan = max(1, math.ceil(cumi[-1]))
         targets = np.linspace(0.0, cumi[-1], n_pan + 1)
-        pos = np.interp(targets, cumi, ls)
+        # invert the integral exactly inside each interval (size is linear there), so geometric
+        # grading survives between widely spaced samples (np.interp would make the panels uniform)
+        k_int = np.clip(np.searchsorted(cumi, targets, side="right") - 1, 0, len(dl) - 1)
+        c_loc = targets - cumi[k_int]
+        slope = np.where(dl[k_int] > 0, ds[k_int] / np.where(dl[k_int] > 0, dl[k_int], 1.0), 0.0)
+        s_lo = s0[k_int]
+        flat_k = np.abs(slope) < 1e-12
+        with np.errstate(over="ignore", invalid="ignore"):
+            off = np.where(
+                flat_k,
+                c_loc * s_lo,
+                s_lo * np.expm1(slope * c_loc) / np.where(flat_k, 1.0, slope),
+            )
+        pos = np.clip(ls[k_int] + off, ls[k_int], ls[k_int] + dl[k_int])
+        pos[0], pos[-1] = ls[0], ls[-1]
         nx_ = np.interp(pos, cum, sp[:, 0])
         ny_ = np.interp(pos, cum, sp[:, 1])
         nodes = np.stack([nx_, ny_], axis=1)

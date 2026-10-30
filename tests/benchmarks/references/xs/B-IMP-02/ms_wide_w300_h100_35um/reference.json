@@ -1,0 +1,79 @@
+{
+ "schema": "oa-bench-reference/1",
+ "id": "B-IMP-02/ms_wide_w300_h100_35um",
+ "geometry": {
+  "name": "ms_wide_w300_h100",
+  "kind": "microstrip",
+  "h": 100,
+  "w": 300,
+  "er": 4.5,
+  "s": 0.0,
+  "h2": 0.0,
+  "er2": 0.0,
+  "pair": false,
+  "copper_um": 35.0,
+  "etch": "w_top = w_bottom - t",
+  "dielectric": "lossless, static eps_r"
+ },
+ "quantity": "z0",
+ "reference": {
+  "z": 35.69580978208192,
+  "eps_eff": 3.4270520723375197
+ },
+ "error_estimate_pct": {
+  "z_pct": 0.06275006558346394,
+  "eps_eff_pct": 0.05298932572691785
+ },
+ "convergence": [
+  {
+   "level": 0,
+   "h_max_m": 7.5e-05,
+   "n_dofs": 27822,
+   "z": 35.61902252550606,
+   "eps_eff": 3.4331942138259275
+  },
+  {
+   "level": 1,
+   "h_max_m": 5.3033008588991055e-05,
+   "n_dofs": 53592,
+   "z": 35.65277732350642,
+   "eps_eff": 3.4306126064094604
+  },
+  {
+   "level": 2,
+   "h_max_m": 3.749999999999999e-05,
+   "n_dofs": 94795,
+   "z": 35.66476320033116,
+   "eps_eff": 3.4295948718608305
+  },
+  {
+   "level": 3,
+   "h_max_m": 2.6516504294495524e-05,
+   "n_dofs": 199495,
+   "z": 35.67341063803312,
+   "eps_eff": 3.4288680441229618
+  }
+ ],
+ "richardson_ratio": {
+  "z": 0.7214689278394681,
+  "eps_eff": 0.7141623902294778
+ },
+ "bem_default": {
+  "z": 35.7163177078747,
+  "eps_eff": 3.4245229023481323,
+  "z_err_pct": 0.05745191359427526,
+  "eps_eff_err_pct": -0.07380016223863528
+ },
+ "bem_4x": {
+  "z": 35.69333574948755,
+  "eps_eff": 3.4277851217401736,
+  "z_err_pct": -0.006930876787714091,
+  "eps_eff_err_pct": 0.021390086499439853,
+  "vs_default_pct": 0.06438725298314463
+ },
+ "provenance": {
+  "fem": "oa_impedance.fem P2",
+  "levels": 4,
+  "wall_s": 10.0
+ }
+}

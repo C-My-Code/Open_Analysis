@@ -1,0 +1,79 @@
+{
+ "schema": "oa-bench-reference/1",
+ "id": "B-IMP-02/ms_coated_18um",
+ "geometry": {
+  "name": "ms_coated",
+  "kind": "coated",
+  "h": 150,
+  "w": 200,
+  "er": 4.0,
+  "s": 0.0,
+  "h2": 25,
+  "er2": 3.4,
+  "pair": false,
+  "copper_um": 18.0,
+  "etch": "w_top = w_bottom - t",
+  "dielectric": "lossless, static eps_r"
+ },
+ "quantity": "z0",
+ "reference": {
+  "z": 58.58540267153029,
+  "eps_eff": 3.2358716278095394
+ },
+ "error_estimate_pct": {
+  "z_pct": 0.01945809074534489,
+  "eps_eff_pct": 0.005309156481796163
+ },
+ "convergence": [
+  {
+   "level": 0,
+   "h_max_m": 5.274999999999999e-05,
+   "n_dofs": 24674,
+   "z": 58.513205879310696,
+   "eps_eff": 3.2367085561249542
+  },
+  {
+   "level": 1,
+   "h_max_m": 3.729988270759037e-05,
+   "n_dofs": 51828,
+   "z": 58.547029867386975,
+   "eps_eff": 3.2363766236740408
+  },
+  {
+   "level": 2,
+   "h_max_m": 2.6374999999999987e-05,
+   "n_dofs": 104770,
+   "z": 58.56448773310343,
+   "eps_eff": 3.2361661732578293
+  },
+  {
+   "level": 3,
+   "h_max_m": 1.864994135379518e-05,
+   "n_dofs": 217123,
+   "z": 58.57400307071494,
+   "eps_eff": 3.23604342529781
+  }
+ ],
+ "richardson_ratio": {
+  "z": 0.545045870214465,
+  "eps_eff": 0.5832630898485908
+ },
+ "bem_default": {
+  "z": 58.604712512457795,
+  "eps_eff": 3.2387023687237675,
+  "z_err_pct": 0.032960157388983724,
+  "eps_eff_err_pct": 0.08748001280087792
+ },
+ "bem_4x": {
+  "z": 58.60276680034947,
+  "eps_eff": 3.237507298817916,
+  "z_err_pct": 0.029639002255454905,
+  "eps_eff_err_pct": 0.050548080904055936,
+  "vs_default_pct": 0.003320171067944244
+ },
+ "provenance": {
+  "fem": "oa_impedance.fem P2",
+  "levels": 4,
+  "wall_s": 13.2
+ }
+}

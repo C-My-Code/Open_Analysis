@@ -173,6 +173,103 @@ def fit_debye(model: DielectricModel, f_lo: float, f_hi: float, n: int = 241) ->
     )
 
 
+@dataclass(frozen=True)
+class MultiDebyeFit:
+    """``eps_inf + sum_k delta_k / (1 + j w tau_k) + kappa / (j w eps0)`` fitted to a model.
+
+    The relaxation times are fixed on a log grid (about two poles per decade over the band), which
+    makes the fit a non-negative linear least-squares problem with a unique answer; poles that
+    receive no weight are dropped. ``max_rel_err_*`` are measured over the band like ``DebyeFit``.
+    """
+
+    eps_inf: float
+    poles: tuple[tuple[float, float], ...]  # (delta_eps_k, tau_k [s])
+    kappa: float
+    f_lo: float
+    f_hi: float
+    max_rel_err_eps: float
+    max_rel_err_tand: float
+    max_abs_err_tand: float
+
+    def eval(self, freqs: FloatArray) -> ComplexArray:
+        w = _TWO_PI * np.asarray(freqs, dtype=np.float64)
+        eps = np.full(w.shape, self.eps_inf, dtype=np.complex128) - 1j * self.kappa / (w * EPS0)
+        for delta, tau in self.poles:
+            eps = eps + delta / (1.0 + 1j * w * tau)
+        return eps
+
+    def as_dict(self) -> dict[str, float]:
+        d: dict[str, float] = {
+            "eps_inf": self.eps_inf,
+            "kappa_s_per_m": self.kappa,
+            "n_poles": float(len(self.poles)),
+            "f_lo_hz": self.f_lo,
+            "f_hi_hz": self.f_hi,
+            "max_rel_err_eps": self.max_rel_err_eps,
+            "max_rel_err_tand": self.max_rel_err_tand,
+            "max_abs_err_tand": self.max_abs_err_tand,
+        }
+        for k, (delta, tau) in enumerate(self.poles):
+            d[f"delta_eps_{k}"] = delta
+            d[f"tau_s_{k}"] = tau
+        return d
+
+
+def fit_debye_multi(
+    model: DielectricModel,
+    f_lo: float,
+    f_hi: float,
+    per_decade: float = 2.0,
+    n: int = 481,
+) -> MultiDebyeFit:
+    """Multi-pole Debye + conductivity fit on ``[f_lo, f_hi]`` (ADR-0010 section 5)."""
+    if not 0.0 < f_lo < f_hi:
+        raise ValueError("fit band needs 0 < f_lo < f_hi")
+    f = np.linspace(f_lo, f_hi, n)
+    w = _TWO_PI * f
+    target = eval_eps(model, f)
+    w_re = 2.0 / float(np.mean(target.real))
+    w_im = 3.0 / max(float(np.mean(-target.imag)), 1e-12)
+    # pole frequencies from a third of the lowest to three times the highest fit frequency
+    decades = math.log10(9.0 * f_hi / f_lo)
+    n_poles = max(2, math.ceil(decades * per_decade) + 1)
+    fp = np.logspace(math.log10(f_lo / 3.0), math.log10(f_hi * 3.0), n_poles)
+    taus = 1.0 / (_TWO_PI * fp)
+    cols_re = [np.ones_like(w)]
+    cols_im = [np.zeros_like(w)]
+    for tau in taus:
+        d = 1.0 / (1.0 + (w * tau) ** 2)
+        cols_re.append(d)
+        cols_im.append(w * tau * d)
+    cols_re.append(np.zeros_like(w))
+    cols_im.append(1.0 / w)  # kappa / eps0 [rad/s]
+    a = np.vstack([np.column_stack(cols_re) * w_re, np.column_stack(cols_im) * w_im])
+    b = np.concatenate([(target.real - 1.0) * w_re, -target.imag * w_im])
+    x, _ = nnls(a, b)
+    poles = tuple((float(x[1 + k]), float(taus[k])) for k in range(n_poles) if x[1 + k] > 0.0)
+    fit = MultiDebyeFit(
+        eps_inf=1.0 + float(x[0]),
+        poles=poles,
+        kappa=float(x[-1]) * EPS0,
+        f_lo=f_lo,
+        f_hi=f_hi,
+        max_rel_err_eps=0.0,
+        max_rel_err_tand=0.0,
+        max_abs_err_tand=0.0,
+    )
+    fe = np.linspace(f_lo, f_hi, 400)
+    t, m = eval_eps(model, fe), fit.eval(fe)
+    tand_t, tand_m = -t.imag / t.real, -m.imag / m.real
+    return MultiDebyeFit(
+        **{
+            **fit.__dict__,
+            "max_rel_err_eps": float(np.max(np.abs(m.real - t.real) / t.real)),
+            "max_rel_err_tand": float(np.max(np.abs(tand_m - tand_t) / np.maximum(tand_t, 1e-12))),
+            "max_abs_err_tand": float(np.max(np.abs(tand_m - tand_t))),
+        }
+    )
+
+
 def constant_equivalent(model: DielectricModel, f_ref: float) -> tuple[float, float]:
     """``(eps_r, kappa)`` reproducing eps' and the loss of ``model`` at ``f_ref`` only."""
     eps = complex(eval_eps(model, np.array([f_ref]))[0])

@@ -1,0 +1,138 @@
+[
+ {
+  "tag": "p2_sheet_eps10_L5",
+  "args": {
+   "order": 2,
+   "eps_freq": 10000000000.0,
+   "model": "sheet",
+   "preset": "coarse",
+   "solver": "AMS",
+   "cpw": 3.0,
+   "f": [
+    5000000000.0,
+    10000000000.0
+   ],
+   "y_half": 3.0,
+   "air": 3.0,
+   "length": 5.0,
+   "max_tets": 150000,
+   "ranks": 4,
+   "mem_gb": 12.0,
+   "tag": "p2_sheet_eps10_L5"
+  },
+  "freqs_hz": [
+   5000000000.0,
+   10000000000.0
+  ],
+  "il_db": [
+   0.1115196900400992,
+   0.20356014658349947
+  ],
+  "s11_db": [
+   -45.99429312349001,
+   -42.89895731359999
+  ],
+  "s21_phase_deg": [
+   -55.02644465314,
+   -109.03751684
+  ],
+  "wall_s": 357.2,
+  "peak_mem_mb": 3466.81640625,
+  "tets": 63354,
+  "dofs": 426620,
+  "dielectric_fit": null,
+  "workdir": "C:\\Users\\km306\\AppData\\Local\\Temp\\palace_wp510_10zsxk55",
+  "elapsed_s": 357.5
+ },
+ {
+  "tag": "p2_pec_eps10_L5",
+  "args": {
+   "order": 2,
+   "eps_freq": 10000000000.0,
+   "model": "pec",
+   "preset": "coarse",
+   "solver": "AMS",
+   "cpw": 3.0,
+   "f": [
+    5000000000.0,
+    10000000000.0
+   ],
+   "y_half": 3.0,
+   "air": 3.0,
+   "length": 5.0,
+   "max_tets": 150000,
+   "ranks": 4,
+   "mem_gb": 12.0,
+   "tag": "p2_pec_eps10_L5"
+  },
+  "freqs_hz": [
+   5000000000.0,
+   10000000000.0
+  ],
+  "il_db": [
+   0.08278884440461884,
+   0.16143558141739897
+  ],
+  "s11_db": [
+   -40.79752270093999,
+   -39.51523398812
+  ],
+  "s21_phase_deg": [
+   -54.82091605938,
+   -108.7456672914
+  ],
+  "wall_s": 275.63,
+  "peak_mem_mb": 3277.92578125,
+  "tets": 63354,
+  "dofs": 426620,
+  "dielectric_fit": null,
+  "workdir": "C:\\Users\\km306\\AppData\\Local\\Temp\\palace_wp510_hsl5b8zj",
+  "elapsed_s": 275.9
+ },
+ {
+  "tag": "p2_pec_eps10_L5_h0p5",
+  "args": {
+   "order": 2,
+   "eps_freq": 10000000000.0,
+   "model": "pec",
+   "preset": "coarse",
+   "solver": "AMS",
+   "cpw": 3.0,
+   "f": [
+    5000000000.0,
+    10000000000.0
+   ],
+   "y_half": 3.0,
+   "air": 3.0,
+   "hmax": 0.5,
+   "length": 5.0,
+   "max_tets": 220000,
+   "ranks": 4,
+   "mem_gb": 12.0,
+   "tag": "p2_pec_eps10_L5_h0p5"
+  },
+  "freqs_hz": [
+   5000000000.0,
+   10000000000.0
+  ],
+  "il_db": [
+   0.08278884440461884,
+   0.16143558141739897
+  ],
+  "s11_db": [
+   -40.79752270093999,
+   -39.51523398812
+  ],
+  "s21_phase_deg": [
+   -54.82091605938,
+   -108.7456672914
+  ],
+  "wall_s": 572.44,
+  "peak_mem_mb": 3430.6015625,
+  "tets": 63354,
+  "dofs": 426620,
+  "dielectric_fit": null,
+  "workdir": "C:\\Users\\km306\\AppData\\Local\\Temp\\palace_wp510_kq65dvyi",
+  "elapsed_s": 574.9
+ }
+]

@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Canonical reference problem for B-EM-01 (WP-510). Numbers live in refspec.py (EM_*); this file is
+# the human-readable contract and is checked against refspec.py by test_refspec.py.
+schema = "oa-bench-refspec/1"
+id = "canonical-microstrip"
+cases = ["B-EM-01"]
+
+[geometry]
+line_width_m = 0.38e-3          # rectangular section, no etch factor
+dielectric_height_m = 0.2e-3    # trace bottom to ground-plane top
+copper_thickness_m = 35e-6      # trace AND ground plane, finite (1 oz)
+length_m = 25e-3
+ground = "solid plane, laterally unbounded (2D) / 5 mm wide absorbing box (3D)"
+cover = "air above, 1 mm to the absorbing top face (3D)"
+
+[conductor]
+conductivity_S_per_m = 5.8e7
+roughness = "off"               # a rough variant is an R1-only extra, never a pass criterion
+surface_model = "thick copper, two faces: Rs = sqrt(pi f mu0 / sigma) on every wetted face"
+
+[dielectric]
+model = "Djordjevic-Sarkar"
+dk_at_f_ref = 4.3
+tan_delta_at_f_ref = 0.02
+f_ref_hz = 1.0e9
+f_low_hz = 1.5915494309189535e4   # 1e5 rad/s, oa_model default
+f_high_hz = 1.5915494309189535e11 # 1e12 rad/s, oa_model default
+solver_note = "Palace 0.18 and openEMS have no DS: evaluate per band (Palace) or fit Debye poles (openEMS); the residual is reported, never absorbed."
+
+[ports]
+reference_ohm = 50.0
+wave_ports = "modal impedance; S referenced to the line"
+frequencies_hz = "0.1 .. 20 GHz"
+
+[solver_configuration]
+bem = "oa_impedance.bem default MeshParams; copper through Rs perturbation, rough off"
+fem = "oa_impedance.fem, P2, 4 uniformly refined meshes, impedance-boundary eddy solve, Richardson"
+palace = "p2/p3, sheet or thick copper per the WP-501 root-cause note; DS evaluated per band"
+openems = "openems.conductor_model = skin (real 35 um geometry, face sheets with t = delta(f_skin))"
