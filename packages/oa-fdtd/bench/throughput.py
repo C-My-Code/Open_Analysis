@@ -15,6 +15,7 @@ import os
 import time
 
 import numpy as np
+
 from oa_fdtd.grid import Grid
 from oa_fdtd.model import Model, Waveform, compile_model
 

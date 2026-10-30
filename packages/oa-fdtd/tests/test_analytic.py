@@ -14,6 +14,7 @@ from fdtd_helpers import (
     line_model,
     refine,
 )
+
 from oa_fdtd.grid import C0, ETA0, Grid
 from oa_fdtd.model import LumpedPort, Model, SoftSource, Waveform, compile_model
 from oa_fdtd.reference import NumpyEngine

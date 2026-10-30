@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from oa_fdtd.analysis import matrix_pencil
 from oa_fdtd.grid import C0, Grid
 from oa_fdtd.model import Model, Probe, SoftSource, Waveform, compile_model

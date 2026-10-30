@@ -9,6 +9,7 @@ import json
 import numpy as np
 import pytest
 from fdtd_helpers import graded_lines
+
 from oa_fdtd.cli import main
 from oa_fdtd.grid import Grid
 from oa_fdtd.model import (
