@@ -148,7 +148,7 @@ def build_model(
     diag: list[str] = []
     freqs = frequency_grid(problem)
     f_max = float(freqs[-1])
-    f_fit_lo = max(float(freqs[0]), f_max / 100.0)
+    f_fit_lo = f_max / 100.0
 
     # ---- materials
     diel: dict[str, DielectricMaterial] = {}
@@ -399,6 +399,7 @@ def build_model(
         conductors=conductors,
         walls=walls,
         ports=ports,
+        f_band=(0.0, f_max),
     )
     meta = {
         "cells": grid.cells,

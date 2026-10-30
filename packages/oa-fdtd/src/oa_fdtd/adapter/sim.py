@@ -95,6 +95,13 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     model = built.model
     all_mode = bool(model.ports) and all(isinstance(p, ModePort) for p in model.ports)
     planes = _planes(built, o.plane_offset) if all_mode else []
+    req = np.asarray(model.frequencies, dtype=np.float64)
+    # Extraction (branch unwrapping, smooth gamma fit) runs on a fixed internal grid united with the
+    # requested points, and the fit sees the internal grid only: S does not depend on how many
+    # frequencies are requested.
+    internal = np.linspace(req[-1] / 400.0, req[-1], 400)
+    model.frequencies = np.unique(np.concatenate([req, internal]))
+    fit_mask = np.isin(model.frequencies, internal)
     t1 = time.perf_counter()
     kw: dict[str, Any] = {"end_db": o.end_db, "max_steps": o.max_steps, "tail": o.tail}
     notes: list[str] = []
@@ -111,12 +118,15 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     t2 = time.perf_counter()
     s_port = sparams(model, res)
     if all_mode:
-        s, _gam = wave_sparams(res.probes, planes, res.port_r, s_port, freqs=model.frequencies)
+        s, _gam = wave_sparams(
+            res.probes, planes, res.port_r, s_port, freqs=model.frequencies, fit_mask=fit_mask
+        )
     else:
         s = s_port
+    sel = np.flatnonzero(np.isin(model.frequencies, req))
     return SolveResult(
-        freqs=np.asarray(model.frequencies, dtype=np.float64),
-        s=np.ascontiguousarray(np.moveaxis(s, 2, 0)),
+        freqs=np.asarray(model.frequencies, dtype=np.float64)[sel],
+        s=np.ascontiguousarray(np.moveaxis(s, 2, 0))[sel],
         z0=np.asarray(res.port_r, dtype=np.float64),
         port_names=tuple(p.name for p in model.ports),
         run=res,

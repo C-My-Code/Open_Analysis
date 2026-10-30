@@ -171,6 +171,18 @@ class Model:
     )
     courant: float = 0.95  # [-]
     excite: tuple[str, ...] | None = None  # ports driven (one batch member each); None = all
+    f_band: tuple[float, float] | None = (
+        None  # excitation band [Hz]; None = (f_min, f_max) of the list
+    )
+
+    @property
+    def band(self) -> tuple[float, float]:
+        """Band [Hz] that sets every static quantity (mode eps, SIBC fit): never the sample list
+        when ``f_band`` is given, so S cannot depend on how many frequencies are requested."""
+        if self.f_band is not None:
+            return self.f_band
+        f = np.asarray(self.frequencies, dtype=np.float64)
+        return (float(f.min()), float(f.max()))
 
     @property
     def channels(self) -> int:
@@ -364,8 +376,12 @@ def _compile_conductors(
     freqs = np.asarray(model.frequencies, dtype=np.float64)
     wf = model.waveform
     top = wf.f0 + 0.5 * wf.bandwidth if wf.kind == "gauss_mod" else wf.bandwidth
-    f_hi = float(max(np.max(freqs), top))
-    f_lo = max(float(np.min(freqs)) * 0.5, f_hi * 1e-3, 1e5)
+    f_hi = float(max(model.band[1], top))
+    f_lo = (
+        max(f_hi * 1e-3, 1e5)
+        if model.f_band is not None
+        else max(float(np.min(freqs)) * 0.5, f_hi * 1e-3, 1e5)
+    )
     fits: dict[tuple[float, float, float, int], int] = {}
     mats: list[SibcFit] = []
     pre_pec = [p.copy() for p in pec]
@@ -555,7 +571,7 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
             from oa_fdtd.ports.build import build_mode_port, solve_port_modes
 
             if eps_mid is None:  # real permittivity at the band centre for the static solve
-                w_mid = 2.0 * np.pi * float(np.mean(model.frequencies))
+                w_mid = 2.0 * np.pi * 0.5 * sum(model.band)
                 eps_mid = eps_c.copy()
                 for pi, tau in enumerate(taus):
                     eps_mid = eps_mid + del_c[pi] / (1.0 + (w_mid * float(tau)) ** 2)
@@ -631,7 +647,7 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         from oa_fdtd.ports.build import build_mode_port, solve_port_modes
 
         if eps_mid is None:
-            w_mid = 2.0 * np.pi * float(np.mean(model.frequencies))
+            w_mid = 2.0 * np.pi * 0.5 * sum(model.band)
             eps_mid = eps_c.copy()
             for pi, tau in enumerate(taus):
                 eps_mid = eps_mid + del_c[pi] / (1.0 + (w_mid * float(tau)) ** 2)

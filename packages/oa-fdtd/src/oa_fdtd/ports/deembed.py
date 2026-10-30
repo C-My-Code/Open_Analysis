@@ -52,7 +52,11 @@ def gamma_from_planes(
 
 
 def smooth_gamma(
-    gamma: ComplexArray, freqs: FloatArray, spacing: float, min_phase: float
+    gamma: ComplexArray,
+    freqs: FloatArray,
+    spacing: float,
+    min_phase: float,
+    fit_mask: npt.NDArray[np.bool_] | None = None,
 ) -> ComplexArray:
     """Replace the ill-conditioned low-frequency part of a measured gamma by a smooth fit.
 
@@ -63,14 +67,15 @@ def smooth_gamma(
     (the amplitudes depend on gamma only through its small phase).
     """
     ok = np.abs(gamma.imag) * spacing >= min_phase
-    if ok.sum() < 6 or ok.all():
+    use = ok if fit_mask is None else ok & fit_mask  # the fit sees the internal grid only
+    if use.sum() < 6 or ok.all():
         return gamma
     f = np.asarray(freqs, dtype=np.float64)
     fn = f / float(np.max(f))
     a_basis = np.column_stack([np.sqrt(fn), fn, fn**2])
     b_basis = np.column_stack([fn, fn**2, fn**3])
-    ca, *_ = np.linalg.lstsq(a_basis[ok], gamma.real[ok], rcond=None)
-    cb, *_ = np.linalg.lstsq(b_basis[ok], gamma.imag[ok], rcond=None)
+    ca, *_ = np.linalg.lstsq(a_basis[use], gamma.real[use], rcond=None)
+    cb, *_ = np.linalg.lstsq(b_basis[use], gamma.imag[use], rcond=None)
     fit = a_basis @ ca + 1j * (b_basis @ cb)
     return np.asarray(np.where(ok, gamma, fit), dtype=np.complex128)
 
@@ -201,6 +206,7 @@ def wave_sparams(
     min_phase: float = 0.3,
     freqs: FloatArray | None = None,
     floor_phase: float = 0.04,
+    fit_mask: npt.NDArray[np.bool_] | None = None,
 ) -> tuple[ComplexArray, list[ComplexArray]]:
     """S-matrix from modal waves on probe planes (a de-embedded, plane-based extraction).
 
@@ -232,7 +238,7 @@ def wave_sparams(
             db = pl.spacing if pl.spacing_b is None else pl.spacing_b
             g = gamma_from_planes(v1, v2, v3, pl.spacing, db)
             if freqs is not None:
-                g = smooth_gamma(g, freqs, pl.spacing, min_phase)
+                g = smooth_gamma(g, freqs, pl.spacing, min_phase, fit_mask)
             if j == 0:
                 gammas.append(g)
             # amplitudes at the middle plane (z = 0)
