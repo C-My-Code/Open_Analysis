@@ -30,6 +30,16 @@ Install: `uv sync` gives the CPU path only. GPU: `oa-accel[cuda12]` (CuPy + nvma
 - `python -m oa_accel.doctor [--json]` (`oa-accel-doctor`): capability report (`capabilities()`).
   The `oa doctor` integration belongs to `oa-cli`.
 
+## Solvers (WP-504, `oa_accel.solvers`)
+- `batched_dense_solve(backend, [(A, b), ...])`: groups by shape; n <= 512 groups are stacked into
+  one batched cuSOLVER call, larger ones go through `Backend.dense_solve` (memory check, CPU
+  fallback). Returns host arrays in input order.
+- `spd_solve(backend, A, b, method="auto"|"direct"|"cg", tol)` -> `(x, label)`: cuDSS Cholesky, or
+  CG + Jacobi (the portable ROCm path), or SciPy on the CPU. Used by `oa_pi.dc.solvers.solve_spd`.
+- `cg_stencil(backend, weights, rhs)`: matrix-free Jacobi-CG on a uniform 2D/3D grid.
+- `THRESHOLDS`: measured crossovers (dense n 600, sparse nnz 1e6); see
+  `docs/change-requests/WP-504-thresholds-and-hooks.md`.
+
 ## Contracts and gaps
 - `ErrorInfo` is a local four-field copy (layer reasons): `docs/change-requests/WP-503-errorinfo-layer.md`.
   Root config (layer, cupy-import contract, marker): `WP-503-root-config.md`.

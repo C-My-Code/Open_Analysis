@@ -227,8 +227,38 @@ Further controls (`MeshParams`, defaults tuned on cm5 sections and the testkit):
   gate (`OA_IMPEDANCE_TOTAL_MB`, default 1536) keeps concurrent `solve_many` threads inside a
   total.
 
-Gaps: GMRES with the block-Jacobi preconditioner stagnates above ~1800 panels (1e-3 residual after
-120 iterations), so it is a last resort, not a speed path; no H-matrix/ACA; no oa-accel GPU dense
-LU (oa-impedance does not depend on oa-accel); `cross_section_at` is unchanged (its window is
+Gaps: no H-matrix/ACA (the matrix-free GMRES path still recomputes the kernel on every product, so
+it is slow above ~5000 panels); `cross_section_at` is unchanged (its window is
 already physical; the truncation lives in the BEM). One cm5 section (3 conductors) has a singular
 vacuum matrix, with the old code too.
+
+## GPU path (WP-504)
+
+`oa-impedance` depends on `oa-accel`. `solve_bem` asks `oa_accel.select` (env `OA_DEVICE`; `auto`
+above the measured dense crossover of 600 panels) for a backend. On a GPU the influence matrices
+P and D are evaluated on the device, the system is assembled there and solved by cuSOLVER in
+float64 / complex128; only the small conductor results come back. The device budget
+(`OA_GPU_MEM_GB`, 80 % shared by the concurrent solves through a device gate) bounds the section,
+so a section that the 512 MB host budget would coarsen or send to GMRES stays dense and exact on
+the GPU (cm5: 5849 panels, no coarsening). Any device failure falls back to the host path.
+
+- GPU vs CPU, same mesh: relative difference 1.4e-15 on 396 cm5 sections (Z0, static); batch of
+  1000 sections x 50 f: 8e-11 (ADR-0009 dense class 1e-10).
+- cm5, 402 unique sections, static, one thread: 104 s CPU, 25 s GPU. Batch (1000 sections x 50 f,
+  `solve_many`, 4 threads): 229 s CPU, 50 s GPU; both are host-bound (meshing, Python loss loops) and
+  miss the B-IMP-04 targets (20 s / 5 s), which need the WP-509 native kernels and a service-level
+  batch.
+- The GMRES preconditioner is now restricted additive Schwarz (384-panel subdomains, 50 % overlap).
+  End to end on a 1831-panel cm5 section (matrix-free, CPU): 109 iterations / 36 s instead of 228 /
+  76 s, residual 1e-11 both. On a 5060-panel system 100 iterations instead of 286. The WP-512
+  "stagnation" was not reproduced at the 400-iteration cap: it is slowness, and the GPU dense
+  path is the speed fix.
+- Singular sections: when two conductors occupy the same copper (cm5 `HDMI_PI.D1_N`/`D2_N`,
+  `ETH_PI.TRD1_P`/`TRD3_P`, edge-coupled pair whose partner track coincides with the primary), the
+  mesher merges them and one conductor owns no panel, so its matrix row is empty. `prepare` now
+  raises `ImpedanceUnsupported` (`IMPEDANCE_UNSUPPORTED`, path `xsection.conductors`) naming the
+  conductor; any residual `LinAlgError` / `ACCEL_SINGULAR` maps to the same structured error.
+- On Windows the CuPy pool counts as committed memory (the devguard job cap, `OA_MEMCAP_GB`), so
+  the pool is released after every section.
+- `_loss` evaluates roughness and surface resistance once per (conductor, face) class.
+- Tests: `tests/test_bem_gpu.py` (GPU cases need `OA_RUN_GPU=1`).

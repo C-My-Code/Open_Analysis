@@ -16,6 +16,7 @@ dependencies = [
     "oa-results",
     "oa-framework",
     "oa-physics",
+    "oa-accel",
     "oa-geometry",
     "oa-mesh",
     "numpy>=1.26",
@@ -39,5 +40,6 @@ oa-model = { workspace = true }
 oa-results = { workspace = true }
 oa-framework = { workspace = true }
 oa-physics = { workspace = true }
+oa-accel = { workspace = true }
 oa-geometry = { workspace = true }
 oa-mesh = { workspace = true }

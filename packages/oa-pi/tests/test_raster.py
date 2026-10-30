@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from pi_helpers import PLANE_CFG, T20, kicad_solve, strip_network
 
@@ -61,4 +63,8 @@ def test_raster_strip_converges_to_formula() -> None:
 def test_kicad_helper_is_deterministic() -> None:
     a = kicad_solve("power_plane", PLANE_CFG)
     b = kicad_solve("power_plane", PLANE_CFG)
-    assert a.group_voltage == b.group_voltage
+    if os.environ.get("OA_DEVICE", "auto").lower().startswith("cuda"):
+        # cuDSS is not bitwise reproducible run to run (oa_accel report: deterministic=False)
+        assert a.group_voltage == pytest.approx(b.group_voltage, rel=1e-10, abs=1e-14)
+    else:
+        assert a.group_voltage == b.group_voltage
