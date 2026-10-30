@@ -338,7 +338,12 @@ def _bulk_cover(
         edist = _part_edge_distance(rl, part_of, body, cap)
         for n, i in enumerate(idx):
             p = members[int(i)][0]
-            out[(p.seg.id, f"{side}:{cand}")] = (cand, float(h[i]), rl.nets[part_of[n]], float(edist[n]))
+            out[(p.seg.id, f"{side}:{cand}")] = (
+                cand,
+                float(h[i]),
+                rl.nets[part_of[n]],
+                float(edist[n]),
+            )
     return out
 
 

@@ -14,7 +14,6 @@ import numpy as np
 
 from oa_model.arrays import Floats, NDArray, Points
 
-
 _ARRAYS = (Points, Floats, NDArray)
 _POINT_LIKE = (Points, Floats)
 

@@ -8,8 +8,8 @@ Everything here works in the model frame (metres, Y up) unless a function says o
 from __future__ import annotations
 
 import math
-from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Iterable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import numpy.typing as npt

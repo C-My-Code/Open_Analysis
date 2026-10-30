@@ -77,3 +77,9 @@ from the committed results.
   under the token).
 - Not yet implemented: the information-only run under the `default` profile, an `AccelReport`
   record (oa-accel is WP-503), Linux cgroup `memory.peak`, and the cases listed `pending`.
+
+## Synthetic scaling boards (WP-508b)
+
+`uv run python tools/bench/gen_synth_board.py --tracks 50000 --out build/synth50k.kicad_pcb`
+writes a deterministic KiCad 10 board (3 routed layers over split/solid GND planes) for the
+ReferenceMap 50k and ERC scaling gates.

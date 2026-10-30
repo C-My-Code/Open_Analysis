@@ -239,7 +239,7 @@ class ImpedanceOutOfTolerance(ErcRule):
         )
         solved = [i for i, k in enumerate(sample_keys) if k in results]
         zs: list[float | None] = []
-        for idx, s in enumerate(samples):
+        for idx in range(len(samples)):
             r = results.get(sample_keys[idx])
             if r is None and solved:  # thinned: reuse the nearest solved section
                 near = min(solved, key=lambda j: abs(j - idx))
