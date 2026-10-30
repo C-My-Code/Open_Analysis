@@ -31,7 +31,7 @@ def coarse(problem: EMProblem) -> EMProblem:
     return problem.model_copy(update={"mesh": problem.mesh.model_copy(update={"preset": "coarse"})})
 
 
-def microstrip_wave_problem(n_points: int = 3) -> EMProblem:
+def microstrip_wave_problem(n_points: int = 3, **kwargs: Any) -> EMProblem:
     """The microstrip thru fixture with numeric wave ports on the x faces instead of lumped ports.
 
     Lumped ports at the end of a line whose x faces absorb are lossy in a FEM (the absorbing face
@@ -39,7 +39,7 @@ def microstrip_wave_problem(n_points: int = 3) -> EMProblem:
     """
     from oa_model.em import EMWavePort
 
-    p = microstrip_thru_problem(n_points=n_points)
+    p = microstrip_thru_problem(n_points=n_points, **kwargs)
     box = p.structure.bbox
     trace = next(c for c in p.structure.conductors if c.role == "signal")
     ports = tuple(
