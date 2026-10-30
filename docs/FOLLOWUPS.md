@@ -192,4 +192,4 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - ARCHITECTURE.md still lists EMI under M3/M4; update it to M2 per ADR-0011.
 
 ## CI (coordinator)
-- [ ] The CI `test` job has failed on every push, on all 6 OS × Python combinations, since at least 0cc834d. lint/types, schema, reuse, pip-licenses and the wp-508 wheel builds pass. Being reproduced in a clean clone with KiCad, openEMS and CuPy hidden. PROCESS FIX: the coordinator checks the CI result of every push, and a red `test` job blocks new merges.
+- [ ] (in progress: win py3.13 now green after perf marker 918f9cd; py3.11 + Linux/macOS still red) The CI `test` job has failed on every push, on all 6 OS × Python combinations, since at least 0cc834d. lint/types, schema, reuse, pip-licenses and the wp-508 wheel builds pass. Being reproduced in a clean clone with KiCad, openEMS and CuPy hidden. PROCESS FIX: the coordinator checks the CI result of every push, and a red `test` job blocks new merges.
