@@ -25,13 +25,11 @@ midpoint, z=0 at the lowest material boundary).
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 import shapely
-from shapely import LineString
 
 from oa_geometry._shapes import path_points, polygons_of
 from oa_geometry.errors import UnknownItem
@@ -68,14 +66,6 @@ NM = 1e-9
 MIN_INTERVAL = 1e-9
 
 __all__ = ["cross_section_at", "sample_net"]
-
-
-@dataclass(frozen=True)
-class _Cut:
-    center: F64
-    normal: F64
-    half: float
-    line: LineString
 
 
 def _piece_of(geo: BoardGeometry, seg: RoutedSegment) -> Piece:
@@ -134,33 +124,36 @@ def _sigma(mat: ConductorMaterial | None, temp: float | None) -> float:
     return mat.conductivity / max(1e-3, 1.0 + mat.temp_coeff * (temp - mat.t_ref))
 
 
-def _pose(piece: Piece, s: float) -> tuple[F64, F64]:
-    """Point and unit tangent at `s` metres along the segment."""
-    total = float(piece.line.length)
-    s_poly = 0.0 if piece.seg.length <= 0 else s * total / piece.seg.length
-    s_poly = min(max(s_poly, 0.0), total)
-    d = min(1e-6, total / 4.0) if total > 0 else 0.0
-    p = np.asarray(shapely.line_interpolate_point(piece.line, s_poly).coords[0])
-    if d == 0.0:
-        return p, np.array([1.0, 0.0])
-    p0 = np.asarray(shapely.line_interpolate_point(piece.line, max(0.0, s_poly - d)).coords[0])
-    p1 = np.asarray(shapely.line_interpolate_point(piece.line, min(total, s_poly + d)).coords[0])
-    t = p1 - p0
-    return p, t / float(np.hypot(t[0], t[1]))
-
-
-def _intervals(cut: _Cut, geom: object) -> list[tuple[float, float]]:
-    """u-intervals where the cut line lies inside `geom`."""
-    inter = shapely.intersection(cut.line, geom)
-    out: list[tuple[float, float]] = []
-    for part in shapely.get_parts(inter):
-        if part.geom_type != "LineString":
-            continue
-        xy = np.asarray(part.coords)
-        u = (xy - cut.center[None, :]) @ cut.normal
-        lo, hi = float(np.min(u)), float(np.max(u))
-        if hi - lo > MIN_INTERVAL:
-            out.append((lo, hi))
+def _u_intervals(
+    lines: object, geoms: object, centers: F64, normals: F64
+) -> list[list[tuple[float, float]]]:
+    """u-intervals (unmerged) where ``lines[i]`` lies inside ``geoms[i]``; ``geoms`` may be one
+    geometry for all lines. ``centers`` / ``normals`` are (n, 2) arrays aligned with ``lines``."""
+    k = len(lines)  # type: ignore[arg-type]
+    out: list[list[tuple[float, float]]] = [[] for _ in range(k)]
+    if k == 0:
+        return out
+    parts, src = shapely.get_parts(shapely.intersection(lines, geoms), return_index=True)
+    if len(parts) == 0:
+        return out
+    ls = shapely.get_type_id(parts) == 1  # LineString
+    parts, src = parts[ls], src[ls]
+    if len(parts) == 0:
+        return out
+    xy, pi = shapely.get_coordinates(parts, return_index=True)
+    if len(xy) == 0:
+        return out
+    own = src[pi]
+    # same products and sum as the scalar ``(xy - centre) @ normal``, up to the BLAS fused
+    # multiply-add (1 ulp, far below the 1 nm grid of every consumer)
+    d = xy - centers[own]
+    u = d[:, 0] * normals[own, 0] + d[:, 1] * normals[own, 1]
+    starts = np.flatnonzero(np.concatenate(([True], pi[1:] != pi[:-1])))
+    lo = np.minimum.reduceat(u, starts)
+    hi = np.maximum.reduceat(u, starts)
+    for o, a_, b_ in zip(src[pi[starts]].tolist(), lo.tolist(), hi.tolist(), strict=True):
+        if b_ - a_ > MIN_INTERVAL:
+            out[o].append((a_, b_))
     return out
 
 
@@ -175,16 +168,19 @@ def _merge(iv: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
 
 def _layer_intervals(
-    geo: BoardGeometry, layer: str, cut: _Cut
-) -> dict[str | None, list[tuple[float, float]]]:
-    """u-intervals of copper on `layer` along the cut, per net."""
+    geo: BoardGeometry, layer: str, lines: object, centers: F64, normals: F64
+) -> list[dict[str | None, list[tuple[float, float]]]]:
+    """u-intervals of copper on `layer` along each cut line, per net (merged)."""
     tree = geo.strtree(layer)
-    per: dict[str | None, list[tuple[float, float]]] = {}
-    for i in tree.query_indices(cut.line):
-        iv = _intervals(cut, tree.geometry(int(i)))
-        if iv:
-            per.setdefault(tree.net(int(i)), []).extend(iv)
-    return {k: _merge(v) for k, v in per.items()}
+    k = len(lines)  # type: ignore[arg-type]
+    qi, ti = tree._tree.query(lines, predicate="intersects")
+    per: list[dict[str | None, list[tuple[float, float]]]] = [{} for _ in range(k)]
+    if len(qi):
+        ivs = _u_intervals(lines[qi], tree._geoms[ti], centers[qi], normals[qi])  # type: ignore[index]
+        for a, j, iv in zip(qi.tolist(), ti.tolist(), ivs, strict=True):
+            if iv:
+                per[a].setdefault(tree.net(j), []).extend(iv)
+    return [{n: _merge(v) for n, v in d.items()} for d in per]
 
 
 def _dielectric(geo: BoardGeometry, name: str) -> DielectricMaterial:
@@ -238,6 +234,27 @@ def _nearest_partner_piece(geo: BoardGeometry, net: str, p: F64) -> tuple[F64, f
     return None if best is None else (best[1], best[2])
 
 
+def _poses(piece: Piece, seg: RoutedSegment, ss: list[float]) -> tuple[F64, F64]:
+    """Points and unit tangents ((k, 2) arrays) at `ss` metres along the segment; the same
+    arithmetic as ``_pose``, vectorised."""
+    total = float(piece.line.length)
+    s_arr = np.asarray(ss, dtype=float)
+    s_poly = np.zeros_like(s_arr) if seg.length <= 0 else s_arr * total / seg.length
+    s_poly = np.minimum(np.maximum(s_poly, 0.0), total)
+    d = min(1e-6, total / 4.0) if total > 0 else 0.0
+    p = shapely.get_coordinates(shapely.line_interpolate_point(piece.line, s_poly))
+    if d == 0.0:
+        return p, np.tile(np.array([1.0, 0.0]), (len(ss), 1))
+    p0 = shapely.get_coordinates(
+        shapely.line_interpolate_point(piece.line, np.maximum(0.0, s_poly - d))
+    )
+    p1 = shapely.get_coordinates(
+        shapely.line_interpolate_point(piece.line, np.minimum(total, s_poly + d))
+    )
+    t = p1 - p0
+    return p, t / np.hypot(t[:, 0], t[:, 1])[:, None]
+
+
 def cross_section_at(
     geo: BoardGeometry,
     seg: RoutedSegment,
@@ -249,19 +266,139 @@ def cross_section_at(
     partner: str | None = None,
 ) -> CrossSection:
     """See ``BoardGeometry.cross_section_at``. `partner` overrides the diff-pair lookup."""
-    layer = geo.conductor(seg.layer)
-    piece = _piece_of(geo, seg)
-    spans = _spans_of(geo, seg)
-    s = min(max(s, 0.0), seg.length)
-    span = _span_at(spans, s)
-    refs_above = span.above if span else None
-    refs_below = span.below if span else None
-    refs = [r for r in (refs_above, refs_below) if r is not None]
-    half = window if window is not None else _default_window(geo, seg.width, refs, layer)
-    p, t = _pose(piece, s)
-    n = np.array([-t[1], t[0]])
-    cut = _Cut(p, n, half, shapely.linestrings([p - n * half, p + n * half]))
+    pair = partner if partner is not None else _partner(geo, seg.net)
+    return _sections(
+        geo,
+        seg,
+        _piece_of(geo, seg),
+        _spans_of(geo, seg),
+        [s],
+        pair,
+        window,
+        include_aggressors,
+        physics_temp,
+    )[0]
 
+
+def _sections(
+    geo: BoardGeometry,
+    seg: RoutedSegment,
+    piece: Piece,
+    spans: tuple[ReferenceSpan, ...],
+    svals: list[float],
+    pair: str | None,
+    window: float | None,
+    include_aggressors: bool,
+    physics_temp: float | None,
+) -> list[CrossSection]:
+    """Cross-sections of `seg` at every `svals`: poses, cut lines and copper intervals are
+    computed in bulk (shapely array calls); sections with an identical geometric signature
+    share one canonical build and differ only in provenance."""
+    layer = geo.conductor(seg.layer)
+    k = len(svals)
+    ss = [min(max(s, 0.0), seg.length) for s in svals]
+    spn = [_span_at(spans, s) for s in ss]
+    refs_a = [sp.above if sp else None for sp in spn]
+    refs_b = [sp.below if sp else None for sp in spn]
+    halves = np.empty(k)
+    for i in range(k):
+        refs = [r for r in (refs_a[i], refs_b[i]) if r is not None]
+        halves[i] = window if window is not None else _default_window(geo, seg.width, refs, layer)
+    p, t = _poses(piece, seg, ss)
+    n = np.stack((-t[:, 1], t[:, 0]), axis=1)
+    lines = shapely.linestrings(
+        np.stack((p - n * halves[:, None], p + n * halves[:, None]), axis=1)
+    )
+    per_nets = _layer_intervals(geo, seg.layer, lines, p, n)
+    groups: dict[tuple[str, str | None], list[tuple[int, str]]] = {}
+    for i in range(k):
+        for side, ref in (("above", refs_a[i]), ("below", refs_b[i])):
+            if ref is not None:
+                groups.setdefault((ref.layer, ref.net), []).append((i, side))
+    plane_ivs: dict[tuple[int, str], list[tuple[float, float]]] = {}
+    for (lyr, net), mem in groups.items():
+        idx = np.array([i for i, _ in mem], dtype=np.intp)
+        res = _u_intervals(lines[idx], geo.copper(lyr, net), p[idx], n[idx])
+        for (i, side), iv in zip(mem, res, strict=True):
+            plane_ivs[(i, side)] = _merge(iv)
+    cache: dict[object, CrossSection] = geo._memoized("xs_templates", dict)
+    out: list[CrossSection] = []
+    for i in range(k):
+        half = float(halves[i])
+        per_net = per_nets[i]
+        near = None
+        if pair is not None:
+            nr = _nearest_partner_piece(geo, pair, p[i])
+            if nr is not None:
+                near = (float((nr[0] - p[i]) @ n[i]), nr[1])
+        side_sig = tuple(
+            None if ref is None else (ref.layer, ref.net, ref.distance, tuple(plane_ivs[(i, side)]))
+            for side, ref in (("above", refs_a[i]), ("below", refs_b[i]))
+        )
+        sig = (
+            seg.layer,
+            seg.net,
+            seg.width,
+            pair,
+            half,
+            include_aggressors,
+            physics_temp,
+            tuple(
+                (net, tuple(iv))
+                for net, iv in sorted(per_net.items(), key=lambda kv: (kv[0] is None, kv[0] or ""))
+            ),
+            side_sig,
+            near,
+        )
+        tmpl = cache.get(sig)
+        pos = (float(p[i, 0]), float(p[i, 1]))
+        if tmpl is None:
+            tmpl = _build_section(
+                geo,
+                seg,
+                layer,
+                pair,
+                half,
+                per_net,
+                [
+                    (side, ref, plane_ivs[(i, side)])
+                    for side, ref in (("above", refs_a[i]), ("below", refs_b[i]))
+                    if ref is not None
+                ],
+                refs_a[i],
+                refs_b[i],
+                near,
+                pos,
+                piece.track,
+                include_aggressors,
+                physics_temp,
+            )
+            cache[sig] = tmpl
+            out.append(tmpl)
+        else:
+            prov = tmpl.provenance.model_copy(  # type: ignore[union-attr]
+                update={"position": pos, "track_ids": (piece.track,)}
+            )
+            out.append(tmpl.model_copy(update={"provenance": prov}))
+    return out
+
+
+def _build_section(
+    geo: BoardGeometry,
+    seg: RoutedSegment,
+    layer: ConductorLayer,
+    pair: str | None,
+    half: float,
+    per_net: dict[str | None, list[tuple[float, float]]],
+    planes_in: list[tuple[str, RefInfo, list[tuple[float, float]]]],
+    refs_above: RefInfo | None,
+    refs_below: RefInfo | None,
+    near: tuple[float, float] | None,
+    pos: tuple[float, float],
+    track: str,
+    include_aggressors: bool,
+    physics_temp: float | None,
+) -> CrossSection:
     wb, wt = _etch_widths(layer, seg.width)
     cmat = _conductor_material(geo, layer)
     sigma = _sigma(cmat, physics_temp)
@@ -291,14 +428,10 @@ def cross_section_at(
             roughness_side=lyr.roughness_side,
         )
 
-    per_net = _layer_intervals(geo, seg.layer, cut)
     signals: list[XsConductor] = [cond("s1", "signal", trap(0.0, wb, wt), seg.net, layer)]
-    pair = partner if partner is not None else _partner(geo, seg.net)
     net_ids: list[str] = [seg.net]
-    near = _nearest_partner_piece(geo, pair, p) if pair is not None else None
     if pair is not None and near is not None:
-        q, pw = near
-        u_c = float((q - p) @ n)
+        u_c, pw = near
         if abs(u_c) + pw / 2 < half - 1e-9:
             shape = trap(u_c, pw, pw - (wb - wt))
             sig = cond("s2", "signal", shape, pair, layer)
@@ -348,11 +481,8 @@ def cross_section_at(
     # reference planes truncated to the actual copper along the cut
     planes: list[XsConductor] = []
     plane_layers: list[tuple[str, ConductorLayer, RefInfo]] = []
-    for side, ref in (("above", refs_above), ("below", refs_below)):
-        if ref is None:
-            continue
+    for side, ref, ivs in planes_in:
         rl = geo.conductor(ref.layer)
-        ivs = _merge(_intervals(cut, geo.copper(ref.layer, ref.net)))
         if ivs:
             plane_layers.append((side, rl, ref))
         for lo, hi in ivs:
@@ -394,8 +524,8 @@ def cross_section_at(
             board_hash=geo.content_hash,
             net_ids=tuple(net_ids),
             layer=seg.layer,
-            position=(float(p[0]), float(p[1])),
-            track_ids=(piece.track,),
+            position=pos,
+            track_ids=(track,),
         ),
     )
     try:  # canonicalize raises when the conductors are not mirror symmetric
@@ -605,8 +735,20 @@ def sample_net(
             at = min(seg.length, sp0.s_start + eps)
             pos[at] = "boundary"
         samples = sorted(pos.items())
+        pair = partner if partner is not None else _partner(geo, seg.net)
+        xss = _sections(
+            geo,
+            seg,
+            _piece_of(geo, seg),
+            spans,
+            [s for s, _ in samples],
+            pair,
+            None,
+            True,
+            None,
+        )
         first = True
-        for s, tag in samples:
+        for (s, tag), xs in zip(samples, xss, strict=True):
             sp = _span_at(spans, s)
             event = "regular"
             if first:
@@ -617,7 +759,6 @@ def sample_net(
             if event == "regular" and sp is not None and tag == "boundary":
                 event = "plane_edge" if _partial(sp) else "regular"
             first = False
-            xs = cross_section_at(geo, seg, s, partner=partner)
             xy = pc.line.interpolate(
                 s * float(pc.line.length) / seg.length if seg.length > 0 else 0.0
             )

@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import numpy.typing as npt
 import shapely
-from shapely.geometry import LinearRing
+from shapely.geometry import LinearRing, MultiPolygon
 from shapely.geometry import Polygon as ShPolygon
 from shapely.geometry.base import BaseGeometry
 
@@ -190,11 +190,28 @@ def fix_fractured(ring: Arr) -> BaseGeometry:
     KiCad writes an outline with its holes joined by zero-width bridges as ONE self-touching
     ring. ``make_valid`` splits the ring at the touch points and returns the proper polygon with
     holes; the bridges collapse to lines, which are discarded.
+
+    The ``structure`` method (13x faster than GEOS linework) gives the identical point set on
+    every WP-102 board and KiCad demo (docs/perf/PROFILE-509.md); only ring start vertices differ.
+    ``structure`` can drop holes on rings whose bridges overlap collinear edges, so its result
+    is accepted only when its area equals the ring's shoelace area (the bridges have none);
+    anything else falls back to ``linework``.
     """
     p = ShPolygon(ring)
     if p.is_valid:
         return p
+    g = shapely.make_valid(p, method="structure")
+    if (
+        isinstance(g, (ShPolygon, MultiPolygon))
+        and abs(g.area - abs(_shoelace(ring))) <= 1e-9 * g.area
+    ):
+        return g
     return shapely.make_valid(p)
+
+
+def _shoelace(ring: Arr) -> float:
+    x, y = ring[:, 0], ring[:, 1]
+    return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 
 _PAR_MIN_POINTS = 8000  # below this many ring points a thread pool costs more than it saves
