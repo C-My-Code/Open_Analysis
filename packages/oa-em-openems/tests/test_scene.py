@@ -186,6 +186,29 @@ def test_frequency_grid_and_options() -> None:
     assert _prims(scene, "linpoly")
 
 
+def test_skin_model_meshes_both_faces_and_sets_the_sheet_to_rs() -> None:
+    p = microstrip_thru_problem(f_max=10e9)
+    p = p.model_copy(
+        update={"mesh": p.mesh.model_copy(update={"expert": {"openems.conductor_model": "skin"}})}
+    )
+    scene = build_scene(p)
+    z = np.array(scene.data["mesh"]["z"])
+    for face in (0.0, 35.0, 235.0, 270.0):  # plane faces, trace bottom and top [um]
+        assert np.isclose(z, face, atol=1e-6).any(), face
+    sheets = {k: v for k, v in scene.data["properties"].items() if v["kind"] == "sheet"}
+    assert len(sheets) == 1
+    (sheet,) = sheets.values()
+    # 1/(sigma t) must equal Rs = sqrt(pi f mu0 / sigma) at f_max
+    rs = math.sqrt(math.pi * 10e9 * 4e-7 * math.pi / sheet["conductivity"])
+    assert 1.0 / (sheet["conductivity"] * sheet["thickness"]) == pytest.approx(rs, rel=1e-6)
+    # trace: top + bottom sheet and two axis-aligned side walls; plane bottom is on the PEC face
+    sheet_name = next(iter(sheets))
+    mine = [q for q in scene.data["primitives"] if q["prop"] == sheet_name]
+    assert sum(q["shape"] == "polygon" for q in mine) == 3
+    walls = [q for q in mine if q["shape"] == "box"]
+    assert any(abs(q["start"][2] - 235.0) < 1e-6 and abs(q["stop"][2] - 270.0) < 1e-6 for q in walls)
+
+
 def test_translation_is_deterministic() -> None:
     a = build_scene(via_transition_problem())
     b = build_scene(via_transition_problem())
