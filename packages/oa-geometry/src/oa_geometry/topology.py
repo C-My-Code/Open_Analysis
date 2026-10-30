@@ -255,10 +255,10 @@ def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
     # graph, root, distances
     adj: dict[str, dict[str, float]] = {n.id: {} for n in final_nodes}
     for e in edges:  # parallel edges: the shortest one
-        for u, v in ((e.a, e.b), (e.b, e.a)):
-            row = adj.setdefault(u, {})
-            if v not in row or e.length < row[v]:
-                row[v] = e.length
+        for na, nb in ((e.a, e.b), (e.b, e.a)):
+            row = adj.setdefault(na, {})
+            if nb not in row or e.length < row[nb]:
+                row[nb] = e.length
     root_id = _pick_root(geo, final_nodes, pads, root, net)
     dist: dict[str, float] = {}
     order = [root_id] if root_id else []
