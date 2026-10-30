@@ -316,6 +316,9 @@ name = "Only oa_accel and oa_fdtd.engine import cupy"
 type = "forbidden"
 source_modules = ["oa_assistant", "oa_cli", "oa_em", "oa_em_openems", "oa_em_palace", "oa_emi", "oa_erc", "oa_fdtd", "oa_framework", "oa_geometry", "oa_impedance", "oa_ingest_ipc2581", "oa_ingest_kicad", "oa_jobs", "oa_kicad_bridge", "oa_mcp", "oa_mesh", "oa_model", "oa_network", "oa_physics", "oa_pi", "oa_qs", "oa_results", "oa_server", "oa_service", "oa_si", "oa_thermal", "oa_testkit"]
 forbidden_modules = ["cupy", "cupyx", "nvmath"]
+# Packages may use oa_accel; only oa_accel itself (and oa_fdtd.engine) touch the GPU libraries.
+ignore_imports = ["oa_accel.** -> cupy", "oa_accel.** -> cupyx", "oa_accel.** -> nvmath"]
+unmatched_ignore_imports_alerting = "none"  # cupy is partly loaded via importlib
 
 # ADR-0010 section 10: the FDTD engine core imports only oa_accel (and oa_mesh.rect).
 [[tool.importlinter.contracts]]

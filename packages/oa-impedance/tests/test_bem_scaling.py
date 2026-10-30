@@ -16,6 +16,14 @@ from oa_impedance.service import ImpedanceServiceImpl
 from oa_model.xsection import CrossSection, XsConductor, XsPlane, XsTrapezoid
 from oa_testkit import xsections as tk
 
+
+@pytest.fixture(autouse=True)
+def _host_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests check the host section budget (coarsening, GMRES, refusal); the GPU path has
+    its own (device) budget and is covered by test_bem_gpu.py."""
+    monkeypatch.setenv("OA_DEVICE", "cpu")
+
+
 # the pre-WP-512 meshing: open boundary at 20 x the whole window, no far-field coarsening,
 # every plane face capped at 3 x its thickness
 LEGACY = MeshParams(window=False, far_ratio=0.0, plane_relax=0.0)

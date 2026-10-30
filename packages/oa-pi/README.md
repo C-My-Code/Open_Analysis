@@ -59,6 +59,16 @@ Entry points: analysis `pi.dc` (`open_analysis.analyses`), service `pdn`
 - A point contact (radius 0) is not used: its resistance grows by `Rs ln 2 / (2 pi)` per halving
   of h (log divergence, no convergence order); the test `test_convergence.py` shows it.
 
+## GPU sparse solve (WP-504)
+`solve_spd(..., solver="auto")` (DC IR and the raster FVM reference, via `solve_terminals`) asks
+`oa_accel.select` for a backend: `OA_DEVICE=cuda` forces it, `auto` uses it above the sparse
+crossover (1e6 nnz). On NVIDIA it runs cuDSS Cholesky; without cuDSS (or `method="cg"`, the portable
+ROCm path) CG + Jacobi. A device error, out-of-memory or non-convergence falls back to the CPU
+solvers (PARDISO / CHOLMOD / SuperLU / AMG). Explicit `solver="superlu"` etc. stay on the CPU.
+`DcSolution.solver` reports `cudss` or `cg-jacobi-gpu` when the GPU ran. GPU and CPU agree to
+1.5e-8 relative on the source current of the `power_plane` board (ADR-0009 iterative class 1e-7).
+Mesh generation (`dc.fem`) is CPU only and dominates large runs.
+
 ## Golden suite and validation
 
 `tests/golden/pi_dc/` (strip, annulus, N=9 via array, the two WP-102 `expected.yaml: dc`
