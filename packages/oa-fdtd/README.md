@@ -91,7 +91,18 @@ max |S11| -28.4 dB (target below -29 where the reference is below -30); 1.6 s ru
   frequency (band-centre eps) for the template and impedance; the local `oa_fdtd.ports.modal`
   solver stands in for the `oa_impedance` FEM/BEM (change request WP-506-modal-solver).
 - Low-frequency S11 (below about 1 GHz) comes from the port S, not the planes, and reaches -26 dB.
-- The B-EM-03 differential via at 40 GHz and the matrix-pencil tail extrapolation are not run.
+- B-EM-03 (differential via) is OPEN. The straight calibration line (no antipads) converges
+  (medium vs fine within 0.05 dB, S11 below -50 dB). With the stitched via ring, medium and fine
+  agree to 0.02 dB (cells-per-wavelength 60 and 90 differ by up to 1 dB), but |S21| is about 4.5 dB
+  lower than the openEMS run of the same structure (-4.6 dB vs -0.03 dB at 3.5 GHz, phase and delay
+  agree). The missing power is not dielectric or copper loss, not the z/y boundaries and not the
+  port normalisation (bottom and top straight lines pass); it grows sharply with the antipad
+  radius. Suspected: spurious coupling of the via/antipad into the inner plane gaps, which end in
+  the port faces and the PML. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the
+  gate on a stable machine.
+- `compile_model` host memory for a 400x400x120 grid with 6 ADE poles: peak 7.5 GiB (was 10.1 GiB),
+  compile 12 s (was 67 s); the per-pole delta arrays (float64) dominate what remains.
+- The matrix-pencil tail extrapolation is exercised only by B-EM-05a.
 - Anisotropy (glass weave) and lumped RLC elements of the `EMProblem` are ignored with a diagnostic.
 - Roughness fits to 2-3 % in Re Zs (1 um rms), the ladder cannot follow the sharp Hammerstad step.
 - CPML reflection is measured at normal incidence only; oblique and evanescent cases are open.

@@ -286,6 +286,7 @@ def diff_via(
     half: str = "odd",
     straight: bool = False,
     cpw: float | None = None,
+    r_anti: float = 0.4e-3,
 ) -> EMProblem:
     """Differential via L1 -> L8 through 1.6 mm (0.25 mm drill, antipads, return vias).
 
@@ -297,7 +298,7 @@ def diff_via(
     non-local modal load (oa-fdtd loads each mode port with a local sheet, which cannot be
     orthogonal for two modes on the same plane). ``stub`` [m] extends the plated span below L8
     (a via stub); ``straight`` replaces the via by a straight L1 line (calibration).
-    Return vias at (+-0.6 mm, 1.1 mm).
+    Five return vias on a half circle of radius 1.1 mm about the pair centre (stitching ring).
     """
     cop, die = _stack8()
     z_bot, z_top = 0.0, cop[-1][1]
@@ -315,11 +316,12 @@ def diff_via(
     )
     mat = DielectricMaterial(name="LAM", model=DjordjevicSarkar(dk=3.9, df=0.012, f_ref=1e9))
     slabs = [MaterialSlab(material="LAM", z_bottom=a, z_top=b) for a, b in die]
-    r_drill, r_anti = 0.125e-3, 0.4e-3
+    r_drill = 0.125e-3
     planes = []
     for k in range(1, 7):  # inner layers L7..L2 are planes with an antipad around the signal via
         z0, z1 = cop[k]
-        planes.append(_plane(f"cb:P{k}", f"L{8 - k}", z0, z1, box, [(xv, y_sig, r_anti)]))
+        holes = [] if straight else [(xv, y_sig, r_anti)]
+        planes.append(_plane(f"cb:P{k}", f"L{8 - k}", z0, z1, box, holes))
     zt0, zt1 = cop[7]
     zb0, zb1 = cop[0]
     top_end = length if straight else xv
@@ -360,7 +362,11 @@ def diff_via(
                 plating=25e-6,
             )
         )
-        for k, (dx, y) in enumerate([(-0.6e-3, 1.1e-3), (0.6e-3, 1.1e-3)]):
+        ring = [  # stitching vias on a half circle of radius 1.1 mm about the pair centre
+            (1.1e-3 * math.cos(math.radians(t)), 1.1e-3 * math.sin(math.radians(t)))
+            for t in (0.0, 45.0, 67.5, 90.0, 112.5, 135.0, 180.0)
+        ]
+        for k, (dx, y) in enumerate(ring):
             vias.append(
                 ViaBody(
                     id=f"vb:G{k}",
