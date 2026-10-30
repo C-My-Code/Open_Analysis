@@ -13,13 +13,15 @@ This is the geometry front end of ADR-0010 (the adapter of WP-507 calls :func:`b
   (:mod:`oa_fdtd.materials`) over ``max(f_min, f_max / 100) .. f_max`` for the ADE kernels.
 - **Copper:** polygons are rasterised on the mesh (cell centres) and merged into boxes, each a
   :class:`~oa_fdtd.model.Conductor` with the finite-slab surface impedance and the roughness of
-  the body; vias are staircased solid PEC barrels. Planes and slabs that touch an absorbing face
+  the body; vias are solid PEC square barrels of the area of the round via
+  (:func:`_via_side`, the sub-cell via model). Planes and slabs that touch an absorbing face
   over at least half of it continue through the PML; traces end at the problem box.
 - **Ports:** ``EMLumpedPort`` becomes a :class:`~oa_fdtd.model.LumpedPort` on the terminal
   column; ``EMWavePort`` a quasi-TEM :class:`~oa_fdtd.model.ModePort` on the boundary face (the
   face becomes a PMC wall behind the port sheet, like a lumped port).
 
-Limits: staircased lateral conductor edges and vias (no conformal cells yet), diagonal
+Limits: staircased lateral conductor edges (the via barrels are exact on the mesh lines, as equal
+area squares; no Dey-Mittra cells), diagonal
 polygons are rasterised at cell centres, anisotropy and lumped RLC elements are ignored with a
 diagnostic.
 """
@@ -120,12 +122,25 @@ def _bbox2(body: ConductorBody) -> tuple[float, float, float, float]:
     )
 
 
+def _via_side(r_outer: float) -> float:
+    """Side [m] of the square PEC barrel that replaces a round via of radius ``r_outer``.
+
+    Equal cross-section area (``a = sqrt(pi) r``): the geometric-mean-distance radius of a square
+    is within 2 % of the round conductor's (0.792 r against 0.779 r), so the external inductance
+    and the capacitance to the antipad edge match to first order, and the barrel lies exactly on
+    mesh lines (the mesh places lines at the square's faces). A staircased circle at cell centres
+    changes its area, and with it the via inductance, with every mesh refinement.
+    """
+    return float(np.sqrt(np.pi) * r_outer)
+
+
 def build_model(
     problem: EMProblem,
     *,
     copper: str = "thick_sibc",
     pml_cells: int = 10,
     bandwidth: float = 1.4,
+    pulse: str = "gauss_mod",
 ) -> BuiltModel:
     """Translate ``problem`` into an engine model; raises :class:`ModelError` on bad input."""
     st = problem.structure
@@ -133,7 +148,7 @@ def build_model(
     diag: list[str] = []
     freqs = frequency_grid(problem)
     f_max = float(freqs[-1])
-    f_fit_lo = max(float(freqs[0]), f_max / 100.0)
+    f_fit_lo = f_max / 100.0
 
     # ---- materials
     diel: dict[str, DielectricMaterial] = {}
@@ -194,9 +209,10 @@ def build_model(
         locked += [body.z_bottom, body.z_top]
         thin.append((body, t))
     for v in st.vias:
-        s = min(d_max, v.r_outer / 2.0)
+        half = 0.5 * _via_side(v.r_outer)
+        s = min(d_max, half)
         for a, c in ((0, v.center[0]), (1, v.center[1])):
-            seeds[a] += [(c - v.r_outer, s), (c, s), (c + v.r_outer, s)]
+            seeds[a] += [(c - half, s), (c, s), (c + half, s)]
         seeds[2] += [(v.z_bottom, d_max), (v.z_top, d_max)]
     for slab in st.slabs:
         t = slab.z_top - slab.z_bottom
@@ -304,7 +320,8 @@ def build_model(
             n_box += 1
     for v in st.vias:
         px, py = np.meshgrid(cx, cy, indexing="ij")
-        mask = (px - v.center[0]) ** 2 + (py - v.center[1]) ** 2 <= v.r_outer**2
+        half = 0.5 * _via_side(v.r_outer)
+        mask = (np.abs(px - v.center[0]) <= half) & (np.abs(py - v.center[1]) <= half)
         if not mask.any():
             diag.append(f"FDTD_VIA_UNRESOLVED: {v.id} smaller than a cell")
             continue
@@ -365,7 +382,15 @@ def build_model(
             raise ModelError("FDTD_PORT_KIND", f"port kind {port.kind!r} is not supported")
 
     walls = (wall["xmin"], wall["xmax"], wall["ymin"], wall["ymax"], wall["zmin"], wall["zmax"])
-    wf = Waveform("gauss_mod", 0.5 * f_max, bandwidth * f_max)
+    # "gauss_mod": modulated Gaussian, no energy at DC (its spectrum falls linearly to zero, so
+    # the three-plane wave extraction is noise-limited below ~0.05 f_max on lossless lines);
+    # "gauss": Gaussian with DC content (good low-frequency S, but the energy end criterion
+    # takes about 10x more steps on open structures).
+    wf = (
+        Waveform("gauss", 0.0, bandwidth * f_max)
+        if pulse == "gauss"
+        else Waveform("gauss_mod", 0.5 * f_max, bandwidth * f_max)
+    )
     model = Model(
         grid,
         wf,
@@ -374,6 +399,7 @@ def build_model(
         conductors=conductors,
         walls=walls,
         ports=ports,
+        f_band=(0.0, f_max),
     )
     meta = {
         "cells": grid.cells,

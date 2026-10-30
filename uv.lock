@@ -2788,9 +2788,13 @@ dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
     { name = "oa-accel" },
+    { name = "oa-framework" },
     { name = "oa-mesh" },
     { name = "oa-model" },
+    { name = "oa-network" },
     { name = "oa-physics" },
+    { name = "oa-results" },
+    { name = "scikit-rf" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
 ]
@@ -2799,9 +2803,13 @@ dependencies = [
 requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "oa-accel", editable = "packages/oa-accel" },
+    { name = "oa-framework", editable = "packages/oa-framework" },
     { name = "oa-mesh", editable = "packages/oa-mesh" },
     { name = "oa-model", editable = "packages/oa-model" },
+    { name = "oa-network", editable = "packages/oa-network" },
     { name = "oa-physics", editable = "packages/oa-physics" },
+    { name = "oa-results", editable = "packages/oa-results" },
+    { name = "scikit-rf", specifier = ">=1.0" },
     { name = "scipy", specifier = ">=1.11" },
 ]
 
