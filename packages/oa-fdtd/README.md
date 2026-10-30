@@ -28,8 +28,12 @@ adapter.
   conductors on a plane), `Model.mode_probes`, `Model.excite` (drive a subset of ports).
 - `oa_fdtd.ports`: `solve_modes` (Q1 FEM capacitance matrices, `C0^-1 C u = eps_eff u`, modal Z),
   `add_wave_planes` / `wave_sparams` (S from modal waves on three planes per port, reference
-  plane at the port), `gamma_from_planes`, `shift_reference`, and the `DeembedHook` for the
-  `oa_network` 2x-thru.
+  plane at the port), `uniform_length` (the uniform line behind a port, where the planes must
+  lie), `gamma_from_planes`, `shift_reference`, and the `DeembedHook` for the `oa_network` 2x-thru.
+  `adapter.sim.solve_problem` uses the port S, with an `FDTD.PORT_S` note, when a port's uniform
+  line cannot hold well-conditioned planes.
+- `build_model` fills the z gap between two full dielectric slabs (an inner copper layer) with the
+  lower slab's material, like the openEMS adapter and the 2-D FEM cross-section (`meta["resin_fills"]`).
 - `oa-fdtd run job.json` (`oa_fdtd.cli`): engine-level job; no `oa_framework` import.
 
 ## Models implemented
@@ -98,15 +102,38 @@ source is still on, is not detected. Tests: `tests/test_stability.py`.
   frequency (band-centre eps) for the template and impedance; the local `oa_fdtd.ports.modal`
   solver stands in for the `oa_impedance` FEM/BEM (change request WP-506-modal-solver).
 - Low-frequency S11 (below about 1 GHz) comes from the port S, not the planes, and reaches -26 dB.
-- B-EM-03 (differential via) is OPEN. The straight calibration line (no antipads) converges
-  (medium vs fine within 0.05 dB, S11 below -50 dB). With the stitched via ring, medium and fine
-  agree to 0.02 dB (cells-per-wavelength 60 and 90 differ by up to 1 dB), but |S21| is about 4.5 dB
-  lower than the openEMS run of the same structure (-4.6 dB vs -0.03 dB at 3.5 GHz, phase and delay
-  agree). The missing power is not dielectric or copper loss, not the z/y boundaries and not the
-  port normalisation (bottom and top straight lines pass); it grows sharply with the antipad
-  radius. Suspected: spurious coupling of the via/antipad into the inner plane gaps, which end in
-  the port faces and the PML. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the
-  gate on a stable machine.
+- FIXED (inner layers): two defects made inner-layer structures fail while the L1 microstrip passed.
+  1. An inner copper layer (the z range between two slabs) was vacuum wherever there was no
+     copper: around inner traces, in antipads, past plane edges. A centred 35 um stripline in
+     er 4 had a -2.8 % delay error (5 um strip -0.4 %, strip inside one slab +0.02 %); with the
+     resin fill it is +0.05 % at 5 GHz, +0.10 % at 10 GHz, +0.41 % at 20 GHz (Yee dispersion at 20
+     cells per wavelength), and a 4/3 two-dielectric stripline matches the static mode eps_eff to
+     0.01 %.
+  2. B-EM-03 "lost" 4.5 dB above 7 GHz because its wave planes (1.5 mm and deeper on a 2.5 mm
+     line) sat inside the stitching cage, where the three-plane formula does not hold. In the
+     closed lossless box (PEC copper, df 0, PEC walls) the port S conserves power to 0.94-0.99
+     while the planes gave 0.35-0.67, and an energy audit closes to 1.2e-3 with all dissipation in
+     the port sheets of the two microstrip gaps (inner gaps 3e-7): no spurious loss term exists.
+     The planes are now confined to the uniform line (`uniform_length`, `offset` from both ends);
+     B-EM-03's 1.29 mm stretch cannot hold well-conditioned planes, so it uses the port S.
+  B-EM-02b also scored against a constant-Dk FEM reference while the problem carries causal
+  Djordjevic-Sarkar FR-4 (4 % lower eps at 20 GHz); `fdtd_verify_runner.rlgc_reference` now uses
+  the problem's material. Before/after (medium, RTX 4080 SUPER): B-EM-02b IL error 0.31 -> 0.14 dB,
+  delay 4.48 -> 0.36 %; B-EM-03 SDD21 against openEMS (0.3 mm antipad, dense cage) mean |dS21|
+  2.32 -> 0.21 dB, max 3.67 -> 0.61 dB (7-20 GHz max 0.18 dB; -2.50 vs -2.70 dB at 20 GHz), SDD11
+  within 0.3 dB over 7-20 GHz; B-EM-01 and B-EM-02a S unchanged (bit-identical).
+  Regressions: `tests/test_inner_layers.py`, `tests/verification/test_fdtd_inner_layers.py`.
+- B-EM-03 remaining: below 7 GHz SDD21 is up to 0.6 dB below openEMS (-0.83 vs -0.45 dB at 5 GHz).
+  The port S counts only the static modal part of the sheet power (see the power budget below),
+  so it reads low by a few percent; a longer uniform line behind the ports would allow the plane
+  extraction. Timing numbers for B-EM-03 and B-PERF-01 are deferred to a run at the gate.
+- Microstrip trace edges (B-EM-01): against the same-material FEM (DS FR-4, not the constant-Dk
+  board model) the FDTD eps_eff is 2.4 % high at 5 GHz (3.195 vs 3.119; Hammerstad-Jensen 3.110
+  with the 35 um thickness correction, 3.199 without). It is the lateral edge cell `w / 4` of the
+  mesh rule: w/12, w/24, w/48 give 3.153, 3.144, 3.141 (z refinement changes nothing). The B-EM-01
+  delay score against the corrected reference is 2.2 % at 20 GHz (IL 0.038 dB); the earlier
+  0.44 % came from the constant-Dk reference offsetting this error. The rest at 20 GHz is the
+  quasi-static reference (no microstrip dispersion, about 0.7 %) and Yee dispersion (0.4 %).
 - FIXED: S depended on `frequency.n_points`. Causes: static quantities (band-centre mode eps, SIBC
   fit range, Debye fit range) came from the sample list, and the plane extraction (branch
   unwrapping, smooth gamma fit) ran on the sample list, which aliases when it is sparse. Now
@@ -141,7 +168,10 @@ so WP-506 can add the near-to-far-field transform without changing the kernels o
 
 ## Tests and golden suites
 `packages/oa-fdtd/tests` (CPU always; `gpu` marker with `OA_RUN_GPU=1`; the graded NumPy cavity case is
-`slow`). Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
+`slow`). Inner layers (`test_inner_layers.py`): resin fill, stripline delay within 0.5 % of the
+TEM (Cohn) delay, closed lossless via-through-planes box energy constant to 1e-3 (measured 2e-11),
+wave planes confined to the uniform line; `verification/test_fdtd_inner_layers.py` (GPU): the
+closed lossless B-EM-03 conserves power. Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
 `tests/golden/fdtd_physics/{ds_line,sibc_line,microstrip_thru}` (analytic ABCD lines and the FEM
 RLGC reference of the thru; the `microstrip_thru` case runs only with `OA_RUN_GPU=1`).
 

@@ -102,7 +102,7 @@ def run(
     c = compile_model(model, dtype)
     eng, report = make_engine(c, engine, dtype, record_series or tail, max_steps)
     t_src = 2.0 * model.waveform.delay_tau * model.waveform.tau  # envelope below e^-25 after this
-    e_min = float("inf")
+    e_min = float("inf")  # smallest energy seen after the excitation ended
     peak = 0.0
     e_db = 0.0
     stopped = "max_steps"

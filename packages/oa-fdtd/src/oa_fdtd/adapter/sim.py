@@ -71,7 +71,9 @@ def options_from_problem(problem: EMProblem) -> SolveOptions:
     )
 
 
-def _planes(built: BuiltModel, offset: float | None) -> list[PlaneSet]:
+def _planes(built: BuiltModel, offset: float | None) -> tuple[list[PlaneSet], str | None]:
+    """Wave planes behind every mode port, or ``([], note)`` when some port has no uniform line
+    long enough for well-conditioned planes (then S comes from the port sheets)."""
     model = built.model
     names = [p.name for p in model.ports if isinstance(p, ModePort)]
     offsets = (offset,) if offset is not None else _PLANE_OFFSETS
@@ -79,12 +81,14 @@ def _planes(built: BuiltModel, offset: float | None) -> list[PlaneSet]:
     for off in offsets:
         n0 = len(model.mode_probes)
         try:
-            return [add_wave_planes(model, nm, off) for nm in names]
+            return [add_wave_planes(model, nm, off) for nm in names], None
         except ModelError as exc:
             del model.mode_probes[n0:]
             last = exc
     assert last is not None
-    raise last
+    if last.code != "FDTD_UNEQUAL_PLANES":
+        raise last
+    return [], f"FDTD.PORT_S: {last.message}; S from the port sheets (no wave-plane de-embedding)"
 
 
 def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> SolveResult:
@@ -94,7 +98,8 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     built = build_model(problem, copper=o.copper, pulse=o.pulse)
     model = built.model
     all_mode = bool(model.ports) and all(isinstance(p, ModePort) for p in model.ports)
-    planes = _planes(built, o.plane_offset) if all_mode else []
+    planes, plane_note = _planes(built, o.plane_offset) if all_mode else ([], None)
+    all_mode = all_mode and bool(planes)
     req = np.asarray(model.frequencies, dtype=np.float64)
     # Extraction (branch unwrapping, smooth gamma fit) runs on a fixed internal grid united with the
     # requested points, and the fit sees the internal grid only: S does not depend on how many
@@ -104,7 +109,7 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     fit_mask = np.isin(model.frequencies, internal)
     t1 = time.perf_counter()
     kw: dict[str, Any] = {"end_db": o.end_db, "max_steps": o.max_steps, "tail": o.tail}
-    notes: list[str] = []
+    notes: list[str] = [plane_note] if plane_note else []
     if o.engine == "auto":  # GPU whenever there is one (the crossover policy is for small cases)
         try:
             res = run(model, engine="cuda", dtype=o.dtype, **kw)

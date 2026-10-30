@@ -262,7 +262,8 @@ class FdtdAdapter:
         res, cmd = results[0], run.commands[0]
         if res.returncode != 0:
             detail = _error_line(res.stdout_tail) or res.stderr_tail[-300:]
-            code = "FDTD.UNSTABLE" if "FDTD.UNSTABLE" in detail else "FDTD.RUN_FAILED"
+            unstable = "FDTD.UNSTABLE" in detail
+            code = "FDTD.UNSTABLE" if unstable else "FDTD.RUN_FAILED"
             return fail(
                 code,
                 f"oa-fdtd worker exited with code {res.returncode}: {detail}",
