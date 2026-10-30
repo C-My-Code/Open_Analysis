@@ -15,6 +15,13 @@ def test_max_cell_size_medium_fr4() -> None:
     assert d == pytest.approx(299792458.0 / 10e9 / 4.4**0.5 / 20)
 
 
+def test_presets_match_the_fdtd_family() -> None:
+    """Coarse/medium/fine are 10/20/30 cells per wavelength, as in oa_fdtd and openEMS."""
+    base = max_cell_size(10e9, 1.0, 10)
+    for name, n in (("coarse", 10), ("medium", 20), ("fine", 30)):
+        assert max_cell_size(10e9, 1.0, name) == pytest.approx(base * 10 / n)
+
+
 def test_layers_copper_and_grading() -> None:
     h, t = 200e-6, 35e-6
     spec = AxisSpec(

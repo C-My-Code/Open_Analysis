@@ -56,7 +56,7 @@ Rule 10's defaults (2 threads, 8 GB) still apply to all other tests. The harness
 | B-EM-04 | CPWG launch with via fence, to 40 GHz | \|S21\| ≤ 0.1 dB; \|S11\| ≤ 2 dB above −25 dB | FDTD ≤ 3 min GPU; Palace ≤ 15 min GPU | 6 GB GPU; Palace 12 GB | not run |
 | B-EM-05 | 2.4 GHz antennas (patch, IFA) | f_res ≤ 0.5 % (converged), ≤ 1 % (published); S11 min ≤ 1 dB | FDTD ≤ 60 s GPU; openEMS ≤ 10 min | 4 GB GPU | not run |
 | B-EM-06 | High-Q filters (10 GHz hairpin; MSL notch) | f_c ≤ 0.2 %; passband IL ≤ 0.1 dB; BW ≤ 1 % | Palace fast sweep ≤ 10 min GPU / ≤ 30 min CPU; FDTD ≤ 15 min GPU | 12 GB | not run |
-| B-PERF-01 | FDTD kernel throughput | float32 vs float64 \|ΔS\| ≤ 1e-4 | ≥ 3.0 Gcells/s plain; ≥ 1.5 Gcells/s ADE+CPML | - | no engine |
+| B-PERF-01 | FDTD kernel throughput | float32 vs float64 \|ΔS\| ≤ 1e-4 | ≥ 3.0 Gcells/s plain; ≥ 1.5 Gcells/s ADE+CPML | - | engine exists; plain 6.0 / 3.2 Gcells/s (f32 / f64) measured, ADE+CPML not measured |
 
 ---
 

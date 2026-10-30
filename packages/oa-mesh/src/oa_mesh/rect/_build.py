@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Axis builder: ADR-0010 section 2 rules on top of :func:`smooth_axis`.
 
-Rules applied: maximum cell ``lambda_min / N`` in the densest dielectric (``N`` = 15/20/30 for
+Rules applied: maximum cell ``lambda_min / N`` in the densest dielectric (``N`` = 10/20/30 for
 coarse/medium/fine), the thirds rule at metal edges (1/3 inside, 2/3 outside), at least
 ``min_cells`` cells across every dielectric layer, a line on each copper face, grading at most
 ``grading`` away from fine regions, and snapping to feature positions.
@@ -18,7 +18,7 @@ import numpy as np
 from oa_mesh.rect._axis import AxisMesh, smooth_axis, third_rule_lines
 
 C0 = 299792458.0  # [m/s]
-QUALITY_N = {"coarse": 15, "medium": 20, "fine": 30}  # cells per wavelength [-]
+QUALITY_N = {"coarse": 10, "medium": 20, "fine": 30}  # cells per wavelength [-]
 
 
 def max_cell_size(f_max: float, eps_r_max: float, quality: str | int = "medium") -> float:

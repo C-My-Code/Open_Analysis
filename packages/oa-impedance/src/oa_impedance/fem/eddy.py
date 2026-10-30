@@ -40,17 +40,18 @@ from scipy.sparse.linalg import splu  # type: ignore[import-untyped,unused-ignor
 from skfem import Basis, BilinearForm, ElementTriP2, FacetBasis, LinearForm  # type: ignore[import-untyped,unused-ignore]
 from skfem.helpers import dot, grad  # type: ignore[import-untyped,unused-ignore]
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
 from oa_impedance.fem._mesh import FemMesh
 from oa_impedance.fem.electrostatic import FemSetup
 from oa_model.xsection import XsCircle, XsPlane, XsPolygon, XsTrapezoid
+from oa_physics.constants import MU0
 
 C128 = npt.NDArray[np.complex128]
 F64 = npt.NDArray[np.float64]
 
 __all__ = ["EddySolution", "characteristic_thickness", "solve_eddy"]
 
-_NU = 1.0 / phys.MU0
+_NU = 1.0 / MU0
 _SMOOTH = 0.26  # max normal change (rad, ~15 deg) between facets for a "smooth" boundary
 
 
@@ -282,13 +283,13 @@ def solve_eddy(
                 continue
             cd = xs.conductors[k]
             sg = cd.conductivity
-            delta = 1.0 / math.sqrt(math.pi * f_eff * phys.MU0 * sg)
+            delta = 1.0 / math.sqrt(math.pi * f_eff * MU0 * sg)
             zs = (1 + 1j) / (sg * delta)
             y = np.zeros(len(facets), dtype=np.complex128)
             for j in range(len(facets)):
                 for cls, _ in sides[j]:
                     rough = (cd.roughness_top, cd.roughness_bottom, cd.roughness_side)[cls]
-                    kr = phys.roughness_factor(rough, f_eff, sg)
+                    kr = float(phys.roughness_factor(rough, f_eff, sg)[0])
                     corr = 1.0 + (1 - 1j) * delta * kappa[j] / 4.0 if len(sides[j]) == 1 else 1.0
                     y[j] += 1.0 / (zs * kr * corr)
             fb = FacetBasis(mesh, ElementTriP2(), facets=facets)

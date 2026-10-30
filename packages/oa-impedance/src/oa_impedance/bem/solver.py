@@ -28,9 +28,11 @@ import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import CubicSpline  # type: ignore[import-untyped,unused-ignore]
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
+from oa_impedance._dielectric import eps_at, is_frequency_independent
 from oa_impedance.errors import SectionTooLarge
 from oa_model.xsection import CrossSection
+from oa_physics.constants import EPS0, MU0
 
 from .geometry import (
     FACE_BOTTOM,
@@ -227,12 +229,12 @@ def prepare(
 def _zone_eps(prob: Problem, f: float) -> C128:
     out = np.empty(len(prob.zone_models), dtype=np.complex128)
     for k, m in enumerate(prob.zone_models):
-        out[k] = prob.background_dk if m is None else phys.eps_complex(m, f)
+        out[k] = prob.background_dk if m is None else eps_at(m, f)
     return out
 
 
 def _freq_independent(prob: Problem) -> bool:
-    return all(m is None or phys.is_frequency_independent(m) for m in prob.zone_models)
+    return all(m is None or is_frequency_independent(m) for m in prob.zone_models)
 
 
 def _chunks(idx: npt.NDArray[np.intp], size: int = 256) -> Iterator[npt.NDArray[np.intp]]:
@@ -374,12 +376,12 @@ def _loss(
     for fi, f in enumerate(freqs):
         if f <= 0.0:
             continue
-        rs = np.array([phys.surface_resistance(f, s) for s in sigma])
+        rs = np.sqrt(np.pi * f * MU0 / sigma)  # surface resistance 1/(sigma delta) [ohm/sq]
         kfac = np.ones(len(cidx))
         for p in range(len(cidx)):
             top, bot, side = prob.cond_rough[cond[p]]
             rough = top if face[p] == FACE_TOP else (bot if face[p] == FACE_BOTTOM else side)
-            kfac[p] = phys.roughness_factor(rough, f, float(sigma[p]))
+            kfac[p] = float(phys.roughness_factor(rough, f, float(sigma[p]))[0])
         w = rs * kfac * length
         s_mat = (sig * w[:, None]).T @ sig
         r_ac[fi] = c0inv @ s_mat @ c0inv
@@ -432,7 +434,7 @@ def _solve_prepared(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:
 
     c0hat, sig0, cidx = _vacuum(geo)
     c0hat = 0.5 * (c0hat + c0hat.T)
-    L_ext: npt.NDArray[Any] = phys.MU0 * np.linalg.inv(c0hat)  # NDArray[Any]: see _vacuum
+    L_ext: npt.NDArray[Any] = MU0 * np.linalg.inv(c0hat)  # NDArray[Any]: see _vacuum
 
     pos = fs[fs > 0.0]
     const = _freq_independent(prob)
@@ -480,14 +482,14 @@ def _solve_prepared(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:
                         f"C(f) solved at {len(anchors)} log-spaced frequencies and interpolated"
                     )
             C[fs > 0.0] = interp
-    C = C * phys.EPS0
+    C = C * EPS0
     C = 0.5 * (C + C.transpose(0, 2, 1))
 
     r_ac, r_dc = _loss(geo, sig0, cidx, c0hat, fs, True)
     return BemSolution(
         freqs=fs,
         C=C,
-        C0=c0hat * phys.EPS0,
+        C0=c0hat * EPS0,
         L_ext=L_ext,
         R_ac=r_ac,
         R_dc=r_dc,

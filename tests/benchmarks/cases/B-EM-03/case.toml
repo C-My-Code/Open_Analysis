@@ -18,7 +18,7 @@ id = "oa_fdtd"
 title = "oa-fdtd on B-EM-03"
 pending = "pending"
 owner = "WP-505/506/507"
-reason = "oa-fdtd does not exist yet"
+reason = "oa-fdtd exists (WP-505/506/506A) but the 40 GHz differential via was not run; vias are staircased (no conformal PEC)"
 devices = ["cpu", "cuda"]
 
 [sub.targets.cpu]

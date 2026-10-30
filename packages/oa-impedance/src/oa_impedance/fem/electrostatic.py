@@ -24,9 +24,10 @@ from scipy.sparse.linalg import splu  # type: ignore[import-untyped,unused-ignor
 from skfem import Basis, BilinearForm, ElementTriP2, FacetBasis  # type: ignore[import-untyped,unused-ignore]
 from skfem.helpers import dot, grad  # type: ignore[import-untyped,unused-ignore]
 
-from oa_impedance import _physics_compat as phys
+from oa_impedance._dielectric import eps_at, is_frequency_independent
 from oa_impedance.fem._mesh import FemMesh
 from oa_model.xsection import CrossSection
+from oa_physics.constants import EPS0, MU0
 
 C128 = npt.NDArray[np.complex128]
 F64 = npt.NDArray[np.float64]
@@ -143,7 +144,7 @@ def prepare_electro(fm: FemMesh, xs: CrossSection) -> FemSetup:
 def _eps_of_region(xs: CrossSection, r: int, f: float) -> complex:
     if r < 0:
         return complex(xs.background_dk)
-    return phys.eps_complex(xs.dielectrics[r].model, f)
+    return eps_at(xs.dielectrics[r].model, f)
 
 
 def _maxwell(setup: FemSetup, eps: dict[int, complex]) -> C128:
@@ -199,10 +200,10 @@ def solve_electro(setup: FemSetup, freqs: F64) -> ElectroSolution:
     c0c, sig, refs = _reduce(setup, k0.astype(np.complex128))
     c0: F64 = 0.5 * (c0c.real + c0c.real.T)
     n_solves += 1
-    L_ext = phys.MU0 * np.linalg.inv(c0)
+    L_ext = MU0 * np.linalg.inv(c0)
     ns = len(sig)
     models = [xs.dielectrics[r].model for r in setup.region_ids if r >= 0]
-    const = all(phys.is_frequency_independent(m) for m in models)
+    const = all(is_frequency_independent(m) for m in models)
     cache: dict[float, C128] = {}
 
     def at(f: float) -> C128:
@@ -248,7 +249,7 @@ def solve_electro(setup: FemSetup, freqs: F64) -> ElectroSolution:
                         f"C(f) solved at {len(anchors)} log-spaced frequencies and interpolated"
                     )
             C[fs > 0.0] = interp
-    C = C * phys.EPS0
+    C = C * EPS0
     C = 0.5 * (C + C.transpose(0, 2, 1))
     if not any(r == "ground" for r in setup.roles):
         notes.append(
@@ -258,7 +259,7 @@ def solve_electro(setup: FemSetup, freqs: F64) -> ElectroSolution:
     return ElectroSolution(
         freqs=fs,
         C=C,
-        C0=c0 * phys.EPS0,
+        C0=c0 * EPS0,
         L_ext=L_ext,
         conductor_ids=tuple(setup.xs.conductors[i].id for i in sig),
         ref_ids=tuple(refs),

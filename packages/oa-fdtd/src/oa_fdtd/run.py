@@ -15,6 +15,10 @@ from oa_fdtd.model import Compiled, Model, ModelError, compile_model
 FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]
 
+#: Energy growth after the excitation has ended that is reported as ``FDTD_UNSTABLE`` [-]. The
+#: scheme is passive, so a rise of 20 dB above the post-excitation minimum is numerical growth.
+GROWTH_LIMIT = 100.0
+
 
 @dataclass
 class RunResult:
@@ -87,6 +91,11 @@ def run(
 ) -> RunResult:
     """Run until the field energy is ``end_db`` below its peak (checked every ``check_every``
     steps once ``min_steps`` have run) or ``max_steps``. ``end_db=None`` runs ``max_steps``.
+
+    ``FDTD_UNSTABLE`` (:class:`ModelError`) is raised, at the energy checks only (so not with
+    ``end_db=None``), when the field energy is not finite or when, after the excitation has ended
+    (``2 * waveform.delay_tau * tau``), it exceeds ``GROWTH_LIMIT`` times its post-excitation
+    minimum.
     """
     if engine == "numpy" and dtype == "float32":
         dtype = "float64"  # the reference engine is float64 unless asked otherwise explicitly
@@ -96,6 +105,8 @@ def run(
     e_db = 0.0
     stopped = "max_steps"
     done = 0
+    t_quiet = 2.0 * model.waveform.delay_tau * model.waveform.tau  # source has decayed [s]
+    e_min = float("inf")  # smallest energy seen after the excitation ended
     while done < max_steps:
         n = min(check_every, max_steps - done)
         eng.step(n)
@@ -107,6 +118,15 @@ def run(
         e_db = 10.0 * np.log10(e / peak) if peak > 0 and e > 0 else 0.0
         if not np.isfinite(e):
             raise ModelError("FDTD_UNSTABLE", "field energy is not finite")
+        if done * c.dt > t_quiet:
+            e_min = min(e_min, e)
+            if e_min > 0.0 and e > GROWTH_LIMIT * e_min:
+                raise ModelError(
+                    "FDTD_UNSTABLE",
+                    f"field energy grew {10.0 * np.log10(e / e_min):.0f} dB after the excitation "
+                    "ended",
+                    hint="reduce the Courant number or check the lossy/dispersive materials",
+                )
         if done >= min_steps and peak > 0 and e_db <= end_db:
             stopped = "end_criterion"
             break

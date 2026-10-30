@@ -8,13 +8,13 @@ import _xs
 import numpy as np
 import pytest
 
-from oa_impedance import _physics_compat as phys
 from oa_impedance import methods
 from oa_impedance.bem import MeshParams
 from oa_impedance.errors import MethodNotAvailable
 from oa_impedance.fem import FemParams, solve_fem
 from oa_impedance.service import ImpedanceServiceImpl
 from oa_model.xsection import CrossSection
+from oa_physics.constants import EPS0, MU0
 from oa_testkit import xsections as tk
 from oa_testkit.golden import assert_close_to_golden, load_case
 
@@ -115,7 +115,7 @@ def test_homogeneous_lc_identity_and_symmetry() -> None:
     assert r.rlgc is not None
     L, C = r.rlgc.L.array[0], r.rlgc.C.array[0]
     np.testing.assert_allclose(
-        L @ C, phys.MU0 * phys.EPS0 * er * np.eye(2), rtol=1e-6, atol=1e-12 * phys.MU0 * phys.EPS0
+        L @ C, MU0 * EPS0 * er * np.eye(2), rtol=1e-6, atol=1e-12 * MU0 * EPS0
     )
     assert np.max(np.abs(C - C.T)) / np.max(np.abs(C)) < 1e-9
     assert abs(C[0, 0] - C[1, 1]) / C[0, 0] < 1e-3  # mirror symmetry (mesh is not mirrored)

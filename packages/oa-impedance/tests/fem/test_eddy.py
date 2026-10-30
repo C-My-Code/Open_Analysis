@@ -9,10 +9,11 @@ import numpy as np
 import pytest
 from scipy.special import ive  # type: ignore[import-untyped,unused-ignore]
 
-from oa_impedance import _physics_compat as phys
+import oa_physics as phys
 from oa_impedance.fem import FemParams, solve_fem, solve_loss, with_fem_loss
 from oa_impedance.service import ImpedanceServiceImpl
 from oa_model.xsection import CrossSection, XsCircle, XsConductor, XsPlane
+from oa_physics.constants import MU0
 from oa_testkit.golden import assert_close_to_golden
 
 SUITE = "impedance_fem"
@@ -44,7 +45,7 @@ def wire_over_plane() -> CrossSection:
 
 def bessel_zint(f: float) -> complex:
     """Internal impedance per metre of an isolated round wire: gamma/(2 pi a sigma) I0/I1."""
-    g = np.sqrt(1j * 2 * np.pi * f * phys.MU0 * SIGMA)
+    g = np.sqrt(1j * 2 * np.pi * f * MU0 * SIGMA)
     return complex(g / (2 * np.pi * RADIUS * SIGMA) * ive(0, g * RADIUS) / ive(1, g * RADIUS))
 
 
@@ -98,7 +99,7 @@ def _strip_with_copper_planes() -> CrossSection:
 def test_hf_asymptote_matches_surface_impedance_bem(f: float) -> None:
     """Stripline, 35 um copper: FEM R(f) within 5 % of the BEM perturbation where delta < t/4."""
     xs = _strip_with_copper_planes()
-    assert phys.skin_depth(f, SIGMA) < 35e-6 / 4
+    assert phys.skin_depth(SIGMA, f)[0] < 35e-6 / 4
     bem = ImpedanceServiceImpl().solve(xs, [f], method="bem")
     assert bem.rlgc is not None
     r_bem = float(bem.rlgc.R.array[0, 0, 0])
