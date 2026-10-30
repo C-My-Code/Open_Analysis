@@ -24,7 +24,7 @@ Entry points: analysis `pi.dc` (`open_analysis.analyses`), service `pdn`
 
 `rail {net, return}`, `vrm {component, pins, return_pins, vset, r_out, sense {pos, neg}}`,
 `loads [{component, nets, pins, return_pins, current, model: pin_group|equal_split, name}]`,
-`temperature`, `mesh {h_plane, h_trace_factor, via_ring_segments, solver}`,
+`temperature`, `mesh {h_plane, h_far, mesh_workers, h_trace_factor, via_ring_segments, solver}`,
 `limits {drop_fraction, via_current_density}`. Without `rail.return` the return is an ideal 0 V.
 
 ## Model
@@ -32,6 +32,9 @@ Entry points: analysis `pi.dc` (`open_analysis.analyses`), service `pdn`
 - One 2D sheet per (layer, net) from `BoardGeometry.copper` (zone fills are actual copper, so
   thermal-relief spokes and antipads are meshed as geometry). `R_s = rho(T)/t` from `oa_physics`.
 - P1 FEM, vectorized COO assembly, on `oa_mesh.mesh_copper_sheets` meshes.
+- WP-514: sheets mesh in parallel (up to 8 gmsh workers, results identical); opt-in `mesh.h_far`
+  coarsens plane interiors (h_plane kept within 3 h_plane of edges, pads, rings): < 0.2 % change on
+  power_plane at 10 to 20 times fewer unknowns; B-DC-02 1e6-equivalent 1.2 s end to end.
 - Via/plated-pad barrels: one resistor `rho L / (pi (ro^2 - ri^2))` between every pair of copper
   layers they touch, tied to **all nodes of a ring of radius ro** (drill radius) on each layer.
   A barrel whose centre lies in a pin pad ends on that pin. Length convention: the barrel spans

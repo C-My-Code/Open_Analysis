@@ -103,7 +103,7 @@ def dc01_power_strip(device: str) -> dict[str, Any]:
 _H_CACHE: dict[float, float] = {}
 
 
-def _dc_scale(n_target: int) -> dict[str, Any]:
+def _dc_scale(n_target: int, h_far: float | None = None) -> dict[str, Any]:
     """power_plane testkit board refined to about ``n_target`` unknowns, build + FEM solve."""
     from oa_geometry import BoardGeometry
     from oa_pi.dc.config import DcConfig
@@ -114,42 +114,48 @@ def _dc_scale(n_target: int) -> dict[str, Any]:
     board = power_plane_board(neck_width=None)
     geo = BoardGeometry.build(board)
 
-    def cfg(h: float) -> Any:
+    def cfg(h: float, far: float | None) -> Any:
         return DcConfig.model_validate(
             {
                 "rail": {"net": "VDD", "return": "GND"},
                 "vrm": {"component": "U1"},
                 "loads": [{"component": "U2", "current": 5.0}],
                 "temperature": "20degC",
-                "mesh": {"h_plane": h},
+                "mesh": {"h_plane": h, "h_far": far},
             }
         )
 
     if n_target not in _H_CACHE:  # calibrate once (cold run): fit n = a h^-p on two cheap meshes
         import math
 
-        h1, h2 = 0.8e-3, 0.4e-3
-        n1 = solve_fem(build_network(board, geo, cfg(h1))).n_unknowns
-        n2 = solve_fem(build_network(board, geo, cfg(h2))).n_unknowns
+        h1, h2 = 0.2e-3, 0.1e-3
+        n1 = solve_fem(build_network(board, geo, cfg(h1, None))).n_unknowns
+        n2 = solve_fem(build_network(board, geo, cfg(h2, None))).n_unknowns
         p = math.log(n2 / n1) / math.log(h1 / h2)
         _H_CACHE[n_target] = h2 * (n2 / n_target) ** (1.0 / p)
     h = _H_CACHE[n_target]
     t0 = time.perf_counter()
-    sol = solve_fem(build_network(board, geo, cfg(h)))
+    sol = solve_fem(build_network(board, geo, cfg(h, h_far)))
     dt = time.perf_counter() - t0
     return {
         "units": 1,
         "time_s": dt,
-        "detail": {"n_unknowns": sol.n_unknowns, "h_plane_m": h, "n_target": n_target},
+        "detail": {
+            "n_unknowns": sol.n_unknowns,
+            "h_plane_m": h,
+            "n_target": n_target,
+            "h_far_m": h_far,
+        },
     }
 
 
 def dc02_scale_3e5(device: str) -> dict[str, Any]:
-    return _dc_scale(300_000)
+    return _dc_scale(300_000, h_far=1e-3)
 
 
 def dc02_scale_1e6(device: str) -> dict[str, Any]:
-    return _dc_scale(1_000_000)
+    """h_plane of the 1e6-unknown uniform mesh with WP-514 interior coarsening (h_far 1 mm)."""
+    return _dc_scale(1_000_000, h_far=1e-3)
 
 
 # ------------------------------------------------------------------------------ B-ERC-01
