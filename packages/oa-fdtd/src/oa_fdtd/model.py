@@ -69,9 +69,27 @@ class Region:
 
     lo: tuple[float, float, float]  # [m]
     hi: tuple[float, float, float]  # [m]
-    eps_r: float = 1.0  # [-]
+    eps_r: float = 1.0  # [-] (high-frequency value eps_inf when ``poles`` is given)
     sigma: float = 0.0  # [S/m]
     pec: bool = False
+    poles: tuple[tuple[float, float], ...] = ()  # Debye poles (delta_eps [-], tau [s])
+
+
+@dataclass(frozen=True)
+class Conductor:
+    """Copper box with a surface-impedance boundary on its faces (ADR-0010 section 3).
+
+    The edges strictly inside the box are PEC. Tangential E edges on a face are set from the
+    adjacent outside H through the fitted ``Zs(w)`` of a finite slab (shorted far side) times the
+    roughness factor, by recursive convolution (:mod:`oa_fdtd.subcell.sibc`).
+    """
+
+    lo: tuple[float, float, float]  # [m]
+    hi: tuple[float, float, float]  # [m]
+    sigma: float = 5.8e7  # [S/m]
+    thickness: float | None = None  # [m] slab thickness for Zs; None = smallest box extent
+    roughness_rms: float = 0.0  # [m] RMS roughness (Hammerstad-Jensen factor); 0 = smooth
+    model: str = "thick_sibc"  # "thick_sibc" | "pec"
 
 
 @dataclass(frozen=True)
@@ -117,6 +135,7 @@ class Model:
     waveform: Waveform
     frequencies: FloatArray  # [Hz]
     regions: list[Region] = field(default_factory=list)
+    conductors: list[Conductor] = field(default_factory=list)
     walls: tuple[str, str, str, str, str, str] = ("pec",) * 6  # xlo, xhi, ylo, yhi, zlo, zhi
     cpml: CpmlSpec = field(default_factory=CpmlSpec)
     ports: list[LumpedPort] = field(default_factory=list)
@@ -145,6 +164,34 @@ class Model:
 
 
 @dataclass
+class AdeData:
+    """Debye ADE edge lists (one entry per E component that has dispersive edges)."""
+
+    kp: FloatArray  # (P,) (1 - dt / 2 tau) / (1 + dt / 2 tau)
+    tau: FloatArray  # (P,) [s]
+    comp: list[int]
+    flat: list[npt.NDArray[np.int64]]  # storage index of each dispersive edge
+    beta: list[FloatArray]  # (P, ne) eps0 d_p / (tau_p + dt / 2) [F/s]
+    cbe: list[FloatArray]  # (ne,) cb of the edge's averaged material
+
+
+@dataclass
+class SibcData:
+    """Surface-impedance edge list with its recursive-convolution tables."""
+
+    comp: npt.NDArray[np.int32]  # E component of each SIBC edge
+    flat: npt.NDArray[np.int64]
+    hcomp: npt.NDArray[np.int32]  # (ne, 2) H component of the outside samples
+    hflat: npt.NDArray[np.int64]  # (ne, 2)
+    hsign: FloatArray  # (ne, 2) sign / count; 0 = unused
+    mat: npt.NDArray[np.int32]  # (ne,) row in the tables below
+    r0: FloatArray  # (M,) [ohm]
+    rp: FloatArray  # (M, P) [ohm]
+    cp: FloatArray  # (P,) (2 tau / dt) / (1 + 2 tau / dt)
+    gp: FloatArray  # (P,) (2 tau / dt - 1) / (2 tau / dt + 1)
+
+
+@dataclass
 class Compiled:
     """Everything the engines need, as plain arrays."""
 
@@ -162,17 +209,26 @@ class Compiled:
     ports: list[dict[str, Any]]
     drive: FloatArray
     frequencies: FloatArray
+    ade: AdeData | None = None
+    sibc: SibcData | None = None
 
     @property
     def batch(self) -> int:
         return int(self.drive.shape[0])
 
 
-def _cell_arrays(model: Model) -> tuple[FloatArray, FloatArray]:
+def _pole_taus(model: Model) -> FloatArray:
+    """Sorted union of the relaxation times of all dispersive regions [s]."""
+    taus = {round(t, 18) for r in model.regions if not r.pec for _, t in r.poles}
+    return np.array(sorted(taus), dtype=np.float64)
+
+
+def _cell_arrays(model: Model, taus: FloatArray) -> tuple[FloatArray, FloatArray, list[FloatArray]]:
     g = model.grid
     nx, ny, nz = g.n
     eps = np.ones((nz + 2, ny + 2, nx + 2))
     sig = np.zeros_like(eps)
+    dels = [np.zeros_like(eps) for _ in taus]
     cx, cy, cz = (g.centers(a) for a in range(3))
     for r in model.regions:
         if r.pec:
@@ -183,20 +239,20 @@ def _cell_arrays(model: Model) -> tuple[FloatArray, FloatArray]:
         sel = np.ix_(np.flatnonzero(mz) + 1, np.flatnonzero(my) + 1, np.flatnonzero(mx) + 1)
         eps[sel] = r.eps_r
         sig[sel] = r.sigma
-    return eps, sig
+        by_tau = {round(t, 18): d for d, t in r.poles}
+        for pi, t in enumerate(taus):
+            dels[pi][sel] = by_tau.get(round(float(t), 18), 0.0)
+    return eps, sig, dels
 
 
-def _edge_average(
-    g: Grid, comp: int, eps: FloatArray, sig: FloatArray
-) -> tuple[FloatArray, FloatArray]:
+def _edge_average(g: Grid, comp: int, arrays: list[FloatArray]) -> list[FloatArray]:
     """Area-weighted average of the four cells around every edge, over ``[1, n + 1]`` per axis."""
     nx, ny, nz = g.n
     w = [g.cell_weights(a)[: g.n[a] + 2] for a in range(3)]
     others = [a for a in range(3) if a != comp]
     p, q = others  # transverse axes, p < q
-    num_e: FloatArray = np.zeros((nz + 1, ny + 1, nx + 1))
-    num_s = np.zeros_like(num_e)
-    den = np.zeros_like(num_e)
+    num = [np.zeros((nz + 1, ny + 1, nx + 1)) for _ in arrays]
+    den = np.zeros((nz + 1, ny + 1, nx + 1))
     for da in (0, 1):
         for db in (0, 1):
             off = [0, 0, 0]
@@ -207,10 +263,10 @@ def _edge_average(
             wq = w[q][1 - db : g.n[q] + 2 - db]
             wgt = np.ones((nz + 1, ny + 1, nx + 1))
             wgt = wgt * _bshape(wp, p) * _bshape(wq, q)
-            num_e += wgt * eps[sl]
-            num_s += wgt * sig[sl]
+            for acc, a in zip(num, arrays, strict=True):
+                acc += wgt * a[sl]
             den += wgt
-    return num_e / den, num_s / den
+    return [n / den for n in num]
 
 
 def _bshape(v: FloatArray, axis: int) -> FloatArray:
@@ -218,6 +274,134 @@ def _bshape(v: FloatArray, axis: int) -> FloatArray:
     shape = [1, 1, 1]
     shape[2 - axis] = v.size
     return v.reshape(shape)
+
+
+def _compile_ade(
+    g: Grid,
+    dt: float,
+    taus: FloatArray,
+    edge_del: list[list[FloatArray]],
+    pec: list[npt.NDArray[np.bool_]],
+    idx: list[npt.NDArray[np.uint16]],
+    cb_tab: FloatArray,
+) -> AdeData | None:
+    """Edge lists of the dispersive edges (any pole strength > 0, not PEC)."""
+    if taus.size == 0:
+        return None
+    tau = np.asarray(taus, dtype=np.float64)
+    comp: list[int] = []
+    flats: list[npt.NDArray[np.int64]] = []
+    betas: list[FloatArray] = []
+    cbes: list[FloatArray] = []
+    for c in range(3):
+        strength = np.sum(np.stack(edge_del[c]), axis=0)
+        mask = (strength > 1e-12) & ~pec[c]
+        k, j, i = np.nonzero(mask)
+        if k.size == 0:
+            continue
+        flat = np.ravel_multi_index((k + 1, j + 1, i + 1), g.shape).astype(np.int64)
+        beta = np.stack(
+            [EPS0 * edge_del[c][p][mask] / (tau[p] + 0.5 * dt) for p in range(tau.size)]
+        )
+        comp.append(c)
+        flats.append(flat)
+        betas.append(beta)
+        cbes.append(cb_tab[idx[c][k + 1, j + 1, i + 1]])
+    if not comp:
+        return None
+    kp = (1.0 - 0.5 * dt / tau) / (1.0 + 0.5 * dt / tau)
+    return AdeData(kp=kp, tau=tau, comp=comp, flat=flats, beta=betas, cbe=cbes)
+
+
+def _compile_conductors(
+    model: Model, g: Grid, pec: list[npt.NDArray[np.bool_]], dt: float
+) -> SibcData | None:
+    """Mark copper interiors PEC and build the surface-impedance edge list."""
+    if not model.conductors:
+        return None
+    from oa_fdtd.subcell.edges import classify_box, outside_samples
+    from oa_fdtd.subcell.sibc import SibcFit, fit_surface_impedance
+
+    freqs = np.asarray(model.frequencies, dtype=np.float64)
+    wf = model.waveform
+    top = wf.f0 + 0.5 * wf.bandwidth if wf.kind == "gauss_mod" else wf.bandwidth
+    f_hi = float(max(np.max(freqs), top))
+    f_lo = max(float(np.min(freqs)) * 0.5, f_hi * 1e-3, 1e5)
+    fits: dict[tuple[float, float, float], int] = {}
+    mats: list[SibcFit] = []
+    pre_pec = [p.copy() for p in pec]
+    boxes = []
+    for cd in model.conductors:
+        edges = classify_box(g, cd.lo, cd.hi)
+        for c in range(3):
+            pec[c][edges.interior[c]] = True
+        if cd.model == "pec":
+            for c in range(3):
+                pec[c][edges.surface[c]] = True
+            continue
+        if cd.model != "thick_sibc":
+            raise ModelError("FDTD_BAD_CONDUCTOR", f"conductor model {cd.model!r}")
+        thick = (
+            cd.thickness
+            if cd.thickness is not None
+            else min(h - lo for lo, h in zip(cd.lo, cd.hi, strict=True))
+        )
+        if thick <= 0:
+            raise ModelError("FDTD_BAD_CONDUCTOR", "conductor box has zero thickness")
+        key = (cd.sigma, float(thick), cd.roughness_rms)
+        if key not in fits:
+            fits[key] = len(mats)
+            mats.append(fit_surface_impedance(cd.sigma, thick, f_lo, f_hi, rms=cd.roughness_rms))
+        boxes.append((edges, fits[key]))
+    parts: list[tuple[Any, ...]] = []
+    for edges, m in boxes:
+        for c in range(3):
+            k, j, i = edges.surface[c]
+            if k.size == 0:
+                continue
+            keep = ~pec[c][k, j, i]  # interiors of any box, walls and PEC regions win
+            if not keep.any():
+                continue
+            k, j, i = k[keep], j[keep], i[keep]
+            fa, fb = edges.face_a[c][keep], edges.face_b[c][keep]
+            p, hc, hf, hs = outside_samples(g, c, k, j, i, fa, fb)
+            parts.append((np.full(p.size, c), p, hc, hf, hs, np.full(p.size, m), k, j, i))
+    if not parts:
+        return None
+    cat = [np.concatenate([q[n] for q in parts]) for n in range(9)]
+    c_all, p_all = cat[0], cat[1]
+    key_all = c_all.astype(np.int64) * (1 << 44) + p_all
+    # later boxes win a shared edge: keep the last occurrence of every key
+    _, rev = np.unique(key_all[::-1], return_index=True)
+    sel = np.sort(len(key_all) - 1 - rev)
+    cat = [v[sel] for v in cat]
+    order = np.argsort(cat[0].astype(np.int64) * (1 << 44) + cat[1], kind="stable")
+    cat = [v[order] for v in cat]
+    for c in range(3):
+        m = cat[0] == c
+        pec[c][cat[6][m], cat[7][m], cat[8][m]] = True  # zeroed by the bulk update, set by SIBC
+    n_p = max(f.rp.size for f in mats)
+    tau = mats[0].tau
+    for f in mats[1:]:
+        if f.tau.shape != tau.shape or not np.allclose(f.tau, tau):
+            raise ModelError("FDTD_BAD_CONDUCTOR", "conductors need one common pole set")
+    rp = np.zeros((len(mats), n_p))
+    for mi, f in enumerate(mats):
+        rp[mi, : f.rp.size] = f.rp
+    cp, gp = mats[0].recursion(dt)
+    del pre_pec
+    return SibcData(
+        comp=cat[0].astype(np.int32),
+        flat=cat[1].astype(np.int64),
+        hcomp=cat[2].astype(np.int32),
+        hflat=cat[3].astype(np.int64),
+        hsign=cat[4].astype(np.float64),
+        mat=cat[5].astype(np.int32),
+        r0=np.array([f.r0 for f in mats]),
+        rp=rp,
+        cp=cp,
+        gp=gp,
+    )
 
 
 def compile_model(model: Model, dtype: str = "float32") -> Compiled:
@@ -228,25 +412,33 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         raise ModelError("FDTD_BAD_WALLS", f"walls must be six of {WALL_KINDS}")
     eps_min = min([1.0] + [r.eps_r for r in model.regions if not r.pec])
     dt = g.dt(model.courant, 299792458.0 / math.sqrt(eps_min))
-    fast = not model.regions and not model.ports
-    eps_c, sig_c = _cell_arrays(model)
+    fast = not model.regions and not model.ports and not model.conductors
+    taus = _pole_taus(model)
+    eps_c, sig_c, del_c = _cell_arrays(model, taus)
 
     # per-edge (eps, sigma), PEC mask
     edge_eps: list[FloatArray] = []
     edge_sig: list[FloatArray] = []
+    edge_del: list[list[FloatArray]] = []
     pec: list[npt.NDArray[np.bool_]] = []
     for c in range(3):
         if fast:
             edge_eps.append(np.ones((nz + 1, ny + 1, nx + 1)))
             edge_sig.append(np.zeros((nz + 1, ny + 1, nx + 1)))
+            edge_del.append([])
         else:
-            e, s = _edge_average(g, c, eps_c, sig_c)
+            e, s, *ds = _edge_average(g, c, [eps_c, sig_c, *del_c])
             edge_eps.append(e)
             edge_sig.append(s)
+            edge_del.append(ds)
         valid = np.zeros((nz + 1, ny + 1, nx + 1), dtype=bool)
         (x0, x1), (y0, y1), (z0, z1) = g.valid("E", c)
         valid[z0 - 1 : z1 - 1, y0 - 1 : y1 - 1, x0 - 1 : x1 - 1] = True
         pec.append(~valid)
+    # Debye ADE: the static part of the polarisation current joins eps (eps_inf + dt beta / 2 eps0)
+    for c in range(3):
+        for pi, tau in enumerate(taus):
+            edge_eps[c] = edge_eps[c] + edge_del[c][pi] * (dt / (2.0 * float(tau) + dt))
     # PEC walls (tangential E), PEC and CPML outer planes
     for a in range(3):
         for side in (0, 1):
@@ -271,6 +463,9 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
                 ids = np.flatnonzero((co >= r.lo[a] - tol) & (co <= r.hi[a] + tol))
                 sl2[2 - a] = ids if ids.size else np.array([], dtype=np.intp)
             pec[c][np.ix_(sl2[0], sl2[1], sl2[2])] = True
+
+    # copper boxes: PEC interior, surface-impedance face edges (applied by the engines)
+    sibc = _compile_conductors(model, g, pec, dt)
 
     # lumped ports: loading conductivity and sources
     channels: list[dict[str, Any]] = []
@@ -372,6 +567,8 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
     ca_tab = np.where(eps_tab > 0, (1.0 - loss) / (1.0 + loss), 0.0)
     cb_tab = np.where(eps_tab > 0, dt / np.where(ep > 0, ep, 1.0) / (1.0 + loss), 0.0)
 
+    ade = _compile_ade(g, dt, taus, edge_del, pec, idx, cb_tab)
+
     # injection amplitudes (per unit waveform) now that cb is known
     for ch in channels:
         flat = ch["flat"]
@@ -398,4 +595,6 @@ def compile_model(model: Model, dtype: str = "float32") -> Compiled:
         ports=ports_info,
         drive=model.drive_matrix(),
         frequencies=np.asarray(model.frequencies, dtype=np.float64),
+        ade=ade,
+        sibc=sibc,
     )

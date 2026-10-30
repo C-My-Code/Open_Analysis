@@ -72,6 +72,81 @@ class NumpyEngine:
             "H": np.zeros((nf, b, len(self.t_h)), np.complex128),
         }
         self.omega = 2.0 * np.pi * c.frequencies
+        self._init_physics()
+
+    # ---- ADE and SIBC
+    def _ef(self, ci: int) -> Any:
+        """``(B, cells)`` view of E component ``ci``."""
+        return self.E[ci].reshape(self.c.batch, -1)
+
+    def _init_physics(self) -> None:
+        c, dt, b = self.c, self.dtype, self.c.batch
+        self._ade_state: list[dict[str, Any]] = []
+        if c.ade is not None:
+            a = c.ade
+            for ci, flat, beta, cbe in zip(a.comp, a.flat, a.beta, a.cbe, strict=True):
+                self._ade_state.append(
+                    {
+                        "c": ci,
+                        "flat": flat,
+                        "beta": beta.astype(dt),
+                        "cbe": cbe.astype(dt),
+                        "J": np.zeros((a.tau.size, b, flat.size), dt),
+                        "eold": np.zeros((b, flat.size), dt),
+                    }
+                )
+            self._kp = a.kp.astype(dt)
+        self._sib = c.sibc
+        if c.sibc is not None:
+            sb = c.sibc
+            ne = sb.flat.size
+            self._sib_j = np.zeros((b, ne), dt)
+            self._sib_v = np.zeros((sb.cp.size, b, ne), dt)
+            self._sib_h = [
+                [
+                    (hc, np.flatnonzero((sb.hcomp[:, s] == hc) & (sb.hsign[:, s] != 0)))
+                    for hc in range(3)
+                ]
+                for s in range(2)
+            ]
+            self._sib_e = [np.flatnonzero(sb.comp == ci) for ci in range(3)]
+            self._sib_alpha = (sb.rp[sb.mat] * sb.cp[None, :]).astype(dt)  # (ne, P)
+
+    def _ade_pre(self) -> None:
+        for st in self._ade_state:
+            st["eold"][...] = self._ef(st["c"])[:, st["flat"]]
+
+    def _ade_post(self) -> None:
+        for st in self._ade_state:
+            ef = self._ef(st["c"])
+            e = ef[:, st["flat"]]
+            jt = 0.5 * np.einsum("p,pbe->be", 1.0 + self._kp, st["J"])
+            en = e - st["cbe"][None, :] * jt
+            de = en - st["eold"]
+            st["J"][...] = self._kp[:, None, None] * st["J"] + st["beta"][:, None, :] * de[None]
+            ef[:, st["flat"]] = en
+
+    def _sibc(self) -> None:
+        sb = self._sib
+        if sb is None:
+            return
+        b = self.c.batch
+        j = np.zeros((b, sb.flat.size), self.dtype)
+        for s in range(2):
+            for hc, ids in self._sib_h[s]:
+                if ids.size:
+                    hf = self.H[hc].reshape(b, -1)
+                    sg = sb.hsign[ids, s].astype(self.dtype)[None, :]
+                    j[:, ids] += sg * hf[:, sb.hflat[ids, s]]
+        dj = j - self._sib_j
+        gp = sb.gp.astype(self.dtype)[:, None, None]
+        self._sib_v[...] = self._sib_alpha.T[:, None, :] * dj[None] + gp * self._sib_v
+        out = sb.r0[sb.mat].astype(self.dtype)[None, :] * j + self._sib_v.sum(axis=0)
+        self._sib_j = j
+        for ci in range(3):
+            ids = self._sib_e[ci]
+            if ids.size:
+                self._ef(ci)[:, sb.flat[ids]] = out[:, ids]
 
     # ---- updates
     def _h_update(self) -> None:
@@ -177,9 +252,12 @@ class NumpyEngine:
             self._pml("H")
             self._ghosts()
             self._record("H", (k + 0.5) * dt)
+            self._ade_pre()
             self._e_update()
             self._pml("E")
+            self._sibc()
             self._inject(k)
+            self._ade_post()
             self._record("E", (k + 1) * dt)
             self.step_count += 1
 

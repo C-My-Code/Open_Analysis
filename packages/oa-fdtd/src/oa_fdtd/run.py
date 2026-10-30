@@ -131,8 +131,9 @@ def port_voltage_factor(dt: float, frequencies: FloatArray) -> ComplexArray:
     The lumped-port loss is semi-implicit: the resistor carries the time average
     ``(E^n + E^{n+1}) / 2`` at ``t_{n+1/2}``, the stamp of the source. In the frequency domain that
     is the real factor ``cos(w dt / 2)`` (the DFT carries absolute time stamps, so no phase).
-    Without it the power waves are normalised with a voltage that is too large by ``1 / cos(w dt / 2)``, an O(f^2) error in abs(S) (3.8e-3 at
-    20 GHz for a 0.5 mm cell at Courant 0.95) that was mistaken for a port discretisation error.
+    Without it the power waves are normalised with a voltage that is too large by
+    ``1 / cos(w dt / 2)``: an O(f^2) error in abs(S), 3.8e-3 at 20 GHz for a 0.5 mm cell at
+    Courant 0.95, which had been mistaken for a port discretisation error.
     """
     x = np.pi * np.asarray(frequencies, dtype=np.float64) * dt
     out: ComplexArray = np.cos(x).astype(np.complex128)
