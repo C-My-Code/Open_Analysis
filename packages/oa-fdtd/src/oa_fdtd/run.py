@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from oa_fdtd.analysis import power_wave_s
 from oa_fdtd.model import Compiled, Model, ModelError, compile_model
 
 FloatArray = npt.NDArray[np.float64]
@@ -30,6 +29,7 @@ class RunResult:
     peak_bytes: int  # GPU pool high-water mark [bytes], 0 on CPU
     report: dict[str, Any] = field(default_factory=dict)  # oa_accel AccelReport
     series: dict[str, FloatArray] = field(default_factory=dict)
+    port_r: FloatArray = field(default_factory=lambda: np.zeros(0))  # reference impedances [ohm]
 
 
 def source_spectrum(c: Compiled, steps: int) -> ComplexArray:
@@ -110,8 +110,13 @@ def run(
         if done >= min_steps and peak > 0 and e_db <= end_db:
             stopped = "end_criterion"
             break
+    probes = eng.results()
+    sums = {f"V:{q['name']}": q["probe_parts"] for q in c.ports if q.get("probe_parts")}
+    sums.update(c.probe_sums)
+    for name, parts in sums.items():  # mode ports record one probe per field component: sum them
+        probes[name] = sum(probes.pop(q) for q in parts)
     return RunResult(
-        probes=eng.results(),
+        probes=probes,
         source_dft=source_spectrum(c, done),
         steps=done,
         dt=c.dt,
@@ -122,18 +127,51 @@ def run(
         peak_bytes=eng.peak_bytes(),
         report=report,
         series=eng.series() if record_series else {},
+        port_r=np.array([float(q["r_ohm"]) for q in c.ports]),
     )
 
 
-def sparams(model: Model, res: RunResult) -> ComplexArray:
-    """Power-wave S-parameters ``S[i, j, f]`` of the lumped ports (drive = identity batch)."""
+def port_voltage_factor(dt: float, frequencies: FloatArray) -> ComplexArray:
+    """Map the recorded ``E^{n+1}`` DFT (stamped ``t_{n+1}``) to the voltage the port resistor sees.
+
+    The lumped-port loss is semi-implicit: the resistor carries the time average
+    ``(E^n + E^{n+1}) / 2`` at ``t_{n+1/2}``, the stamp of the source. In the frequency domain that
+    is the real factor ``cos(w dt / 2)`` (the DFT carries absolute time stamps, so no phase).
+    Without it the power waves are normalised with a voltage that is too large by
+    ``1 / cos(w dt / 2)``: an O(f^2) error in abs(S), 3.8e-3 at 20 GHz for a 0.5 mm cell at
+    Courant 0.95, which had been mistaken for a port discretisation error.
+    """
+    x = np.pi * np.asarray(frequencies, dtype=np.float64) * dt
+    out: ComplexArray = np.cos(x).astype(np.complex128)
+    return out
+
+
+def sparams(model: Model, res: RunResult, *, reciprocal: bool = False) -> ComplexArray:
+    """Power-wave S-parameters ``S[i, j, f]`` of the ports.
+
+    Batch member ``k`` drives port ``model.excited_indices()[k]``. Columns of ports that were not
+    driven (``Model.excite``) are NaN, or with ``reciprocal=True`` filled from ``S[j, i]`` where
+    that entry exists (reciprocal passive structures).
+    """
     ports = model.ports
     n = len(ports)
     if n == 0:
-        raise ModelError("FDTD_NO_PORTS", "S-parameters need at least one lumped port")
-    v = np.zeros((n, n, res.source_dft.shape[1]), np.complex128)
-    for j in range(n):  # batch member j drives port j
+        raise ModelError("FDTD_NO_PORTS", "S-parameters need at least one port")
+    cols = model.excited_indices()
+    nf = res.source_dft.shape[1]
+    fac = port_voltage_factor(res.dt, model.frequencies)
+    s = np.full((n, n, nf), np.nan + 0j, np.complex128)
+    for k, j in enumerate(cols):  # batch member k drives port j
+        v = np.zeros((n, nf), np.complex128)
         for i in range(n):
-            v[i, j] = res.probes[f"V:{ports[i].name}"][j]
-    vs = res.source_dft[:n]
-    return power_wave_s(v, vs, np.array([p.r_ohm for p in ports]))
+            v[i] = res.probes[f"V:{ports[i].name}"][k] * fac
+        a_j = res.source_dft[j] / (2.0 * np.sqrt(res.port_r[j]))
+        for i in range(n):
+            s[i, j] = (v[i] / np.sqrt(res.port_r[i]) - (a_j if i == j else 0.0)) / a_j
+    if reciprocal:
+        for j in range(n):
+            if j in cols:
+                continue
+            for i in cols:
+                s[i, j] = s[j, i]  # S_ij = S_ji; the driven column i holds S_ji
+    return s

@@ -1,0 +1,17 @@
+source = "analytic: parallel-plate line whose plates have the finite-slab surface impedance Zs = k/sigma coth(k t), k = (1+j)/delta; series impedance j w mu h / w + 2 Zs / w, exact ABCD cascade (ADR-0010 section 9 case 5 analogue)"
+
+[tolerance]
+loss_fraction = 0.02  # |S21 dB error| / max |S21 dB|
+s21_phase_deg = 1.0
+
+[inputs]
+w_m = 0.008
+h_m = 0.001
+t_m = 0.00025
+sigma_s_per_m = 2.0e5
+length_m = 0.06
+dy_m = 0.00025
+f_hz = [1e9, 2e9, 3e9, 4e9, 5e9, 6e9, 7e9, 8e9, 9e9, 10e9]
+
+[expected]
+s21_db_at_10ghz = -0.6112

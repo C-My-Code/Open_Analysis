@@ -21,14 +21,23 @@ from oa_fdtd.model import Compiled
 FloatArray = npt.NDArray[np.float64]
 CHUNK = 64  # steps per probe buffer / CUDA graph
 _SRC = (Path(__file__).parent / "kernels" / "yee.cu").read_text(encoding="utf-8")
+_PHYS = (Path(__file__).parent / "kernels" / "physics.cu").read_text(encoding="utf-8")
 _MODULES: dict[tuple[int, str, bool], Any] = {}
+_PHYS_MODULES: dict[tuple[int, str], Any] = {}
 
 
 def estimate_bytes(c: Compiled, itemsize: int) -> int:
     """Device bytes: fields (6 x B), 6 B of index per cell, PML psi, +5 % for tables and buffers."""
     cells = int(np.prod(c.grid.shape))
     psi = sum(int(np.prod(corr.shape)) for corr in c.pml.corrections) * c.batch * itemsize
-    return int((cells * (6 * itemsize * c.batch + 6) + psi) * 1.05)
+    extra = 0
+    if c.ade is not None:
+        ne = sum(f.size for f in c.ade.flat)
+        extra += ne * (c.ade.tau.size * (c.batch + 1) + c.batch + 2) * itemsize
+    if c.sibc is not None:
+        ne = c.sibc.flat.size
+        extra += ne * (c.batch * (1 + c.sibc.cp.size) * itemsize + 2 * (4 + 8 + itemsize))
+    return int((cells * (6 * itemsize * c.batch + 6) + psi + extra) * 1.05)
 
 
 def _module(xp: Any, dtype: str, uniform: bool) -> Any:
@@ -41,6 +50,14 @@ def _module(xp: Any, dtype: str, uniform: bool) -> Any:
             opts.append("-DUNIFORM=1")
         _MODULES[key] = xp.RawModule(code=_SRC, options=tuple(opts))
     return _MODULES[key]
+
+
+def _phys_module(xp: Any, dtype: str) -> Any:
+    key = (id(xp), dtype)
+    if key not in _PHYS_MODULES:
+        opts = ["-std=c++14"] + (["-DUSE_DOUBLE=1"] if dtype == "float64" else [])
+        _PHYS_MODULES[key] = xp.RawModule(code=_PHYS, options=tuple(opts))
+    return _PHYS_MODULES[key]
 
 
 def _grid3(n: tuple[int, int, int], block: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -91,6 +108,7 @@ class CupyEngine:
         self.step_count = 0
         self._groups = self._z_groups()
         self._build_lists()
+        self._build_physics()
         self._build_pml()
         self.pmc = [(a, s) for a in range(3) for s in (0, 1) if c.walls[2 * a + s] == "pmc"]
         self._graph: Any = None
@@ -154,7 +172,7 @@ class CupyEngine:
         amp: list[Any] = []
         chan: list[Any] = []
         for ci, ch in enumerate(c.channels):
-            comp.append(np.full(ch["flat"].size, ch["comp"], np.int32))
+            comp.append(np.broadcast_to(np.asarray(ch["comp"], np.int32), ch["flat"].shape).copy())
             flat.append(ch["flat"].astype(np.int64))
             amp.append(np.asarray(ch["amps"], np.float64))
             chan.append(np.full(ch["flat"].size, ci, np.int32))
@@ -188,6 +206,49 @@ class CupyEngine:
                 x.zeros((CHUNK, self.B, len(plist)), np.float64),
             )
 
+    def _build_physics(self) -> None:
+        x, c, dt = self.xp, self.c, self.np_dtype
+        self._ade: tuple[Any, ...] | None = None
+        if c.ade is not None:
+            a = c.ade
+            comp = np.concatenate(
+                [np.full(f.size, ci, np.int32) for ci, f in zip(a.comp, a.flat, strict=True)]
+            )
+            flat = np.concatenate(a.flat)
+            ne = int(flat.size)
+            n_p = a.tau.size
+            self._ade = (
+                x.asarray(comp),
+                x.asarray(flat),
+                x.asarray(np.concatenate(a.cbe).astype(dt)),
+                x.asarray(np.concatenate(a.beta, axis=1).astype(dt)),
+                x.asarray(a.kp.astype(dt)),
+                x.zeros((n_p, self.B, ne), dt),
+                x.zeros((self.B, ne), dt),
+                ne,
+                n_p,
+            )
+        self._sib: tuple[Any, ...] | None = None
+        if c.sibc is not None:
+            sb = c.sibc
+            ne, n_p = int(sb.flat.size), sb.cp.size
+            self._sib = (
+                x.asarray(sb.comp),
+                x.asarray(sb.flat),
+                x.asarray(sb.hcomp.astype(np.int32)),
+                x.asarray(sb.hflat),
+                x.asarray(sb.hsign.astype(dt)),
+                x.asarray(sb.mat),
+                x.asarray(sb.r0.astype(dt)),
+                x.asarray(sb.rp.astype(dt)),
+                x.asarray(sb.cp.astype(dt)),
+                x.asarray(sb.gp.astype(dt)),
+                x.zeros((self.B, ne), dt),
+                x.zeros((n_p, self.B, ne), dt),
+                ne,
+                n_p,
+            )
+
     def _build_pml(self) -> None:
         x, c = self.xp, self.c
         dt = self.np_dtype
@@ -210,6 +271,14 @@ class CupyEngine:
         m_idx = _module(self.xp, self.dtype, False)
         m_uni = _module(self.xp, self.dtype, True)
         nk = nz + 1
+        phys = _phys_module(self.xp, self.dtype)
+        if self._ade is not None:
+            comp_a, flat_a, _cbe, _beta, _kp, _jj, eold, ne_a, _np = self._ade
+            phys.get_function("ade_pre")(
+                (-(-ne_a // 128),), (128,),
+                (self.fp, comp_a, flat_a, eold, np.int32(ne_a), np.int64(self.bs),
+                 np.int32(self.B)),
+            )  # fmt: skip
         grid = _grid3((nx + 1, ny + 1, nk * self.B), block)
         m_idx.get_function("h_update")(
             grid, block,
@@ -240,6 +309,13 @@ class CupyEngine:
                     (self.fp, z[0], z[1], np.int32(z[2]), np.int64(self.bs), np.int32(self.B)),
                 )
         self._pml_launch("E")
+        if self._sib is not None:
+            (comp_s, flat_s, hc, hf, hs, mat, r0, rp, cp, gp, jprev, vst, ne_s, np_s) = self._sib
+            phys.get_function("sibc_update")(
+                (-(-ne_s // 128),), (128,),
+                (self.fp, comp_s, flat_s, hc, hf, hs, mat, r0, rp, cp, gp, jprev, vst,
+                 np.int32(ne_s), np.int32(np_s), np.int64(self.bs), np.int32(self.B)),
+            )  # fmt: skip
         if self._inj is not None:
             comp, flat, amp, chan = self._inj
             m_idx.get_function("inject")(
@@ -247,6 +323,13 @@ class CupyEngine:
                 (self.fp, comp, flat, amp, chan, self.drive, self.wave, self.step_dev,
                  np.int32(self.n_inj), np.int32(len(c.channels)), np.int32(self.max_steps),
                  np.int64(self.bs), np.int32(self.B)),
+            )  # fmt: skip
+        if self._ade is not None:
+            comp_a, flat_a, cbe, beta, kp, jj, eold, ne_a, np_a = self._ade
+            phys.get_function("ade_post")(
+                (-(-ne_a // 128),), (128,),
+                (self.fp, comp_a, flat_a, cbe, beta, kp, jj, eold, np.int32(ne_a),
+                 np.int32(np_a), np.int64(self.bs), np.int32(self.B)),
             )  # fmt: skip
         self._record("E")
         m_idx.get_function("bump")((1,), (1,), (self.step_dev,))

@@ -1,0 +1,17 @@
+source = "analytic: parallel-plate TEM line filled with a Djordjevic-Sarkar dielectric (4.3, tan d 0.02 at 1 GHz), exact ABCD cascade between resistive ports, gamma = j w sqrt(eps(w)) / c and Zc = eta0 h / (w sqrt(eps(w))) (ADR-0010 section 9 case 4 analogue)"
+
+[tolerance]
+s21_db = 0.02
+s21_phase_deg = 1.0
+s11_abs = 0.01
+
+[inputs]
+w_m = 0.008
+h_m = 0.001
+length_m = 0.012
+dy_m = 0.00025
+f_hz = [1e9, 2e9, 3e9, 4e9, 5e9, 6e9, 7e9, 8e9, 9e9, 10e9]
+dielectric = "djordjevic_sarkar dk=4.3 df=0.02 f_ref=1e9, 8-pole Debye fit over 0.1-12 GHz"
+
+[expected]
+s21_db_at_10ghz = -0.4420

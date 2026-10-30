@@ -80,7 +80,7 @@ def test_cpml_late_time_energy_decay(engine: str) -> None:
     assert res.energy_db <= -80.0
 
 
-def _tem_model() -> Model:
+def _tem_model(f_max: float = 3e9) -> Model:
     w, h = 0.008, 0.004
     z0 = ETA0 * h / w
     nx, nz, ny, dy = 4, 4, 120, 0.5e-3
@@ -91,8 +91,8 @@ def _tem_model() -> Model:
     ]
     return Model(
         g,
-        Waveform("gauss_mod", 4e9, 8e9),
-        np.linspace(0.5e9, 3e9, 6),
+        Waveform("gauss_mod", f_max / 2.0, f_max),
+        np.linspace(0.5e9, f_max, 12),
         walls=("pmc", "pmc", "pmc", "pmc", "pec", "pec"),
         ports=ports,
     )
@@ -101,11 +101,12 @@ def _tem_model() -> Model:
 @pytest.mark.parametrize("engine", ["numpy", pytest.param("cuda", marks=pytest.mark.gpu)])
 def test_parallel_plate_tem_line(engine: str) -> None:
     """Z0 = eta h / w: the port R = Z0 gives a matched line; |S21| = 1 to 1e-4 below 3 GHz."""
-    m = _tem_model()
+    m = _tem_model(20e9)
     dtype = "float64" if engine == "numpy" else "float32"
     res = run(m, engine=engine, dtype=dtype, end_db=-70.0, max_steps=20000)
     s = sparams(m, res)
-    assert np.abs(s[0, 0]).max() < 10 ** (-60 / 20)  # S11 below -60 dB
+    assert np.abs(s[0, 0]).max() < 10 ** (-45 / 20)  # S11 below -45 dB up to 20 GHz
+    # was 3.8e-3 at 20 GHz before the semi-implicit port voltage was averaged (port_voltage_factor)
     assert np.abs(np.abs(s[1, 0]) - 1.0).max() < 1e-4
     assert np.abs(s[1, 0] - s[0, 1]).max() < 1e-6  # reciprocity
 
