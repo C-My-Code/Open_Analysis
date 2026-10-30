@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from oa_fdtd.analysis import power_wave_s
 from oa_fdtd.model import Compiled, Model, ModelError, compile_model
 
 FloatArray = npt.NDArray[np.float64]
@@ -147,16 +146,32 @@ def port_voltage_factor(dt: float, frequencies: FloatArray) -> ComplexArray:
     return out
 
 
-def sparams(model: Model, res: RunResult) -> ComplexArray:
-    """Power-wave S-parameters ``S[i, j, f]`` of the lumped ports (drive = identity batch)."""
+def sparams(model: Model, res: RunResult, *, reciprocal: bool = False) -> ComplexArray:
+    """Power-wave S-parameters ``S[i, j, f]`` of the ports.
+
+    Batch member ``k`` drives port ``model.excited_indices()[k]``. Columns of ports that were not
+    driven (``Model.excite``) are NaN, or with ``reciprocal=True`` filled from ``S[j, i]`` where
+    that entry exists (reciprocal passive structures).
+    """
     ports = model.ports
     n = len(ports)
     if n == 0:
-        raise ModelError("FDTD_NO_PORTS", "S-parameters need at least one lumped port")
-    v = np.zeros((n, n, res.source_dft.shape[1]), np.complex128)
-    for j in range(n):  # batch member j drives port j
+        raise ModelError("FDTD_NO_PORTS", "S-parameters need at least one port")
+    cols = model.excited_indices()
+    nf = res.source_dft.shape[1]
+    fac = port_voltage_factor(res.dt, model.frequencies)
+    s = np.full((n, n, nf), np.nan + 0j, np.complex128)
+    for k, j in enumerate(cols):  # batch member k drives port j
+        v = np.zeros((n, nf), np.complex128)
         for i in range(n):
-            v[i, j] = res.probes[f"V:{ports[i].name}"][j]
-    vs = res.source_dft[:n]
-    v = v * port_voltage_factor(res.dt, model.frequencies)
-    return power_wave_s(v, vs, res.port_r)
+            v[i] = res.probes[f"V:{ports[i].name}"][k] * fac
+        a_j = res.source_dft[j] / (2.0 * np.sqrt(res.port_r[j]))
+        for i in range(n):
+            s[i, j] = (v[i] / np.sqrt(res.port_r[i]) - (a_j if i == j else 0.0)) / a_j
+    if reciprocal:
+        for j in range(n):
+            if j in cols:
+                continue
+            for i in cols:
+                s[i, j] = s[j, i]  # S_ij = S_ji; the driven column i holds S_ji
+    return s

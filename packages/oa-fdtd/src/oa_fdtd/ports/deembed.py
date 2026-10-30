@@ -44,6 +44,8 @@ def gamma_from_planes(
     if abs(db - spacing) > 1e-9 * spacing:
         for _ in range(8):
             g = _newton_step(g, v1, v2, v3, spacing, db)
+    g = np.asarray(np.where(g.real < 0, -g, g), dtype=np.complex128)  # cosh is even: Re g >= 0
+    g = np.where(g.imag < 0, np.conj(g), g)
     # arccosh returns Im in [0, pi]: unwrap beta d along frequency
     beta = np.unwrap(g.imag * dm) / dm
     return np.asarray(g.real + 1j * beta, dtype=np.complex128)

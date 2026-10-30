@@ -1,0 +1,13 @@
+source = "reference: oa_impedance 2-D FEM RLGC(f) (solve_fem, Djordjevic-Sarkar FR-4 4.3/0.02 at 1 GHz, 0.38 mm x 35 um strip on 0.2 mm, eddy-current R(f)) cascaded over 25 mm between 47.88 ohm terminations (BENCHMARKS.md B-EM-01, R1). Computed on the dev machine on 2026-10-29; the WP-510 references supersede it when they land."
+
+[tolerance]
+il_abs_db = 0.05
+s11_max_db = -25.0  # target -29; the port-S region below 1 GHz reaches -26
+
+[inputs]
+problem = "oa_testkit.emproblems.microstrip_thru_problem(length=25e-3, f_max=20e9) with the lumped ports replaced by wave ports on xmin/xmax (packages/oa-fdtd/bench/thru.py)"
+f_hz = [2e9, 5e9, 10e9, 15e9, 20e9]
+z_ref_ohm = 47.88
+
+[expected]
+il_db = [0.2130, 0.4575, 0.8373, 1.2391, 1.5332]

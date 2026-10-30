@@ -170,10 +170,21 @@ class Model:
         None  # (B, channels) amplitude per batch member; channels: ports, sources
     )
     courant: float = 0.95  # [-]
+    excite: tuple[str, ...] | None = None  # ports driven (one batch member each); None = all
 
     @property
     def channels(self) -> int:
         return len(self.ports) + len(self.sources)
+
+    def excited_indices(self) -> list[int]:
+        """Indices of the driven ports, in batch order."""
+        if self.excite is None:
+            return list(range(len(self.ports)))
+        names = [p.name for p in self.ports]
+        missing = [q for q in self.excite if q not in names]
+        if missing:
+            raise ModelError("FDTD_BAD_DRIVE", f"excite names unknown ports {missing}")
+        return [names.index(q) for q in self.excite]
 
     def drive_matrix(self) -> FloatArray:
         if self.drive is not None:
@@ -182,9 +193,9 @@ class Model:
                 raise ModelError("FDTD_BAD_DRIVE", "drive needs one column per port and source")
             return d
         if self.ports:
-            return np.concatenate(
-                [np.eye(len(self.ports)), np.ones((len(self.ports), len(self.sources)))], axis=1
-            )
+            rows = self.excited_indices()
+            eye = np.eye(len(self.ports))[rows]
+            return np.concatenate([eye, np.ones((len(rows), len(self.sources)))], axis=1)
         return np.ones((1, self.channels))
 
 

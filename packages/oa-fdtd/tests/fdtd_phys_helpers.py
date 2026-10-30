@@ -71,9 +71,9 @@ def plate_line(
     kind = "pec" if sigma_cu is None else "thick_sibc"
     sig = 5.8e7 if sigma_cu is None else sigma_cu
     conductors = [
-        Conductor((-big, -big, -big), (W + big, length + big, t_cu), sig, t_cu, 0.0, kind),
+        Conductor((-big, -big, -big), (W + big, length + big, t_cu), sig, t_cu, model=kind),
         Conductor(
-            (-big, -big, t_cu + H), (W + big, length + big, 3 * t_cu + H), sig, t_cu, 0.0, kind
+            (-big, -big, t_cu + H), (W + big, length + big, 3 * t_cu + H), sig, t_cu, model=kind
         ),
     ]
     probes = [mp(f"q{i}", y, 1) for i, y in enumerate(probe_planes)] if mode_ports else []

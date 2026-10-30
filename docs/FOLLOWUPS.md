@@ -162,7 +162,8 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
 
 ## GPU FDTD core (WP-505)
-- Port |S21| drifts above 3 GHz (3.8e-3 at 20 GHz); cause unknown. Must be fixed in WP-506 before the B-EM thru targets.
+- Port |S21| drift above 3 GHz: fixed in WP-506 (semi-implicit port voltage, `cos(w dt / 2)` in `run.sparams`); abs(S21) - 1 below 4e-5 to 20 GHz. `tests/golden/fdtd/tem_line/case.toml` still carries the old comment (WP-505 path).
+- WP-506 Part A gaps: no Dey-Mittra conformal PEC; static quasi-TEM mode ports with a local 2-D solver instead of `oa_impedance`; B-EM-03 (40 GHz differential via) not run; low-frequency S11 from the port S reaches -26 dB (B-EM-01 asks below -29). See `packages/oa-fdtd/README.md`.
 - CPML is validated at normal incidence only.
 - ROCm is untested on hardware.
 - Measured: 6.0 Gcells/s f32 and 3.2 f64 on 256^3 with CPML (target >= 3).
