@@ -1444,6 +1444,118 @@ Design: [ADR-0011](adr/0011-emc-compliance-prediction.md). Benchmarks: [BENCHMAR
 
 ---
 
+## M2: Uncertainty quantification (ADR-0012). Added 2026-10-29
+
+Design: [ADR-0012](adr/0012-uncertainty-quantification.md). Benchmarks: [BENCHMARKS.md](BENCHMARKS.md) section 5b (B-UQ-01...09).
+
+**Package ownership.** The new package `packages/oa-uq/` is split by WP. The root `pyproject.toml` workspace entry and the import-linter contract (`oa_uq` reaches analyses only through the registry and `oa_framework` protocols) belong to the integrator; WP-430 requests them through `docs/change-requests/WP-430-workspace-and-layering.md`.
+
+**Schedule.** WP-430 starts after M1P. WP-431, WP-432 and WP-433 can run in parallel once WP-430's `model.py` exists. WP-434 needs the analyses it covers (WP-401 for SI, WP-422 to WP-424 for EMC). Critical path: WP-430 -> WP-432 -> WP-434 -> WP-436.
+
+### WP-430 `oa-uq` core: spec, distributions, sampling, P(pass) estimator, `UqResult`. Size: M
+**Owned:** `packages/oa-uq/pyproject.toml`, `packages/oa-uq/src/oa_uq/{__init__,model,spec,dist,sampling,estimators}.py`, `packages/oa-uq/README.md`, `schemas/oa-uq-spec-1.json`, `schemas/oa-uq-result-1.json`, `tests/golden/uq_core/**`.
+
+**Deps:** WP-000, M1P gate.
+
+**Deliverables (ADR-0012 sections 1, 5, 6):**
+- `Spec`, the distribution families (normal, truncated normal, uniform, lognormal, discrete scenarios) with the hierarchy levels (lot, layer or net, local) and a correlation structure.
+- Seeded MC, LHS and scrambled-Sobol samplers with a fixed sample and reduction order.
+- The P(pass) estimator with Clopper-Pearson and Wilson intervals, and margin quantiles.
+- `UqResult` with `summary()` inside the size caps, provenance, the fixed disclaimer, and construction that fails without `inputs` and `model_error`.
+- Every public field has a `description` with its unit.
+
+**Acceptance:**
+- B-UQ-01 and B-UQ-02 pass.
+- A `UqResult` without assumptions cannot be constructed (test).
+- Same seed gives bitwise-identical results on repeat.
+
+### WP-431 UQ input models and presets. Size: M
+**Owned:** `packages/oa-uq/src/oa_uq/inputs/**`, `packages/oa-uq/src/oa_uq/data/presets/**`, `schemas/oa-uq-preset-1.json`, `tests/golden/uq_inputs/**`.
+
+**Deps:** WP-430, WP-106 (physics models), WP-104 (geometry overrides).
+
+**Deliverables (ADR-0012 section 2):**
+- The mapping from uncertain parameters (Dk/Df scale, etch, thickness, roughness parameters, stack-up scenarios) to perturbed board, physics and cross-section inputs, through the existing override paths and not by editing user files.
+- The `oa-uq-preset/1` format: source citation, confidence level of the quoted tolerance, `verify` flag.
+- Presets only where a citable source exists; otherwise empty templates.
+- The refusal `UQ.MISSING_INPUT_DISTRIBUTION`.
+
+**Acceptance:**
+- A perturbed run with zero variance equals the nominal run exactly (hash-equal).
+- Hierarchy tests: a lot-level parameter moves all nets together; a local parameter does not.
+- Every shipped preset value cites a source or is absent.
+
+### WP-432 UQ propagation: sensitivities, adjoints, PCE and surrogates, GPU batching. Size: L (GPU for the batching part)
+**Owned:** `packages/oa-uq/src/oa_uq/propagate/**`, `tests/golden/uq_propagate/**`.
+
+**Deps:** WP-430, WP-503, WP-504 (`oa-accel`), WP-204 (DC IR).
+
+**Deliverables (ADR-0012 section 4):**
+- Finite-difference and adjoint sensitivities (the DC IR adjoint is the reference implementation), first-order variance shares, Sobol indices (first order and total).
+- Sparse PCE (Hermite, Legendre) and a Gaussian-process fallback, each with leave-one-out and held-out error and the refusal `UQ.SURROGATE_INADEQUATE`.
+- A method selector driven by the analysis `estimate`, and the dry-run plan.
+- Batched evaluation through `oa-accel` with CPU fallback.
+- Warning when first-order, MC and surrogate estimates disagree.
+
+**Acceptance:**
+- B-UQ-03, B-UQ-04 and B-UQ-05 pass.
+- GPU and CPU batches agree within the ADR-0009 tolerance classes; the case passes with `OA_DEVICE=cpu`.
+
+### WP-433 Model-error calibration from the validation suite. Size: M
+**Owned:** `packages/oa-uq/src/oa_uq/calibration/**`, `packages/oa-uq/src/oa_uq/data/calibration/**`, `schemas/oa-uq-calibration-1.json`, `tests/golden/uq_calibration/**`.
+
+**Deps:** WP-430, WP-302 (`results.json`).
+
+**Deliverables (ADR-0012 section 3):**
+- A reader pinned to schema `oa-validation-results/1` that selects independent, non-self-computed cases, uses actual errors for known gaps, and fits the mean, spread and an upper confidence bound per (solver, class, regime).
+- Frequency-correlation model for curve quantities.
+- `calibration = "insufficient"` handling with declared priors, and the accuracy cap.
+- The `oa-uq-calibration/1` artefact with cases used, counts, commit and method.
+- Regeneration is a documented command; the artefact is committed.
+
+**Acceptance:**
+- B-UQ-06 passes.
+- Priors are never labelled calibrated (test).
+- Changing the `results.json` schema id fails a test loudly.
+
+### WP-434 UQ analysis adapters: impedance, DC IR, SI, EMC. Size: M
+**Owned:** `packages/oa-uq/src/oa_uq/adapters/**`, `tests/golden/uq_adapters/**`.
+
+**Deps:** WP-431, WP-432, WP-433, WP-203, WP-204; WP-401 for SI; WP-422 to WP-424 for EMC (those adapters are built last).
+
+**Deliverables (ADR-0012 section 5):**
+- Specs, parameter lists and model-error links for `impedance.profile`, `pi.dc`, the SI channel margin and the EMC margin M(f).
+- EMC: correlated model-error sample paths, band-wide P(pass), and the mapping to the ADR-0011 verdict words. Reproduction of the ADR-0011 RSS band when given its inputs.
+
+**Acceptance:**
+- B-UQ-04 (DC resistance) and B-UQ-08 pass through the adapters.
+- An out-of-domain board yields `UQ.OUT_OF_DOMAIN` and no P(pass).
+
+### WP-435 UQ commands, report and agent docs. Size: S
+**Owned:** `packages/oa-service/src/oa_service/uq/**`, `web/src/features/uq/**`, `docs/agents/uq.md`, `docs/user/uq.md`.
+
+**Deps:** WP-434, WP-207, WP-210.
+
+**Deliverables (ADR-0012 section 7):**
+- `CommandSpec`s for `uq.run`, `uq.inputs`, `uq.presets`, `uq.calibration`, `uq.sensitivity`, generated into CLI, REST and MCP.
+- Web view: P(pass) with its CI and the assumptions beside it, margin quantiles, sensitivity bar chart, calibration status badge.
+- Agent guide.
+
+**Acceptance:**
+- The ai-integration contract tests pass for every `uq.*` command (envelope, ErrorInfo, deterministic order, summary caps).
+- No view or summary shows P(pass) without the assumptions and the calibration status.
+
+### WP-436 UQ validation. Size: M
+**Owned:** `tests/golden/uq_validation/**`, `docs/validation/uq/**`.
+
+**Deps:** WP-430 to WP-435.
+
+**Deliverables:** the B-UQ-01...09 cases in [BENCHMARKS.md](BENCHMARKS.md) section 5b, wired into `tools/validation` and `tools/bench`, with the coverage tests (many seeds) marked `slow`.
+
+**Acceptance:** every B-UQ case has status `pass`, or `[verify]` with the reason recorded.
+
+---
+
 ## Open questions for the project owner
 
 1. **Schema and fixture licensing.** Should `schemas/` and `tests/boards/` also be licensed CC-BY-4.0 so other tools can adopt the model? (ADR-0001, proposed refinement.)
