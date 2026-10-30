@@ -200,7 +200,7 @@ def wave_sparams(
     s_port: ComplexArray | None = None,
     min_phase: float = 0.3,
     freqs: FloatArray | None = None,
-    floor_phase: float = 0.12,
+    floor_phase: float = 0.04,
 ) -> tuple[ComplexArray, list[ComplexArray]]:
     """S-matrix from modal waves on probe planes (a de-embedded, plane-based extraction).
 
@@ -213,8 +213,12 @@ def wave_sparams(
 
     Where the phase between the planes, ``abs(Im g) d``, is below ``min_phase`` gamma is
     ill-conditioned (differences of nearly equal voltages). With ``freqs`` given it is replaced
-    there by a smooth fit (:func:`smooth_gamma`); otherwise ``s_port`` (the plain port S) is used
-    there if given.
+    there by a smooth fit (:func:`smooth_gamma`) and the plane waves are kept, except that below
+    ``floor_phase`` (about 0.5 GHz on the B-EM-01 thru) the reflections ``S_ii`` come from
+    ``s_port``: the plane extraction divides by the vanishing phase there (S11 -28 dB at 0.2 GHz
+    against -37 dB from the port), while the plane transmission stays far better than the port's
+    (0.009 dB against 0.096 dB IL). Without ``freqs`` ``s_port`` replaces all of ``S`` below
+    ``min_phase``.
     """
     n = len(planes)
     nf = probes[planes[0].probes[0]].shape[1]
@@ -237,13 +241,29 @@ def wave_sparams(
             b_mid = 0.5 * (v2 - d_mid)
             a[i, j] = a_mid * np.exp(-g * pl.ref) / np.sqrt(port_r[i])
             b[i, j] = b_mid * np.exp(g * pl.ref) / np.sqrt(port_r[i])
-    for j in range(n):
-        for i in range(n):
-            s[i, j] = b[i, j] / a[j, j]
+    # ``a[i, j]`` / ``b[i, j]``: incident / outgoing wave at port i when port j is driven. The
+    # undriven ports carry the re-reflection of their own sheet (a few percent), so the exact
+    # relation is b = S a for the N runs together: S = B A^-1 (the port terminations drop out).
+    for k in range(nf):
+        am, bm = a[:, :, k], b[:, :, k]
+        diag = np.abs(np.diag(am))
+        off = np.abs(am - np.diag(np.diag(am))).max() if n > 1 else 0.0
+        if n == 1 or off > 0.3 * diag.min() or not np.all(np.isfinite(am)):
+            s[:, :, k] = bm / np.diag(am)[None, :]  # ill-conditioned: driven-wave normalisation
+        else:
+            s[:, :, k] = np.linalg.solve(am.T, bm.T).T
     if s_port is not None:
         thr = min_phase if freqs is None else floor_phase
         weak = np.zeros(nf, dtype=bool)
         for pl, g in zip(planes, gammas, strict=True):
             weak |= np.abs(g.imag) * pl.spacing < thr
-        s[:, :, weak] = s_port[:, :, weak]
+        if freqs is None:
+            s[:, :, weak] = s_port[:, :, weak]
+        else:
+            for i in range(n):
+                s[i, i, weak] = s_port[i, i, weak]
+            # a plane S that violates passivity is noise (a low-energy start of the pulse spectrum
+            # divided by a vanishing phase): the port S is the safe estimate there
+            noisy = np.abs(s).max(axis=(0, 1)) > 1.02
+            s[:, :, noisy] = s_port[:, :, noisy]
     return s, gammas

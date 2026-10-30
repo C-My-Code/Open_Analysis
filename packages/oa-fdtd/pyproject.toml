@@ -18,10 +18,17 @@ dependencies = [
     "oa-mesh",
     "oa-model",
     "oa-physics",
+    "oa-framework",
+    "oa-results",
+    "oa-network",
+    "scikit-rf>=1.0",
 ]
 
 [project.scripts]
 oa-fdtd = "oa_fdtd.cli:main"
+
+[project.entry-points."open_analysis.em_adapters"]
+fdtd = "oa_fdtd.adapter:FdtdAdapter"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oa_fdtd"]
@@ -34,3 +41,6 @@ oa-accel = { workspace = true }
 oa-mesh = { workspace = true }
 oa-model = { workspace = true }
 oa-physics = { workspace = true }
+oa-framework = { workspace = true }
+oa-results = { workspace = true }
+oa-network = { workspace = true }

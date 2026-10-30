@@ -30,6 +30,7 @@ class RunResult:
     report: dict[str, Any] = field(default_factory=dict)  # oa_accel AccelReport
     series: dict[str, FloatArray] = field(default_factory=dict)
     port_r: FloatArray = field(default_factory=lambda: np.zeros(0))  # reference impedances [ohm]
+    tail: dict[str, Any] = field(default_factory=dict)  # matrix-pencil extrapolation report
 
 
 def source_spectrum(c: Compiled, steps: int) -> ComplexArray:
@@ -84,14 +85,24 @@ def run(
     min_steps: int = 0,
     check_every: int = 64,
     record_series: bool = False,
+    tail: bool = False,
+    growth_db: float = 20.0,
 ) -> RunResult:
     """Run until the field energy is ``end_db`` below its peak (checked every ``check_every``
     steps once ``min_steps`` have run) or ``max_steps``. ``end_db=None`` runs ``max_steps``.
+
+    ``tail=True`` records the probe series and, when the run ends at ``max_steps`` without
+    reaching ``end_db``, adds the matrix-pencil continuation of every probe to its DFT
+    (:mod:`oa_fdtd.tail`; the outcome is in ``RunResult.tail``). The ``FDTD.UNSTABLE`` detector
+    aborts when the energy exceeds its post-pulse minimum by ``growth_db`` dB or stops being
+    finite.
     """
     if engine == "numpy" and dtype == "float32":
         dtype = "float64"  # the reference engine is float64 unless asked otherwise explicitly
     c = compile_model(model, dtype)
-    eng, report = make_engine(c, engine, dtype, record_series, max_steps)
+    eng, report = make_engine(c, engine, dtype, record_series or tail, max_steps)
+    t_src = 2.0 * model.waveform.delay_tau * model.waveform.tau  # envelope below e^-25 after this
+    e_min = float("inf")
     peak = 0.0
     e_db = 0.0
     stopped = "max_steps"
@@ -106,13 +117,30 @@ def run(
         peak = max(peak, e)
         e_db = 10.0 * np.log10(e / peak) if peak > 0 and e > 0 else 0.0
         if not np.isfinite(e):
-            raise ModelError("FDTD_UNSTABLE", "field energy is not finite")
+            raise ModelError(
+                "FDTD.UNSTABLE",
+                f"field energy is not finite after {done} steps",
+                "Lower the Courant number, check for a PEC/material corner or refine the mesh.",
+            )
+        if done * c.dt > 1.2 * t_src:
+            e_min = min(e_min, e) if e > 0 else e_min
+            if np.isfinite(e_min) and e > e_min * 10.0 ** (growth_db / 10.0):
+                raise ModelError(
+                    "FDTD.UNSTABLE",
+                    f"late-time energy grew {10.0 * np.log10(e / e_min):.1f} dB above its minimum "
+                    f"after {done} steps",
+                    "Lower the Courant number, check for a PEC/material corner or refine the mesh.",
+                )
         if done >= min_steps and peak > 0 and e_db <= end_db:
             stopped = "end_criterion"
             break
     probes = eng.results()
     sums = {f"V:{q['name']}": q["probe_parts"] for q in c.ports if q.get("probe_parts")}
     sums.update(c.probe_sums)
+    tail_report: dict[str, Any] = {}
+    series = eng.series() if (record_series or tail) else {}
+    if tail and stopped == "max_steps" and end_db is not None and done > 0:
+        tail_report = _extend_tails(c, probes, series, sums, done)
     for name, parts in sums.items():  # mode ports record one probe per field component: sum them
         probes[name] = sum(probes.pop(q) for q in parts)
     return RunResult(
@@ -126,9 +154,48 @@ def run(
         energy_db=e_db,
         peak_bytes=eng.peak_bytes(),
         report=report,
-        series=eng.series() if record_series else {},
+        series=series if record_series else {},
         port_r=np.array([float(q["r_ohm"]) for q in c.ports]),
+        tail=tail_report,
     )
+
+
+def _extend_tails(
+    c: Compiled,
+    probes: dict[str, ComplexArray],
+    series: dict[str, FloatArray],
+    sums: dict[str, list[str]],
+    done: int,
+) -> dict[str, Any]:
+    """Add the matrix-pencil continuation to the DFT of every probe (in place, per component).
+
+    Probes are linear in the series, so each summed probe is fitted once and its correction is
+    added to its first part (the others stay), which leaves ``sum(parts)`` correct.
+    """
+    from oa_fdtd.tail import extrapolate_dft, fit_tail
+
+    kind = {p["name"]: p["kind"] for p in c.probes}
+    f_band = float(np.max(c.frequencies))
+    in_sums = {q for parts in sums.values() for q in parts}
+    groups: dict[str, list[str]] = {n: [n] for n in probes if n not in sums and n not in in_sums}
+    groups.update({n: list(parts) for n, parts in sums.items()})
+    n_fit = n_drop = 0
+    worst = 0.0
+    for name, parts in groups.items():
+        if any(q not in series for q in parts):
+            continue
+        y = sum(series[q] for q in parts)  # (B, steps)
+        off = 0.5 if kind.get(parts[0], "E") == "H" else 1.0
+        for b in range(y.shape[0]):
+            fit = fit_tail(y[b], c.dt, off * c.dt, f_band=f_band)
+            if fit is None:
+                continue
+            corr = extrapolate_dft(fit, c.dt, (done + off) * c.dt, c.frequencies)
+            probes[parts[0]][b] += corr
+            n_fit += 1
+            n_drop += fit.n_dropped
+            worst = max(worst, fit.residual)
+    return {"applied": True, "fits": n_fit, "dropped_poles": n_drop, "worst_residual": worst}
 
 
 def port_voltage_factor(dt: float, frequencies: FloatArray) -> ComplexArray:
