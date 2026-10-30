@@ -40,7 +40,7 @@ This is a geometric model of where a return current can flow, not a current solu
 
 `cross_section_at(seg, s)` cuts perpendicular to the segment at position $s$, with $u$ along the left normal of the travel direction and $z$ the board z. Contents:
 
-- the signal conductor as a trapezoid from the drawn width and the layer's etch (`oa_physics.etch_widths`); for a differential pair the partner is included, ordered P then N;
+- the signal conductor as a trapezoid from the drawn width and the layer's etch (`oa_physics.etch_widths`); for a differential pair the partner is included, ordered P then N, at its nearest routed point on the same layer; where that point lies along the trace rather than across it (meanders, fan-outs) and the placement would overlap the signal or other copper, the partner's copper on the cut is an ordinary aggressor instead;
 - aggressors: same-layer copper of other signal or unknown nets inside the window, nearest first;
 - coplanar ground: same-layer ground/power copper inside the window, clipped at the window; copper without a net becomes a floating conductor;
 - reference planes from the `ReferenceMap` span at $s$ (above and below), truncated to the real copper extent along the cut (an open end means the copper continues beyond the window);

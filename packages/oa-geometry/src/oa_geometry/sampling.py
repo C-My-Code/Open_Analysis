@@ -309,19 +309,72 @@ def _default_window(
     return w / 2.0 + max(5.0 * h_max, 3.0 * w)
 
 
-def _nearest_partner_piece(geo: BoardGeometry, net: str, p: F64) -> tuple[F64, float] | None:
-    """Nearest point of the partner net's routed pieces on the trace layer's plane, and the
-    width of the piece it lies on (None when the partner has no routing)."""
+def _nearest_partner_piece(
+    geo: BoardGeometry, net: str, p: F64, layer: str
+) -> tuple[F64, float] | None:
+    """Nearest point of the partner net's routed pieces on `layer` (the trace layer), and the
+    width of the piece it lies on (None when the partner has no routing on that layer)."""
     from oa_geometry.topology import pieces_by_net
 
     pt = shapely.points(p)
     best: tuple[float, F64, float] | None = None
     for pc in pieces_by_net(geo).get(net, []):
+        if pc.seg.layer != layer:
+            continue
         d = float(shapely.distance(pt, pc.line))
         if best is None or d < best[0]:
             q = shapely.line_interpolate_point(pc.line, shapely.line_locate_point(pc.line, pt))
             best = (d, np.asarray(q.coords[0]), pc.seg.width)
     return None if best is None else (best[1], best[2])
+
+
+def _partner_intervals(
+    geo: BoardGeometry, layer: str, pair: str | None, lines: object, centers: F64, normals: F64
+) -> list[list[tuple[float, float]]]:
+    """Merged u-intervals of the partner's copper on `layer` along each cut line."""
+    k = len(lines)  # type: ignore[arg-type]
+    if pair is None:
+        return [[] for _ in range(k)]
+    cu = geo.copper(layer, pair)
+    if cu.is_empty:
+        return [[] for _ in range(k)]
+    rings = (
+        geo._memoized(("rings-cu", layer, pair), lambda: RingSet(np.array([cu], dtype=object)))
+        if _kernels() is not None
+        else None
+    )
+    res = _u_intervals(lines, cu, centers, normals, rings, np.zeros(k, dtype=np.int64))
+    return [_merge(iv) for iv in res]
+
+
+def _placed_partner(
+    u_c: float,
+    pw: float,
+    half: float,
+    w_sig: float,
+    ivs: list[tuple[float, float]],
+    others: dict[str | None, list[tuple[float, float]]],
+) -> tuple[float, float] | None:
+    """``(u_c, pw)`` when the partner trapezoid centred at `u_c` may stand in the section, None
+    otherwise. It must lie inside the window, and either stand on partner copper that the cut
+    crosses, or (the converging ends of a pair, where the cut misses the partner's angled run)
+    overlap neither the signal nor any other copper on the cut.
+
+    The nearest partner point can lie along the trace rather than across it (a meander, or a
+    fan-out where the pair separates): projected on the cut it lands at u ~ 0, on top of the
+    signal or of a neighbouring ground, and the BEM would see two coincident conductors."""
+    if abs(u_c) + pw / 2 >= half - 1e-9:
+        return None
+    lo, hi = u_c - pw / 2, u_c + pw / 2
+
+    def hits(a: float, b: float) -> bool:
+        return min(hi, b) - max(lo, a) > MIN_INTERVAL
+
+    if any(hits(a, b) for a, b in ivs):
+        return (u_c, pw)
+    if hits(-w_sig / 2, w_sig / 2) or any(hits(a, b) for iv in others.values() for a, b in iv):
+        return None
+    return (u_c, pw)
 
 
 def _poses(piece: Piece, seg: RoutedSegment, ss: list[float]) -> tuple[F64, F64]:
@@ -423,6 +476,8 @@ def _sections(
         )
         for (i, side), iv in zip(mem, res, strict=True):
             plane_ivs[(i, side)] = _merge(iv)
+    pair_ivs = _partner_intervals(geo, seg.layer, pair, lines, p, n)
+    w_sig = max(_etch_widths(layer, seg.width))
     cache: dict[object, CrossSection] = geo._memoized("xs_templates", dict)
     out: list[CrossSection] = []
     for i in range(k):
@@ -430,9 +485,14 @@ def _sections(
         per_net = per_nets[i]
         near = None
         if pair is not None:
-            nr = _nearest_partner_piece(geo, pair, p[i])
+            nr = _nearest_partner_piece(geo, pair, p[i], seg.layer)
             if nr is not None:
-                near = (float((nr[0] - p[i]) @ n[i]), nr[1])
+                u_c = float((nr[0] - p[i]) @ n[i])
+                near = _placed_partner(u_c, nr[1], half, w_sig, pair_ivs[i], per_net)
+            if near is None and pair_ivs[i]:
+                # the partner is not alongside here (meander, fan-out, other layer): its copper
+                # on the cut is an ordinary aggressor, never a copy laid over the signal
+                per_net = {**per_net, pair: pair_ivs[i]}
         side_sig = tuple(
             None if ref is None else (ref.layer, ref.net, ref.distance, tuple(plane_ivs[(i, side)]))
             for side, ref in (("above", refs_a[i]), ("below", refs_b[i]))
@@ -534,27 +594,24 @@ def _build_section(
     net_ids: list[str] = [seg.net]
     if pair is not None and near is not None:
         u_c, pw = near
-        if abs(u_c) + pw / 2 < half - 1e-9:
-            shape = trap(u_c, pw, pw - (wb - wt))
-            sig = cond("s2", "signal", shape, pair, layer)
-            # P first, N second
-            p_net = next(
-                (d.p_net for d in geo.board.diff_pairs if pair in (d.p_net, d.n_net)), None
-            )
-            if p_net == pair:
-                signals = [
-                    sig.model_copy(update={"id": "s1"}),
-                    signals[0].model_copy(update={"id": "s2"}),
-                ]
-                net_ids = [pair, seg.net]
-            else:
-                signals.append(sig)
-                net_ids.append(pair)
+        shape = trap(u_c, pw, pw - (wb - wt))
+        sig = cond("s2", "signal", shape, pair, layer)
+        # P first, N second
+        p_net = next((d.p_net for d in geo.board.diff_pairs if pair in (d.p_net, d.n_net)), None)
+        if p_net == pair:
+            signals = [
+                sig.model_copy(update={"id": "s1"}),
+                signals[0].model_copy(update={"id": "s2"}),
+            ]
+            net_ids = [pair, seg.net]
+        else:
+            signals.append(sig)
+            net_ids.append(pair)
     grounds: list[XsConductor] = []
     floating: list[XsConductor] = []
     aggressors: list[tuple[float, XsConductor]] = []
     for net, ivs in sorted(per_net.items(), key=lambda kv: (kv[0] is None, kv[0] or "")):
-        if net == seg.net or (net == pair and net is not None):
+        if net == seg.net:
             continue
         for lo, hi in ivs:
             mid, wid = (lo + hi) / 2, hi - lo

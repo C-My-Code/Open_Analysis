@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 import pytest
 from geometry_helpers import poly, rect_ring, track, with_items, zone
 
@@ -121,6 +123,63 @@ def test_diff_pair_two_signals_p_then_n() -> None:
     kp = g.cross_section_at(g.segments("DP_P")[0], 10e-3).key()
     kn = g.cross_section_at(g.segments("DP_N")[0], 10e-3).key()
     assert kp == kn
+
+
+def _detour_board(*, partner_below: bool) -> tuple[BoardGeometry, float]:
+    """`diff_pair_board` plus a DP_N detour on L1 past the end of DP_P and on DP_P's line (a
+    meander or fan-out: the nearest DP_P point lies along the detour, not across it); with
+    `partner_below`, a DP_P track runs 0.3 mm aside on L2. Returns (geometry, pitch)."""
+    w = gap = 0.15e-3
+    pitch = (w + gap) / 2
+    extra = [track("trk:DP_N:detour", "DP_N", "L1", w, (26e-3, pitch), (29e-3, pitch))]
+    if partner_below:
+        y = pitch - 0.3e-3
+        extra.append(track("trk:DP_P:below", "DP_P", "L2", w, (26e-3, y), (29e-3, y)))
+    b = with_items(diff_pair_board(width=w, gap=gap), extra_tracks=extra)
+    return BoardGeometry.build(b), pitch
+
+
+@pytest.mark.parametrize("partner_below", [False, True])
+def test_partner_not_laid_over_the_signal_where_the_pair_separates(partner_below: bool) -> None:
+    """cm5_minima HDMI_PI / ETH_PI meanders: the partner used to be placed at the projection of
+    its nearest point (any layer, any tangential offset) and landed on the signal (u = 0), which
+    made the BEM system singular. The partner only enters where the cut crosses its copper."""
+    g, _ = _detour_board(partner_below=partner_below)
+    (seg,) = [s for s in g.segments("DP_N") if s.id.startswith("trk:DP_N:detour")]
+    xs = g.cross_section_at(seg, 1.5e-3)
+    sigs = [c for c in xs.conductors if c.role == "signal"]
+    assert [c.net for c in sigs] == ["DP_N"]
+    assert xs.topology_hint == "microstrip"
+    for smp in g.sample_net(("DP_N", "DP_P")):
+        traps = sorted(
+            (c.shape.u_center - c.shape.w_bottom / 2, c.shape.u_center + c.shape.w_bottom / 2)
+            for c in smp.xs.conductors
+            if isinstance(c.shape, XsTrapezoid)
+        )
+        assert all(a[1] <= b[0] + NM for a, b in itertools.pairwise(traps))
+    # the coupled run is unchanged: P and N one pitch apart
+    (main,) = [s for s in g.segments("DP_N") if s.id.startswith("trk:DP_N:1")]
+    p, n = _signal_traps(g.cross_section_at(main, 10e-3))
+    assert abs(p.u_center - n.u_center) == pytest.approx(0.3e-3, abs=NM)
+
+
+def test_partner_copper_off_its_nearest_point_is_an_aggressor() -> None:
+    """Where the partner is not alongside but its copper still crosses the cut, that copper is
+    kept as an ordinary aggressor (not dropped, not laid over the signal)."""
+    g, pitch = _detour_board(partner_below=False)
+    # cut at x = 26.2 mm: the nearest DP_P point is the end of the coupled run (x = 25 mm, on
+    # the detour's line, 1.2 mm away), while a DP_P stub 1.3 mm aside crosses the cut
+    y = pitch + 1.3e-3
+    stub = track("trk:DP_P:stub", "DP_P", "L1", 0.15e-3, (26.0e-3, y), (27.0e-3, y))
+    g2 = BoardGeometry.build(with_items(g.board, extra_tracks=[stub]))
+    (seg,) = [s for s in g2.segments("DP_N") if s.id.startswith("trk:DP_N:detour")]
+    xs = g2.cross_section_at(seg, 0.2e-3, window=1.5e-3)
+    sigs = [c for c in xs.conductors if c.role == "signal"]
+    assert [c.net for c in sigs] == ["DP_N", "DP_P"]
+    n, p = (c.shape for c in sigs)
+    assert isinstance(n, XsTrapezoid) and isinstance(p, XsTrapezoid)
+    assert abs(p.u_center - n.u_center) == pytest.approx(1.3e-3, abs=NM)
+    assert xs.provenance is not None and xs.provenance.net_ids == ("DP_N", "DP_P")
 
 
 def test_aggressor_added_as_signal_and_can_be_dropped() -> None:
