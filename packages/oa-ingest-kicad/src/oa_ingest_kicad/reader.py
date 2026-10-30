@@ -62,6 +62,7 @@ from ._geom import (
     arc_points,
     clean_ring,
     fix_fractured,
+    fix_fractured_many,
     from_shapely,
     make_arc_seg,
 )
@@ -1048,6 +1049,8 @@ class _Ingest:
         zi = len(self.zones)
         # ---- fills
         by_layer: dict[str, list[BaseGeometry]] = {}
+        fill_layers: list[str] = []
+        fill_rings = []
         for fpn in sexpr.children(z, "filled_polygon"):
             fl = sexpr.get_str(fpn, "layer")
             pts = sexpr.child(fpn, "pts")
@@ -1056,7 +1059,10 @@ class _Ingest:
             ring = clean_ring(pts_xy(pts, FLIP, self.tol))
             if ring.shape[0] < 3:
                 continue
-            by_layer.setdefault(fl, []).append(fix_fractured(ring))
+            fill_layers.append(fl)
+            fill_rings.append(ring)
+        for fl, geom in zip(fill_layers, fix_fractured_many(fill_rings), strict=True):
+            by_layer.setdefault(fl, []).append(geom)
         fills: list[ZoneFill] = []
         for kname in cu:
             geoms = by_layer.get(kname)

@@ -14,6 +14,9 @@ import numpy as np
 
 from oa_model.arrays import Floats, NDArray, Points
 
+_ARRAYS = (Points, Floats, NDArray)
+_POINT_LIKE = (Points, Floats)
+
 
 def _sig6(x: float) -> float:
     return float(f"{x:.6g}")
@@ -36,8 +39,22 @@ def canon(
     nm=True: floats outside `sig_keys` subtrees become integers in nanometres; inside them they
     are rounded to 6 significant digits.
     """
-    if isinstance(obj, Points | Floats | NDArray):
-        if nm and isinstance(obj, Points | Floats):
+    t = type(obj)
+    if t is float:  # hot path: most leaves of a model dump are floats, strings and ints
+        if not nm:
+            return obj + 0.0  # -0.0 -> 0.0
+        return _sig6(obj) + 0.0 if _sig else _nm(obj)
+    if t is str or t is int or t is bool or obj is None:
+        return obj
+    if t is dict:
+        return {
+            str(k): canon(v, nm=nm, sig_keys=sig_keys, _sig=_sig or k in sig_keys)
+            for k, v in obj.items()
+        }
+    if t is tuple or t is list:
+        return [canon(v, nm=nm, sig_keys=sig_keys, _sig=_sig) for v in obj]
+    if isinstance(obj, _ARRAYS):
+        if nm and isinstance(obj, _POINT_LIKE):
             if _sig:
                 return [_sig6(float(v)) for v in obj.array.reshape(-1)]
             ints = np.floor(obj.array * 1e9 + 0.5).astype("<i8")
