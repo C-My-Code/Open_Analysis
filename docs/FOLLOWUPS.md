@@ -160,3 +160,9 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - cm5 read 0.95 to 0.75 s; RefMap 10k 2.06 to 1.55 s (50k extrapolates to about 8 s vs a 3 s target); ERC 10k 20.2 to 14.5 s (target 3 s).
 - CR WP-508b-make-valid-structure: 13x faster on the 44% hot spot, but it changes hashes. WP-509 decides after area/topology equivalence tests.
 - The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
+
+## GPU FDTD core (WP-505)
+- Port |S21| drifts above 3 GHz (3.8e-3 at 20 GHz); cause unknown. Must be fixed in WP-506 before the B-EM thru targets.
+- CPML is validated at normal incidence only.
+- ROCm is untested on hardware.
+- Measured: 6.0 Gcells/s f32 and 3.2 f64 on 256^3 with CPML (target >= 3).
