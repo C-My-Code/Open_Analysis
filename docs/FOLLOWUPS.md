@@ -149,3 +149,14 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] The full KiCadReader is barely faster with the native parser (1.07 s vs 1.02 s) because parsing is a small share of the time. The Jetson target needs whole-reader profiling.
 - [ ] The ReferenceMap isn't native (CR WP-508-refmap-scope, proposed WP-508b).
 - [ ] The wheel CI (`wp-508-wheels.yml`) hasn't run yet.
+
+## Palace accuracy (WP-501, partial)
+- Root cause of 1.24 dB: the first-order ABC was too close (1 mm / 2.5 mm), costing about 0.25 dB. Padded to 5/6 mm it gives 0.949 dB vs BEM 0.845 dB.
+- The remaining 0.10 dB is about 0.07 dB from Palace's one-sided finite-thickness copper impedance and 0.03 dB from the dielectric model (DS fixed at 5 GHz vs BEM constant 4.3). The reference isn't apples-to-apples; WP-510 owns the fix.
+- No p3/AMR convergence and nothing above 10 GHz. The B-EM references under tests/benchmarks/references/em/ don't exist yet. Roughness isn't implemented. LossTan=0 hangs the wave-port mode solve.
+- PERF: the converged run took 597 s and 7.8 GB on CPU. The p2 run on the full 228k-tet mesh exceeded 12 GB.
+
+## Profiling (WP-508b)
+- cm5 read 0.95 to 0.75 s; RefMap 10k 2.06 to 1.55 s (50k extrapolates to about 8 s vs a 3 s target); ERC 10k 20.2 to 14.5 s (target 3 s).
+- CR WP-508b-make-valid-structure: 13x faster on the 44% hot spot, but it changes hashes. WP-509 decides after area/topology equivalence tests.
+- The Jetson parse isn't profiled. docs/perf/PROFILE-508b.md and tools/bench/gen_synth_board.py were added.
