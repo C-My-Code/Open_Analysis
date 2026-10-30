@@ -133,7 +133,7 @@ def _clip(lines: object, geoms: object) -> object:
     covered = shapely.covers(geoms, lines)
     if not covered.any():
         return shapely.intersection(lines, geoms)
-    res = np.empty(len(lines), dtype=object)  # type: ignore[arg-type]
+    res = np.empty(len(lines), dtype=object)  # type: ignore[arg-type,type-var]
     res[covered] = lines[covered]  # type: ignore[index]
     rest = ~covered
     if rest.any():

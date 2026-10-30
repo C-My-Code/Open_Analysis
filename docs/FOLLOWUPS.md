@@ -174,6 +174,15 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - ROCm is untested on hardware.
 - Measured: 6.0 Gcells/s f32 and 3.2 f64 on 256^3 with CPML (target >= 3).
 
+## FDTD physics (WP-506A)
+- S11 is -28.4 dB, just missing its target on B-EM-01.
+- B-EM-03 (40 GHz differential via) wasn't run.
+- Vias are staircased (no conformal PEC).
+- The mode solver is local, not oa_impedance (CR WP-506-modal-solver).
+- No matrix-pencil tail extrapolation and no FDTD.UNSTABLE detector.
+- PERF-01 PCB-like throughput isn't measured.
+- Measured on B-EM-01: IL error 0.005 dB at 10 GHz and 0.038 dB at 20 GHz; runtime 1.6 s on GPU; 0.02 GiB VRAM.
+
 ## EMC decisions (user, 2026-10-29)
 - Limit data: ship MIL-STD-461 and FCC Part 15 curves. For CISPR 32/25 and DO-160, ship citations and a template only; users enter the values.
 - MIL-STD-461 scope, all in M2: RE102, CE102, RE101 and CE101.
