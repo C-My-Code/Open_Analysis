@@ -108,7 +108,7 @@ Known gaps:
 - Via R, L and C are not compared with a field solver or a measurement.
 - The causal surface impedance fit is a least-squares approximation of $K R_s$; its fit residual is not asserted by a test [verify: no golden case found].
 - `kk_residual` has no calibration against known non-causal data other than the `non_causal_const_dk` network fixture (see [oa-network](../oa-network/THEORY.md)).
-- `oa_impedance._physics_compat` is a second copy of the dielectric and roughness code (see [oa-impedance](../oa-impedance/THEORY.md) section 5): it interpolates tabulated Dk/Df linearly in $f$ while this package uses $\ln f$.
+- Resolved by WP-513: `oa_impedance` no longer keeps a second copy (`_physics_compat` was removed). It uses this package, so tabulated Dk/Df is interpolated in $\ln f$ consistently.
 
 ## 6. References
 

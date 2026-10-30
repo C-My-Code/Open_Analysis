@@ -67,8 +67,8 @@ structure, nets, layers and coverage stay identical. Compare with a relative tol
 
 After WP-509 (memoized candidate layers and a single-span fast path, `docs/perf/PROFILE-509.md`):
 `reference_map()` on the 10k board takes about 1.3 s (including a one-off 0.4 s scipy import); 50k
-extrapolates to about 5 s against the 3 s target, so a native clipping kernel is still open
-(`docs/change-requests/WP-509-native-clipping.md`, `docs/FOLLOWUPS.md`). The 50k board was not re-run.
+extrapolated to about 5 s against the 3 s target. WP-509b then added the native clipping kernel
+described above (10k: 1.01 s → about 0.6 s; 50k extrapolates to about 3.3 s, not yet measured).
 
 ## Typing
 

@@ -154,7 +154,7 @@ Cross-solver EM check (`em.openems.*`): openEMS FDTD on a 23 mm testkit microstr
 
 **Code-versus-documentation observations.**
 
-- `_physics_compat.py` still describes itself as a shim "until `oa_physics` lands", although `oa-physics` is merged. Dielectric and roughness code is therefore duplicated. The two copies already differ in one place: for a tabulated Dk/Df (`TableDkDf`) the shim interpolates linearly in frequency, `oa_physics.eps_complex` interpolates in $\ln f$.
+- Resolved by WP-513: the `_physics_compat.py` shim has been removed, and all dielectric and roughness evaluation now goes through `oa_physics`. Tabulated Dk/Df (`TableDkDf`) is interpolated in $\ln f$ everywhere. See `docs/change-requests/WP-513-audit-decisions.md`.
 - Static requests (`f = 0`) evaluate dispersive dielectrics at the datasheet frequency (shim `eps_complex`), so a "static" result for a Djordjevic-Sarkar material is the value at `f_ref`, not at DC.
 
 ## 6. References
