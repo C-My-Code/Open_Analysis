@@ -59,6 +59,7 @@ members = [
     "oa-em-palace",
     "oa-emi",
     "oa-erc",
+    "oa-fdtd",
     "oa-framework",
     "oa-geometry",
     "oa-impedance",
@@ -2738,6 +2739,22 @@ requires-dist = [
 provides-extras = ["test"]
 
 [[package]]
+name = "oa-fdtd"
+version = "0.1.0"
+source = { editable = "packages/oa-fdtd" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-cuda13') or (extra == 'extra-8-oa-accel-cuda12' and extra == 'extra-8-oa-accel-rocm') or (extra == 'extra-8-oa-accel-cuda13' and extra == 'extra-8-oa-accel-rocm')" },
+    { name = "oa-accel" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "oa-accel", editable = "packages/oa-accel" },
+]
+
+[[package]]
 name = "oa-framework"
 version = "0.1.0"
 source = { editable = "packages/oa-framework" }
@@ -3308,6 +3325,7 @@ dev = [
     { name = "oa-em-palace" },
     { name = "oa-emi" },
     { name = "oa-erc" },
+    { name = "oa-fdtd" },
     { name = "oa-framework" },
     { name = "oa-geometry" },
     { name = "oa-impedance" },
@@ -3355,6 +3373,7 @@ dev = [
     { name = "oa-em-palace", editable = "packages/oa-em-palace" },
     { name = "oa-emi", editable = "packages/oa-emi" },
     { name = "oa-erc", editable = "packages/oa-erc" },
+    { name = "oa-fdtd", editable = "packages/oa-fdtd" },
     { name = "oa-framework", editable = "packages/oa-framework" },
     { name = "oa-geometry", editable = "packages/oa-geometry" },
     { name = "oa-impedance", editable = "packages/oa-impedance" },
