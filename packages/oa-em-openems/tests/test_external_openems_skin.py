@@ -7,7 +7,7 @@ R1 is the converged 2D FEM RLGC cascade of the canonical microstrip
 ports (50 ohm, as the testkit fixture) and, via ``OA_OE_PORTS=wave``, with MSL wave ports.
 
 Environment (all optional): ``OA_OE_MODEL`` (sheet | pec | skin, default skin), ``OA_OE_FMAX``
-[Hz], ``OA_OE_NPTS``, ``OA_OE_PORTS`` (lumped | wave), ``OA_OE_SKIN_FREQ`` [Hz], ``OA_OE_OUT``
+[Hz], ``OA_OE_NPTS``, ``OA_OE_PORTS`` (lumped | wave), ``OA_OE_SKIN_FREQ`` [Hz], ``OA_OE_PRESET`` (coarse | medium | fine), ``OA_OE_YHALF`` / ``OA_OE_AIR`` (lateral half width and air above, mm), ``OA_OE_OUT``
 (directory that receives the Touchstone and a JSON summary).
 """
 
@@ -64,7 +64,12 @@ def _gate(net: Any) -> QualityReport:
 def _problem() -> EMProblem:
     f_max = float(os.environ.get("OA_OE_FMAX", "10e9"))
     n_pts = int(os.environ.get("OA_OE_NPTS", "41"))
-    p = microstrip_thru_problem(f_max=f_max, n_points=n_pts)
+    p = microstrip_thru_problem(
+        f_max=f_max,
+        n_points=n_pts,
+        y_half=float(os.environ.get("OA_OE_YHALF", "2.5")) * 1e-3,
+        air=float(os.environ.get("OA_OE_AIR", "1.0")) * 1e-3,
+    )
     # canonical dielectric (docs/BENCHMARKS.md B-EM-01): Djordjevic-Sarkar, not the fixture's constant
     mats = tuple(
         m.model_copy(update={"model": DjordjevicSarkar(dk=4.3, df=0.02, f_ref=1e9)})
@@ -73,6 +78,9 @@ def _problem() -> EMProblem:
         for m in p.structure.materials
     )
     p = p.model_copy(update={"structure": p.structure.model_copy(update={"materials": mats})})
+    preset = os.environ.get("OA_OE_PRESET")
+    if preset:
+        p = p.model_copy(update={"mesh": p.mesh.model_copy(update={"preset": preset})})
     expert: dict[str, Any] = {
         "openems.conductor_model": os.environ.get("OA_OE_MODEL", "skin"),
     }
@@ -143,7 +151,7 @@ def run(
     if "OA_OE_OUT" in os.environ:
         d = Path(os.environ["OA_OE_OUT"])
         d.mkdir(parents=True, exist_ok=True)
-        tag = f"{summary['ports']}_{summary['model']}"
+        tag = os.environ.get("OA_OE_TAG") or f"{summary['ports']}_{summary['model']}"
         (d / f"openems_{tag}.json").write_text(json.dumps(summary), encoding="utf-8")
     return {"f": f, "s": s, "summary": summary}
 
