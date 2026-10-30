@@ -11,9 +11,9 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import fdtd_verify_cases as cases  # noqa: E402
+import fdtd_verify_cases as cases
 
-from oa_fdtd.adapter.sim import solve_problem  # noqa: E402
+from oa_fdtd.adapter.sim import solve_problem
 
 pytestmark = pytest.mark.gpu
 

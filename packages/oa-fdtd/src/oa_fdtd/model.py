@@ -181,8 +181,8 @@ class Model:
         when ``f_band`` is given, so S cannot depend on how many frequencies are requested."""
         if self.f_band is not None:
             return self.f_band
-        f = np.asarray(self.frequencies, dtype=np.float64)
-        return (float(f.min()), float(f.max()))
+        f = [float(x) for x in np.asarray(self.frequencies, dtype=np.float64).ravel()]
+        return (min(f), max(f))
 
     @property
     def channels(self) -> int:
