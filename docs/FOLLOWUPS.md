@@ -193,3 +193,14 @@ The integrator tracks known gaps found while merging work packages here. Each it
 
 ## CI (coordinator)
 - [x] (FIXED 2026-10-30, run on 1cf846c: all 6 OS x Python combinations green; causes: wall-clock asserts, py3.13 HTTP 422 phrase in openapi, POSIX path in a WSL test, arm64 gmsh signature and divide warning) The CI `test` job had failed on every push, on all 6 OS × Python combinations, since at least 0cc834d. lint/types, schema, reuse, pip-licenses and the wp-508 wheel builds pass. Being reproduced in a clean clone with KiCad, openEMS and CuPy hidden. PROCESS FIX: the coordinator checks the CI result of every push, and a red `test` job blocks new merges.
+
+## M1P integration round (coordinator, 2026-10-31)
+- [ ] B-IMP-04 is still about 57 s CPU against a 20 s target (WP-516): it is raw BEM throughput, so it needs the GPU BEM path or a faster kernel. B-IMP-04 GPU (5 s) has not been measured.
+- [ ] IM-002 gives no verdict for sections with a neighbouring signal (z0 is None for matrix order 2 or more). This is a rule-owner decision.
+- [ ] cm5_minima ERC with its `.kicad_pro` net classes takes 88 s against 15 s without them (it took more than 5 min before WP-516). Profile the net-class path.
+- [ ] B-EM-03 is converged against our own mesh study only (WP-517). It needs an independent reference: Palace (WP-501), or openEMS with real copper thickness (about 6 h per excitation).
+- [ ] B-EM-03 SDD11 has not converged at 38-40 GHz (a null near -23 dB).
+- [ ] The `test_fdtd_n_points[bem03]` GPU test takes 270 s against the 300 s pytest timeout. Give it its own timeout or shrink it.
+- [ ] The `open-analysis` meta-package lives in `packaging/` because the root project shares the name. Rename the root project at release time (WP-303 final).
+- [ ] Add `tests/e2e` to testpaths. It is not collected by CI yet; it takes about 2.3 min without slow tests.
+- [ ] Linux has not been checked for the stdio fix (WP-518) beyond CI.

@@ -37,16 +37,7 @@ def test_ingest_reports_a_board_summary(project: Project) -> None:
     assert summary["copper_layers"][0]["id"] == "L1"
 
 
-def _cm5_erc_gap(project: Project) -> None:
-    if project.name == "cm5_minima":
-        pytest.xfail(
-            "ERC of cm5_minima with its .kicad_pro does not finish within 5 min on CPU "
-            "(14.8 s without the .kicad_pro); see the WP-303 report"
-        )
-
-
 def test_erc_writes_sarif(project: Project) -> None:
-    _cm5_erc_gap(project)
     env = project.erc()
     job = job_of(env)
     summary = project.summary(env)
@@ -63,7 +54,6 @@ def test_erc_writes_sarif(project: Project) -> None:
 
 
 def test_erc_violations_page_matches_the_sarif(project: Project) -> None:
-    _cm5_erc_gap(project)
     env = project.erc()
     rid = job_of(env)["result_id"]
     page = project.cli.run("results", "violations", rid, "--limit", "5")
@@ -97,13 +87,8 @@ def test_dc_ir_drop(project: Project) -> None:
 
 
 def test_html_report(project: Project) -> None:
-    """The report: the DC result on power boards, the ERC result otherwise (cm5: impedance)."""
-    if project.name in POWER_BOARDS:
-        env = project.dc()
-    elif project.name == "cm5_minima":
-        env = project.impedance()  # its ERC is a known gap, see _cm5_erc_gap
-    else:
-        env = project.erc()
+    """The report: the DC result on power boards, the ERC result otherwise."""
+    env = project.dc() if project.name in POWER_BOARDS else project.erc()
     rid = job_of(env)["result_id"]
     out = project.cli.cwd / "report.html"
     exp = project.cli.run("results", "export", rid, "--format", "html", "--out-path", str(out))
