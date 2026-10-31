@@ -5,4 +5,5 @@
 
 from oa_mcp.cli import main
 
-main()
+if __name__ == "__main__":  # a spawned child re-importing this module must not serve
+    main()

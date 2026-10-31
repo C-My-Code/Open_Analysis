@@ -9,6 +9,7 @@ User guide: [docs/agents/connect.md](../../docs/agents/connect.md). Agent guide:
 - Console script `oa-mcp` (also `python -m oa_mcp`): stdio by default, `--http [--port N] [--token-file F]` for streamable HTTP on `127.0.0.1:/mcp` with bearer token and loopback-only `Origin`.
 - Flags: `--root` (repeatable), `--allow-writes`, `--max-runtime`, `--max-memory`, `--max-cpus`, `--no-external`, `--executor`, `--max-response-kb`, `--service-factory MODULE:FUNC`. The `[mcp]` table of `open_analysis/config.toml` supplies the same settings; flags win.
 - `oa_mcp.server.build_server(service, settings) -> FastMCP`.
+- `oa_mcp.stdio.run_stdio(server)` serves the stdio transport, and `oa_mcp.stdio.private_stdio()` is the context manager behind it (WP-518; see "stdio transport hygiene" below).
 - `oa_mcp.protocol.OaServiceLike`: the narrow interface the adapter needs (below).
 - SDK: official `mcp` 1.x (`mcp>=1.30,<2`; PyPI also has 2.x, but the spec targets 1.x `FastMCP`).
 
@@ -49,10 +50,19 @@ Additive changes outside `packages/oa-mcp` (listed for the integrator):
 
 Adapter behaviour that is MCP-specific: the last-resort size cap (`RESULT_TRUNCATED`, reused as an error code because section 6 has none for "response dropped"), tool annotations, and elicitation. For `apply_proposal`, when the client supports elicitation the adapter first dispatches without the token to obtain the diff (`CONFIRMATION_REQUIRED` details), asks the user, and only then dispatches the real call; a decline returns `CONFIRMATION_REQUIRED`. Clients without elicitation use the confirm-token flow. The token is an HMAC with a per-process secret and is single use; `confirm=true` is honored only for the CLI and UI callers.
 
+## stdio transport hygiene (WP-518)
+
+The JSON-RPC pipes are moved to private, non-inheritable copies of fds 0 and 1 for as long as the server runs. fd 0, the Win32 `STD_INPUT_HANDLE` and the stdin of child processes become the null device. fd 1, `STD_OUTPUT_HANDLE` and `sys.stdout` become stderr. Without this:
+
+- On Windows, a synchronous handle query on the stdin pipe (`GetFileInformationByHandle`, `PeekNamedPipe`, CRT `fstat`) waits behind the transport's pending `ReadFile` until the client sends another line. Loading gmsh's DLL makes such a query while it holds the loader lock, so `run_analysis(pi.dc)` never returned.
+- Output from C libraries, `print` or child processes would corrupt the protocol stream, and a child process that inherited stdin could consume messages.
+
+`python -m oa_mcp` only serves when it is run as `__main__`, so a spawned child that re-imports the module does not start a second server.
+
 ## Tests
 
-- `packages/oa-mcp/tests`: in-process MCP client over `FakeService` (tool list and schemas, flow, write safety, elicitation, resources, prompts, progress), stdio (subprocess) and streamable HTTP (token, Origin).
-- `tests/agents`: the real `LocalService` behind MCP on the WP-102 boards (M1 workflow, read-only hash check, propose/apply, budgets), CLI parity, schema-description lint with a shrink-only baseline, socket guard, import hygiene, docs checks.
+- `packages/oa-mcp/tests`: in-process MCP client over `FakeService` (tool list and schemas, flow, write safety, elicitation, resources, prompts, progress), stdio (subprocess; also a `NoisyService` that prints to stdout and fd 1, runs child processes and queries the stdin handle, under a 120 s timeout) and streamable HTTP (token, Origin).
+- `tests/agents`: the real `LocalService` behind MCP on the WP-102 boards (M1 workflow in-process and over a real `oa-mcp` stdio subprocess, read-only hash check, propose/apply, budgets), CLI parity, schema-description lint with a shrink-only baseline, socket guard, import hygiene, docs checks.
 
 ## Not done
 

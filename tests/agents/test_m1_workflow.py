@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import anyio
 import pytest
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
@@ -214,15 +215,6 @@ async def test_m1_workflow(mcp_client: ClientSession, m1_boards: Path, tmp_path:
     assert_same_as_cli(mcp, cli_reference(m1_boards, tmp_path))
 
 
-@pytest.mark.xfail(
-    run=False,
-    reason=(
-        "run_analysis(pi.dc) never returns over a real oa-mcp stdio subprocess on Windows "
-        "(open_board, impedance_profile and run_erc work; the same call works in-process and "
-        "through the CLI, with the inline or the process executor and OA_MESH_WORKERS=1); "
-        "reproduced outside pytest. run=False because the hang lasts until the timeout"
-    ),
-)
 async def test_m1_workflow_over_stdio(m1_boards: Path, tmp_path: Path) -> None:
     """The same flow against a real ``oa-mcp`` stdio subprocess (what an agent host starts)."""
     from mcp.client.session import ClientSession as Session
@@ -233,7 +225,10 @@ async def test_m1_workflow_over_stdio(m1_boards: Path, tmp_path: Path) -> None:
         args=["-m", "oa_mcp", "--root", str(m1_boards), "--executor", "inline"],
         env=env,
     )
-    async with stdio_client(params) as (read, write), Session(read, write) as session:
-        await session.initialize()
-        mcp = await agent_flow(session, m1_boards)
+    # WP-518: run_analysis(pi.dc) used to hang here on Windows (gmsh's DLL load blocked on the
+    # stdin pipe); a hard timeout turns any regression into a failure instead of a stuck run.
+    with anyio.fail_after(600):
+        async with stdio_client(params) as (read, write), Session(read, write) as session:
+            await session.initialize()
+            mcp = await agent_flow(session, m1_boards)
     assert_same_as_cli(mcp, cli_reference(m1_boards, tmp_path))

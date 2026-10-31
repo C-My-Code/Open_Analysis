@@ -64,6 +64,50 @@ async def test_stdio_end_to_end() -> None:
         await _flow(session)
 
 
+async def test_stdio_survives_solver_like_stdio_use(
+    tmp_path: Path,
+) -> None:
+    """WP-518: solver-like code must neither hang nor corrupt the stdio protocol.
+
+    ``NoisyService`` prints to stdout and fd 1, runs child processes that inherit the standard
+    handles, and (Windows) queries the stdin handle as gmsh's DLL does when it is loaded. Before the
+    fix that query blocked behind the transport's pending stdin read until the client sent another
+    line, so the call never returned; stray output corrupted the stream.
+    """
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join([str(TESTS_DIR), env.get("PYTHONPATH", "")])
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[
+            "-m",
+            "oa_mcp",
+            "--service-factory",
+            "mcp_stdio_helpers:NoisyService",
+            "--root",
+            str(REPO_ROOT / "tests"),
+        ],
+        env=env,
+    )
+    errlog = (tmp_path / "server_stderr.txt").open("w", encoding="utf-8")
+    try:
+        with anyio.fail_after(120):
+            async with (
+                stdio_client(params, errlog=errlog) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                for _ in range(2):  # twice: the transport must still be in sync after noise
+                    res = await session.call_tool("open_board", {"path": str(BOARD_FILE)})
+                    assert res.structuredContent is not None, res
+                    assert res.structuredContent["ok"] is True, res.structuredContent
+                await session.send_ping()
+    finally:
+        errlog.close()
+    noise = (tmp_path / "server_stderr.txt").read_text(encoding="utf-8")
+    assert "python stdout noise" in noise and "fd 1 noise" in noise
+    assert "child stdout noise" in noise
+
+
 @asynccontextmanager
 async def _http_server(server: FastMCP) -> AsyncIterator[str]:
     sock = bind_loopback(0)

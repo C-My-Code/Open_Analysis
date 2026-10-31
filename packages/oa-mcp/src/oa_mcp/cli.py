@@ -17,6 +17,7 @@ from typing import Any
 from oa_mcp.config import read_mcp_table, resolve_settings
 from oa_mcp.http import load_or_create_token, run_http
 from oa_mcp.server import build_server
+from oa_mcp.stdio import run_stdio
 from oa_service import OAService, Registry
 
 DEFAULT_FACTORY = "oa_service.local:LocalService"
@@ -84,4 +85,4 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.http:
         run_http(server, load_or_create_token(args.token_file), args.port)
     else:
-        server.run("stdio")
+        run_stdio(server)
