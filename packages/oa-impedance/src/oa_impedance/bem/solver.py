@@ -14,11 +14,18 @@ Formulation (all lengths SI, eps0 = 1 inside, charges are sigma~ = sigma / eps0)
 - L = mu0 C0^-1 with C0 the vacuum (all eps = 1) capacitance, which needs conductor panels only;
 - R(f) from the Wheeler / surface-impedance perturbation using the vacuum current distribution.
 
-Device path (WP-504): when ``oa_accel`` selects a GPU for the section (``OA_DEVICE``; ``auto`` above
-the measured dense crossover), the influence matrices are evaluated on the device, the system is
-assembled there and factored by cuSOLVER (float64/complex128). Memory is bounded by the device
-budget, so sections that exceed the host section budget stay dense on the GPU. Any device failure
-falls back to the host path.
+Block elimination (WP-519): the conductor rows carry no permittivity, so ``P_cc`` is factored once
+per section and serves the vacuum solve (C0, sigma0) and every dielectric solve; only the small
+interface Schur complement is rebuilt per permittivity (``OA_BEM_BLOCK=0``: whole-system oracle).
+
+Device path (WP-504, WP-519): when ``oa_accel`` selects a GPU for the section (``OA_DEVICE``;
+``auto`` above the measured dense crossover), P and D are evaluated on the device by one fused
+kernel, and the same elimination runs there in float64 (cuSOLVER ``getrf`` / ``getrs``) as one
+guarded section.
+Memory is bounded by the device budget, so sections that exceed the host section budget stay dense
+on the GPU. Any device failure falls back to the host path. Inside a parallel ``batch``, sections
+below ``OA_IMPEDANCE_BATCH_GPU_N`` panels only have P and D evaluated on the device and are factored
+by the host threads.
 """
 
 from __future__ import annotations
@@ -51,7 +58,7 @@ from .geometry import (
     build_problem,
 )
 from .iterative import EpsOperator, gmres_lockstep
-from .kernels import influence_blocks
+from .kernels import influence_blocks, set_native_thread_cap
 
 if TYPE_CHECKING:
     from oa_accel import Backend
@@ -110,6 +117,7 @@ class _MemoryGate:
 _GATE = _MemoryGate(GATE_BYTES)
 _DEV_GATES: dict[int, _MemoryGate] = {}
 _DEV_LOCK = threading.Lock()
+_SELECT_LOCK = threading.Lock()
 _DEV_FRACTION = 0.8  # share of the device budget the concurrent BEM solves may hold
 
 
@@ -121,6 +129,8 @@ _SMALL_BATCH_CPU = (
     0  # open ``batch(small=True)`` contexts: a few sections do not repay GPU start-up
 )
 _SMALL_BATCH_N = 1500  # panels below which a small batch stays on the host (device 'auto' only)
+_PAR_BATCH = 0  # open ``batch(parallel=True)`` contexts: host threads work in parallel
+_PAR_BATCH_N = int(os.environ.get("OA_IMPEDANCE_BATCH_GPU_N", "3000"))  # see ``batch``
 _BATCH_DEV: dict[int, Any] = {}  # backends whose pool free is deferred to the end of a batch
 
 
@@ -162,22 +172,32 @@ def _single_thread() -> Iterator[None]:
 
 
 @contextmanager
-def batch(*, small: bool = False) -> Iterator[None]:
+def batch(*, small: bool = False, parallel: bool = False) -> Iterator[None]:
     """Many solves in a row (``solve_many``): the BLAS limit is set once, and the device memory
     pool is returned to the driver once at the end instead of after every section. ``small``:
     the batch has only a few sections, so with ``OA_DEVICE=auto`` the sections of fewer than
-    ``_SMALL_BATCH_N`` panels stay on the host (the first CUDA call costs about 0.8 s)."""
-    global _BATCH_DEPTH, _SMALL_BATCH_CPU
+    ``_SMALL_BATCH_N`` panels stay on the host (the first CUDA call costs about 0.8 s).
+    ``parallel``: host threads solve sections side by side, so the influence kernel runs on one
+    thread each. With a GPU selected, the sections of fewer than ``_PAR_BATCH_N`` panels then only
+    have their influence matrices evaluated on the device (a few ms instead of about 0.2 core
+    seconds) and are factored by the host threads: in fp64, eight host threads factor them as
+    fast as the GPU does, and both work at once."""
+    global _BATCH_DEPTH, _SMALL_BATCH_CPU, _PAR_BATCH
     _enter_single_thread()
     with _ST_LOCK:
         _BATCH_DEPTH += 1
         _SMALL_BATCH_CPU += small
+        _PAR_BATCH += parallel
+    cap = set_native_thread_cap(1) if parallel else None
     try:
         yield
     finally:
+        if cap is not None:
+            set_native_thread_cap(cap)
         with _ST_LOCK:
             _BATCH_DEPTH -= 1
             _SMALL_BATCH_CPU -= small
+            _PAR_BATCH -= parallel
             pending = list(_BATCH_DEV.values()) if _BATCH_DEPTH == 0 else []
             if pending:
                 _BATCH_DEV.clear()
@@ -254,7 +274,8 @@ def _device_backend(n: int, est: int) -> Backend | None:
         problem=Problem(kind="dense", n=n, estimate_bytes=est), thresholds=THRESHOLDS
     )
     try:
-        be = select(pol)
+        with _SELECT_LOCK:  # the first call probes the driver and creates the context
+            be = select(pol)
     except Exception:  # device string or driver problems never fail a CPU-capable solve
         return None
     return None if be.name == "cpu" else be
@@ -402,7 +423,9 @@ def prepare(
     d: Any = None
     mode = "dense"
     peak = est
-    if be is not None:
+    # a parallel batch: the device assembles, the host threads factor (``batch``)
+    asm_only = be is not None and _PAR_BATCH > 0 and n < _PAR_BATCH_N and est <= limit
+    if be is not None and not asm_only:
         peak = 16 << 20  # host side: the device holds the matrices
     elif est > limit:
         # the conductor-only vacuum system stays dense
@@ -428,12 +451,24 @@ def prepare(
             peak = est
             notes.append(f"GPU assembly failed ({type(exc).__name__}); host dense path used")
     dev_held = 0
-    if be is not None:
+    if be is not None and not asm_only:
         dev_held = dev_est
         notes.append(f"{n} panels: dense LU on {be.name} ({be.report().device_name})")
     if reserve:
         _GATE.acquire(peak)
-    if mode == "dense" and be is None:
+    if be is not None and asm_only:
+        try:
+            p, d = np.ascontiguousarray(be.to_host(p)), np.ascontiguousarray(be.to_host(d))
+        except Exception as exc:  # the device is gone: assemble on the host below
+            p = d = None
+            notes.append(f"GPU assembly failed ({type(exc).__name__}); host dense path used")
+        else:
+            notes.append(f"{n} panels: influence matrices on {be.name}, dense LU on the host")
+        finally:
+            _dev_gate(be).release(dev_est)
+            _release_pool(be)
+        be = None
+    if mode == "dense" and be is None and p is None:
         p = np.empty((n, n))
         d = np.empty((n, n))
         # source "normal" in kernels is the panel normal; targets use their own normal
@@ -472,19 +507,37 @@ def _chunks(idx: npt.NDArray[np.intp], size: int = 256) -> Iterator[npt.NDArray[
         yield idx[k : k + size]
 
 
-def _lu_solve(a: Any, rhs: Any) -> Any:
-    """``a^-1 rhs``. LAPACK getrf / getrs through ``lu_factor``: unlike ``scipy.linalg.solve``
-    (which holds the GIL in SciPy >= 1.17) it lets the threads of ``solve_many`` run in parallel."""
-    from scipy.linalg import lu_factor, lu_solve  # type: ignore[import-untyped,unused-ignore]
+def _host_lu_factor(a: Any, overwrite_a: bool = True, check_finite: bool = False) -> Any:
+    """LAPACK ``getrf`` of a Fortran-ordered ``a`` (destroyed): ``(lu, piv)``. Raises
+    ``LinAlgError`` for an exactly zero pivot instead of the ``LinAlgWarning`` of
+    ``scipy.linalg.lu_factor`` (a warning that a test run turns into an error). Like
+    ``lu_factor`` it releases the GIL, so the threads of ``solve_many`` factor in parallel, which
+    ``scipy.linalg.solve`` (SciPy >= 1.17) does not."""
+    from scipy.linalg.lapack import dgetrf, zgetrf  # type: ignore[import-untyped,unused-ignore]
 
-    fac = lu_factor(a, overwrite_a=True, check_finite=False)
-    _check_pivots(fac[0])
-    return lu_solve(fac, rhs, check_finite=False)
-
-
-def _check_pivots(lu: Any) -> None:
-    if not np.all(np.diagonal(lu) != 0.0):
+    del check_finite
+    lu, piv, info = (zgetrf if np.iscomplexobj(a) else dgetrf)(a, overwrite_a=overwrite_a)
+    if info > 0:
         raise np.linalg.LinAlgError("Matrix is singular.")
+    return lu, piv
+
+
+def _host_lu_solve(lu_piv: Any, b: Any, check_finite: bool = False) -> Any:
+    """``getrs``: ``a^-1 b`` from ``_host_lu_factor``."""
+    from scipy.linalg.lapack import dgetrs, zgetrs  # type: ignore[import-untyped,unused-ignore]
+
+    del check_finite
+    lu, piv = lu_piv
+    cplx = np.iscomplexobj(lu) or np.iscomplexobj(b)
+    x, info = (zgetrs if cplx else dgetrs)(lu, piv, b)
+    if info != 0:
+        raise np.linalg.LinAlgError("getrs failed.")
+    return x
+
+
+def _lu_solve(a: Any, rhs: Any) -> Any:
+    """``a^-1 rhs`` (``a`` Fortran ordered, destroyed)."""
+    return _host_lu_solve(_host_lu_factor(a), rhs)
 
 
 def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
@@ -571,7 +624,9 @@ class _CondFactor:
 
 
 def _lu_funcs(geo: BemGeometry) -> tuple[Any, Any]:
-    """``lu_factor`` / ``lu_solve`` of SciPy (host) or CuPy (device)."""
+    """``lu_factor`` / ``lu_solve`` of LAPACK (host) or cuSOLVER through CuPy (device)."""
+    if geo.be is None:
+        return _host_lu_factor, _host_lu_solve
     from oa_accel.solvers.lu import lu_functions
 
     return lu_functions(geo.be)
@@ -589,7 +644,12 @@ def _cond_factor(geo: BemGeometry) -> _CondFactor:
         a = geo.P[cx[:, None], cx[None, :]]
         if be is None:
             a = np.asfortranarray(a)
-        lu, piv = lu_factor(a, overwrite_a=True, check_finite=False)
+        try:
+            lu, piv = lu_factor(a, overwrite_a=True, check_finite=False)
+        except np.linalg.LinAlgError:  # exactly singular: the whole-system path decides
+            geo.fac = _CondFactor(ci, ii, a, None, False)
+            fac0: _CondFactor = geo.fac
+            return fac0
         d = xp.abs(xp.diagonal(lu))
         pair = xp.stack([d.min(), d.max()])
         if be is None:  # on the device the check waits for the first transfer: no sync here
@@ -911,6 +971,16 @@ def _solve_bem(
             _release_device(geo)
 
 
+def _release_pool(be: Backend) -> None:
+    """Return the pool blocks to the driver, at the end of the batch inside a ``batch()``."""
+    with _ST_LOCK:
+        deferred = _BATCH_DEPTH > 0
+        if deferred:
+            _BATCH_DEV[id(be)] = be
+    if not deferred:
+        be.xp.get_default_memory_pool().free_all_blocks()
+
+
 def _release_device(geo: BemGeometry) -> None:
     """Give the device gate and the device matrices of ``geo`` back."""
     be = geo.be
@@ -918,15 +988,7 @@ def _release_device(geo: BemGeometry) -> None:
     _dev_gate(be).release(geo.reserved_dev)
     geo.reserved_dev = 0
     geo.P = geo.D = geo.fac = None  # free the device matrices and the factor
-    # return the blocks to the driver: on Windows the CuPy pool counts as committed memory of the
-    # process (a job-object cap then fails unrelated host allocations); inside a ``batch()`` this
-    # happens once, when the batch ends
-    with _ST_LOCK:
-        deferred = _BATCH_DEPTH > 0
-        if deferred:
-            _BATCH_DEV[id(be)] = be
-    if not deferred:
-        be.xp.get_default_memory_pool().free_all_blocks()
+    _release_pool(be)
 
 
 def _to_host(geo: BemGeometry, reason: str) -> BemGeometry:

@@ -11,8 +11,9 @@ module is re-imported in the children, whatever script calls the library.
 ``mesh_many`` returns one future per section; the future holds the ``Problem`` or ``None`` when
 the worker could not mesh the section (the caller then meshes it in process and meets the same
 error). The mesh is a pure function of the section, so results do not depend on the worker.
-Controls: ``OA_IMPEDANCE_MESH_WORKERS`` (0 disables; default ``OA_NUM_THREADS`` or the CPU count,
-at most 8) and ``OA_IMPEDANCE_MESH_MIN`` (smallest batch that uses the pool, default 48).
+Controls: ``OA_IMPEDANCE_MESH_WORKERS`` (0 disables; default half of ``OA_NUM_THREADS`` or of
+the CPU count, at most 8) and ``OA_IMPEDANCE_MESH_MIN`` (smallest batch that uses the pool,
+default 48).
 """
 
 from __future__ import annotations
@@ -50,7 +51,8 @@ def pool_size() -> int:
         threads = int(os.environ.get("OA_NUM_THREADS", "0") or 0)
     except ValueError:
         return 0
-    return max(1, min(threads, 8)) if threads > 0 else max(1, min(os.cpu_count() or 1, 8))
+    cores = threads if threads > 0 else min(os.cpu_count() or 1, 8)
+    return max(1, min(cores, 8) // 2)  # the solve threads of the batch use the other half
 
 
 def min_batch() -> int:
@@ -111,6 +113,8 @@ class _Worker:
                 proc.stdin.close()
             proc.kill()
             proc.wait()
+            with contextlib.suppress(OSError):
+                proc.stdout.close()
 
 
 class MeshPool:

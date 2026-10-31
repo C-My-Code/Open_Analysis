@@ -355,12 +355,13 @@ class ImpedanceServiceImpl:
             else:
                 todo.append((k, xs))
         # BLAS limit and device-pool release once per batch, not per section
-        with _bem_batch(small=len(todo) < _SMALL_BATCH) if todo else nullcontext():
+        par = len(todo) > 1 and self.max_workers > 1
+        with _bem_batch(small=len(todo) < _SMALL_BATCH, parallel=par) if todo else nullcontext():
             # a large BEM batch is meshed by worker processes while the threads below solve
             meshed: list[Future[Problem | None]] | None = None
             if method == "bem" and len(todo) > 1:
                 meshed = _meshpool.mesh_many([xs for _, xs in todo], self.mesh)
-            if len(todo) > 1 and self.max_workers > 1:
+            if par:
                 with ThreadPoolExecutor(max_workers=min(self.max_workers, len(todo))) as ex:
                     futs = [
                         (k, ex.submit(self._compute, xs, fs, method, _prob_of(meshed, i)))

@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 
 import _xs
+import impedance_mix_helpers as mix
 import numpy as np
 import pytest
 
@@ -70,3 +71,61 @@ def test_gpu_fault_falls_back_to_host(monkeypatch: pytest.MonkeyPatch) -> None:
     assert geo.be is None and any("host dense path used" in n for n in sol.notes)
     assert bem_solver._dev_gate(be).used == 0
     be.inject_fault(None)  # type: ignore[attr-defined]
+
+
+# ---- WP-519: sections like those of the --mix board, device against host. The bound is 1e-9 of
+# the largest entry: two exact float64 solvers of these systems differ by their conditioning
+# noise, a few 1e-10 (the whole-system and the block elimination on the host differ by as much).
+
+MIX_TOL = 1e-9
+
+
+def _assert_same(a, b, tol: float = MIX_TOL) -> None:
+    for name in ("C", "C0", "L_ext", "R_ac", "R_dc"):
+        x, y = getattr(a, name), getattr(b, name)
+        scale = max(float(np.abs(y).max()), 1e-300)
+        assert float(np.abs(x - y).max()) / scale < tol, name
+
+
+@_gpu
+@pytest.mark.parametrize("seed", range(100, 108))
+def test_gpu_matches_cpu_on_mix_sections(seed: int, monkeypatch: pytest.MonkeyPatch) -> None:
+    xs = mix.mix_section(seed)
+    cpu = _solve(xs, "cpu", monkeypatch)
+    gpu = _solve(xs, "cuda", monkeypatch)
+    assert gpu.n_panels == cpu.n_panels and gpu.n_solves == cpu.n_solves
+    assert any("dense LU on cuda" in n for n in gpu.notes)
+    _assert_same(gpu, cpu)
+
+
+@_gpu
+def test_parallel_batch_assembles_on_the_device_and_factors_on_the_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    xs = mix.mix_section(101)
+    cpu = _solve(xs, "cpu", monkeypatch)
+    monkeypatch.setenv("OA_DEVICE", "cuda")
+    monkeypatch.setattr(bem_solver, "_PAR_BATCH_N", 10_000)
+    with bem_solver.batch(parallel=True):
+        geo = bem_solver.prepare(xs)
+        assert geo.be is None and isinstance(geo.P, np.ndarray) and geo.reserved_dev == 0
+        sol = solve_bem(xs, FREQS, geo=geo)
+    assert any("influence matrices on cuda" in n for n in sol.notes)
+    _assert_same(sol, cpu)
+
+
+@_gpu
+def test_gpu_batch_through_the_service_matches_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    from oa_impedance.service import ImpedanceServiceImpl
+    from oa_results.container import as_np
+
+    sections = mix.mix_sections(12, seed0=500)
+    out = {}
+    for dev in ("cpu", "cuda"):
+        monkeypatch.setenv("OA_DEVICE", dev)
+        monkeypatch.setattr(bem_solver, "_PAR_BATCH_N", 900)  # some on the device, some assembled
+        out[dev] = ImpedanceServiceImpl(max_workers=3).solve_many(sections, FREQS, method="bem")
+    for c, g in zip(out["cpu"], out["cuda"], strict=True):
+        for name in ("R", "L", "G", "C"):
+            x, y = as_np(getattr(g.rlgc, name)), as_np(getattr(c.rlgc, name))
+            assert float(np.abs(x - y).max()) / max(float(np.abs(y).max()), 1e-300) < MIX_TOL

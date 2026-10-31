@@ -18,7 +18,8 @@ svc = ImpedanceServiceImpl()
 svc.solve(
     xs, freqs=None, method="auto" | "closed_form" | "bem" | "fem"
 )  # -> oa_results ImpedanceResult
-svc.solve_many(xss, freqs, method="auto")  # dedups by CrossSection.key(), threads
+svc.solve_many(xss, freqs, method="auto")  # dedups by CrossSection.key(), threads; BEM batches
+# of >= 48 sections are meshed by worker processes (bem/meshpool.py)
 svc.quick(xs)  # closed form only, < 1 ms
 from oa_impedance import methods
 
@@ -60,9 +61,30 @@ Open boundaries are truncated at `20 * characteristic length` (note in every res
 the vacuum capacitance (`L = mu0 C0^-1`), R(f) from the surface-impedance perturbation using the
 vacuum charge (Wheeler rule generalised), with `oa_model` roughness models (all material and roughness
 physics comes from `oa_physics`; tabulated Dk/Df is interpolated in ln f). Complex permittivity gives C(f), G(f); dispersive materials are
-solved at up to 6 log-spaced anchors and interpolated (cubic, log f). Pure NumPy/SciPy; BLAS is
-limited to one thread for these small systems (`threadpoolctl`), which matters on loaded machines.
-Numba is not used: the NumPy kernel meets the budget.
+solved at up to 6 log-spaced anchors and interpolated (cubic, log f). Pure NumPy/SciPy (plus the
+`oa-native` influence kernel); BLAS is limited to one thread per solve (`threadpoolctl`,
+`OA_IMPEDANCE_BLAS_THREADS`), because `solve_many` runs one section per thread.
+
+Solver structure (WP-519, THEORY.md section 2.2): the conductor rows of the system have no
+permittivity in them, so `P_cc` is LU-factored once per section (`getrf`, GIL-free) and block
+elimination reuses it for C0 and for every C(f) anchor; only the interface Schur complement is
+rebuilt. `OA_BEM_BLOCK=0` factors the whole system instead (the oracle of `tests/test_bem_block.py`;
+it is also the fallback when the pivots of `P_cc` are unhealthy). Loss and modal steps are batched
+over frequencies.
+
+`ImpedanceServiceImpl.solve_many` for `method="bem"`:
+
+- the threads (`OA_IMPEDANCE_WORKERS`, else `OA_NUM_THREADS`, else the CPU count up to 8) solve one
+  section each; LAPACK and the native kernel release the GIL;
+- a batch of at least `OA_IMPEDANCE_MESH_MIN` (48) sections is meshed by worker processes
+  (`bem/meshpool.py`, `OA_IMPEDANCE_MESH_WORKERS`, default half of the thread budget, 0 disables,
+  idle workers exit after 60 s). `build_problem` is 10 to 30 ms of Python and shapely per section
+  and holds the GIL. Workers are `subprocess` children speaking pickled frames over pipes, so no
+  `__main__` module is re-imported. A section a worker cannot mesh is meshed in process (same
+  error as before).
+
+Memory: host peak is bounded by the existing section budget and `OA_IMPEDANCE_TOTAL_MB` gate; the
+device peak of the 383-section batch is 1.2 GB of CuPy pool (B-IMP-04 limit 4 GB).
 
 Modal decomposition (`modal.py`): `Zc = (ZY)^1/2 Y^-1`, eigenmodes, mixed-mode
 `Zdiff = Zc11+Zc22-Zc12-Zc21`, `Zcomm = (Zc11+Zc22+Zc12+Zc21)/4`; for N = 2 the modal order is
@@ -260,12 +282,29 @@ float64 / complex128; only the small conductor results come back. The device bud
 so a section that the 512 MB host budget would coarsen or send to GMRES stays dense and exact on
 the GPU (cm5: 5849 panels, no coarsening). Any device failure falls back to the host path.
 
-- GPU vs CPU, same mesh: relative difference 1.4e-15 on 396 cm5 sections (Z0, static); batch of
-  1000 sections x 50 f: 8e-11 (ADR-0009 dense class 1e-10).
-- cm5, 402 unique sections, static, one thread: 104 s CPU, 25 s GPU. Batch (1000 sections x 50 f,
-  `solve_many`, 4 threads): 229 s CPU, 50 s GPU; both are host-bound (meshing, Python loss loops) and
-  miss the B-IMP-04 targets (20 s / 5 s), which need the WP-509 native kernels and a service-level
-  batch.
+- GPU vs CPU, same mesh: relative difference 1.4e-15 on 396 cm5 sections (Z0, static, WP-504,
+  whole-system path). Since WP-519 both paths use block elimination; the differences between the
+  device, the host block path and the whole-system oracle are the conditioning noise of the mix
+  systems, at most 5e-10 of the largest entry of a section (ADR-0009 allows 1e-10 for the dense
+  class on well-conditioned systems; `tests/test_bem_gpu.py` uses 1e-10 on the testkit sections and
+  1e-9 on the mix sections).
+- WP-519 device path: P and D come from one fused CUDA kernel (launches of about 3 ms, the
+  longest single cuSOLVER call is `getrf` of a 3300-panel section, 90 ms), the conductor block is
+  factored once on the device (float64), C0 and C(f) reuse it, and a failure of any device step
+  moves the whole section to the host (`oa_accel.solvers.guarded.run_guarded`, recorded in
+  `Backend.report().fallbacks`). No float32 is used anywhere.
+- In a parallel batch (`solve_many` with several threads), sections under
+  `OA_IMPEDANCE_BATCH_GPU_N` panels (3000) have only P and D evaluated on the GPU, copied to the host
+  and factored by the host threads; larger sections run entirely on the device. At these sizes in
+  float64 the GPU factors no faster than eight host cores (1/64 double rate), and the native
+  CPU influence kernel is the dominant CPU cost (about 0.18 core-seconds per section), so this
+  split is the fastest on the reference machine. Set `OA_IMPEDANCE_BATCH_GPU_N=0` to keep every
+  section on the device.
+- B-IMP-04 proxy (383 sections of the `--mix` board x 50 frequencies, `solve_many`, reference
+  machine, 8 solve threads, cold process): before 52 s (4 threads), CPU 10.5 s, GPU 6.6 s cold /
+  5.0 to 5.6 s warm. Details: `docs/perf/PROFILE-519.md`.
+- Earlier numbers (WP-504, before WP-519): cm5, 402 unique sections, static, one thread: 104 s CPU,
+  25 s GPU; batch of 1000 sections x 50 f (`solve_many`, 4 threads): 229 s CPU, 50 s GPU.
 - The GMRES preconditioner is now restricted additive Schwarz (384-panel subdomains, 50 % overlap).
   End to end on a 1831-panel cm5 section (matrix-free, CPU): 109 iterations / 36 s instead of 228 /
   76 s, residual 1e-11 both. On a 5060-panel system 100 iterations instead of 286. The WP-512
@@ -279,4 +318,8 @@ the GPU (cm5: 5849 panels, no coarsening). Any device failure falls back to the 
 - On Windows the CuPy pool counts as committed memory (the devguard job cap, `OA_MEMCAP_GB`), so
   the pool is released after every section.
 - `_loss` evaluates roughness and surface resistance once per (conductor, face) class.
-- Tests: `tests/test_bem_gpu.py` (GPU cases need `OA_RUN_GPU=1`).
+- Tests: `tests/test_bem_gpu.py` (GPU cases need `OA_RUN_GPU=1`), `tests/test_bem_block.py` (block
+  elimination against the whole-system oracle, one factorisation per section), `tests/test_meshpool.py`
+  (worker meshes equal in-process meshes; `solve_many` with and without the pool), the `perf`-marked
+  throughput test in `tests/test_performance.py` (B-IMP-04 per-section budget, `OA_RUN_PERF=1`).
+  Test helper `tests/impedance_mix_helpers.py` builds sections like those of the `--mix` board.

@@ -22,7 +22,7 @@ import numpy.typing as npt
 
 F64 = npt.NDArray[np.float64]
 
-__all__ = ["influence", "influence_blocks"]
+__all__ = ["influence", "influence_blocks", "set_native_thread_cap"]
 
 _INV_2PI = 1.0 / (2.0 * np.pi)
 
@@ -82,10 +82,21 @@ def _native_kernel() -> Any:
     )
 
 
+_THREAD_CAP = [0]  # 0: none. A parallel batch sets 1: its own threads already fill the cores
+
+
+def set_native_thread_cap(cap: int) -> int:
+    """Cap the threads of one ``bem_influence`` call (0 = no cap); returns the previous cap."""
+    prev, _THREAD_CAP[0] = _THREAD_CAP[0], max(0, cap)
+    return prev
+
+
 def _native_threads(entries: int) -> int:
     n = int(os.environ.get("OA_NUM_THREADS", "0") or 0)
     if n <= 0:
         n = min(os.cpu_count() or 1, 8)
+    if _THREAD_CAP[0] > 0:
+        n = min(n, _THREAD_CAP[0])
     return max(1, min(n, entries // 100_000 + 1))
 
 
