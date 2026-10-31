@@ -30,8 +30,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     else:
         from oa_accel.probe import probe
 
-        if not probe().cupy_available:
-            reason = "no CuPy device available"
+        pr = probe()
+        if not pr.cupy_available:
+            reason = f"no CuPy device available ({pr.error})"
     if reason:
         skip = pytest.mark.skip(reason=reason)
         for item in gpu_items:

@@ -114,6 +114,12 @@ jobs:
       - name: Native extension is built and current
         run: uv run python -c "import oa_native, sys; s = oa_native.status(); print(s); sys.exit(1 if s['fallback'] else 0)"
       - run: uv run pytest -n 4 -m "not external and not kicad and not slow"  # 4 x 2 threads, fits 12 GB
+      # Shows why the GPU is not usable (driver, device visibility, CUDA runtime) before the
+      # GPU tests would otherwise skip with only "no CuPy device available".
+      - name: GPU visible to CuPy
+        run: |
+          nvidia-smi || echo "nvidia-smi failed: no GPU in this container"
+          uv run python -c "from oa_accel.probe import probe; p = probe(); print(p); raise SystemExit(0 if p.cupy_available else 1)"
       - name: GPU tests
         run: uv run pytest -m "gpu and not external and not kicad and not slow"
         env:
