@@ -113,6 +113,13 @@ IM-002 used to solve every distinct cross-section of a net by BEM. It now (confi
 Other `method` values (`auto`, `closed_form`) are used as given, with no skip and no screening.
 Timings are in `docs/perf/PROFILE-516.md`.
 
+**Batching (WP-520).** The sections of consecutive nets that still need the BEM are collected
+until 256 are pending (or 64 nets) and go to `solve_many` together; violations are still reported net by net
+in the same order and are identical to the per-net path (`tests/test_im002_batch.py`). On
+`cm5_minima` with its `.kicad_pro` (18 diff pairs, 546 distinct "general" sections: coplanar
+ground pours, so no closed form and no screening bound) IM-002 is about 42 s of BEM on CPU at
+about 127 ms CPU per section; see `docs/perf/PROFILE-520.md` for what would bring it down.
+
 ## Golden suites and tests
 
 `tests/boards/kicad10/*/expected.yaml` is the oracle (`test_boards.py`); `test_contract.py` covers

@@ -26,6 +26,14 @@ wheels built by maturin. Nothing depends on it: callers fall back to Python.
   `oa_geometry.refmap._bulk_cover` (`oa_geometry._native` hands them over; `OA_NATIVE_CLIP=0`
   forces the GEOS oracle). Tests: `tests/test_native_clip.py`.
 
+- `oa_native.status() -> dict` (WP-520, for `oa doctor`): `mode`, `available`, `path`,
+  `kernel_version`, `stale` and `missing` (kernels of `oa_native.KERNELS` the module lacks) and
+  `fallback` (some work runs on the Python oracles although `OA_NATIVE` does not ask for it).
+  Never raises.
+- In `auto` mode `get()` logs one warning (logger `oa_native`) when the module is missing or
+  stale. The fallbacks are correct but slow: without the module, ERC on `cm5_minima` with its
+  net classes takes about 94 s instead of 49 s (`docs/perf/PROFILE-520.md`).
+
 ## Contracts
 
 The pure-Python implementation is the oracle for every kernel; the native result must be
@@ -39,6 +47,11 @@ Python (`tests/test_fallback.py`).
 cd packages/oa-native
 maturin develop --release --uv      # needs the Rust stable toolchain (MSVC on Windows)
 ```
+
+`uv sync` builds it as an editable workspace member. The crate lives outside this package
+directory, so `[tool.uv] cache-keys` lists `crates/oa-native/Cargo.toml`, `Cargo.lock` and
+`src/**/*.rs`: without them uv reused the cached build after Rust changes and the module went
+stale silently (WP-520). To force a rebuild: `uv sync --reinstall-package oa-native`.
 
 ## Golden suites
 

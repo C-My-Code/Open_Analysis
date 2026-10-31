@@ -71,6 +71,24 @@ After WP-509 (memoized candidate layers and a single-span fast path, `docs/perf/
 `reference_map()` on the 10k board takes about 1.3 s (including a one-off 0.4 s scipy import); 50k
 extrapolated to about 5 s against the 3 s target. WP-509b then added the native clipping kernel
 described above (10k: 1.01 s → about 0.6 s; 50k extrapolates to about 3.3 s, not yet measured).
+Those WP-509 figures are for the `tools/bench/gen_synth_board.py` board; the `tests/synthetic.py`
+board of `test_perf.py` is heavier per track (about 5 s at 10k).
+
+WP-520 (`docs/perf/PROFILE-520.md`): the 50k `test_perf.py` benchmark did not scale linearly.
+Three steps walked the whole board per piece or per net: `topology._build` filtered
+`board.pads`/`board.vias` per net (now `items_by_net`), the native `rect_cover_edge` walked every
+antipad ring of the plane per piece (now `RingSet.near` hands it the rings near the footprint
+box), and GEOS prepared `covers` tests a point of every hole of the part per footprint (now
+`_covers_part`: shell `covers` plus the STRtree-near holes). All three are exact (ReferenceMap
+JSON hashes unchanged). `tests/synthetic.py`, 2 threads:
+
+| tracks | `reference_map()` before | after (native) | after (`OA_NATIVE_CLIP=0`) |
+|---|---|---|---|
+| 10k | 5.0 s | 3.8 s | 3.9 s |
+| 50k | 57 s native, 64 s GEOS | 19.8 s | 19.1 s |
+
+A missing or stale `oa-native` build is logged once (logger `oa_native` / `oa_geometry`) and
+reported by `oa_native.status()`; it is no longer a silent fallback.
 
 ## Typing
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -189,6 +189,26 @@ class _Sec:
         return min(a, b), max(a, b)
 
 
+_BATCH_SECTIONS = 256
+"""IM-002 collects nets until this many sections need the BEM, then solves them together."""
+_BATCH_NETS = 64
+"""...or until this many nets are pending (bounds the samples held in memory)."""
+
+
+@dataclass
+class _NetJob:
+    """One net (or pair) of IM-002 between screening and the report."""
+
+    samples: Any
+    sample_keys: list[str]
+    secs: dict[str, _Sec]
+    todo: list[_Sec]
+    nets: tuple[str, ...]
+    target: float
+    tol: float
+    diff: bool
+
+
 def _matrix_order(xs: Any) -> int:
     """Number of conductors of the RLGC matrix the BEM returns: the signals, or one less when
     there is no ground (the last signal is then the reference). ``Z0`` exists for order 1 and
@@ -230,6 +250,21 @@ class ImpedanceOutOfTolerance(ErcRule):
 
     def check(self, ctx: ErcContext, cfg: IM002Config) -> Iterable[Violation]:
         svc = ctx.services().get("impedance")
+        # The sections of several nets go to the BEM as one batch (WP-520): one solve_many per
+        # net left the worker pool idle at the end of every net. Violations are still yielded
+        # net by net in the same order, and every value is the one the per-net path computes.
+        pending: list[_NetJob] = []
+        n_todo = 0
+        for job in self._jobs(ctx, svc, cfg):
+            pending.append(job)
+            n_todo += len(job.todo)
+            if n_todo >= _BATCH_SECTIONS or len(pending) >= _BATCH_NETS:
+                yield from self._flush(svc, cfg, pending)
+                pending, n_todo = [], 0
+        yield from self._flush(svc, cfg, pending)
+
+    def _jobs(self, ctx: ErcContext, svc: Any, cfg: IM002Config) -> Iterator[_NetJob]:
+        """The sections of every net (or pair) with a target, screened, in net order."""
         geo = ctx.geometry()
         scope = set(ctx.nets_in_scope())
         done: set[str] = set()
@@ -253,32 +288,28 @@ class ImpedanceOutOfTolerance(ErcRule):
                     continue
                 done.add(ni.diff_pair)
                 samples = geo.sample_net((p_net, n_net), ds=self._ds(geo, (p_net,), cfg))
-                yield from self._runs(
-                    svc,
-                    cfg,
-                    samples,
-                    (p_net, n_net),
-                    ni.target_z_diff,
-                    tol,
-                    diff=True,
+                job = self._prepare(
+                    svc, cfg, samples, (p_net, n_net), ni.target_z_diff, tol, diff=True
                 )
             elif ni.target_z_se is not None and ni.diff_pair is None:
-                yield from self._runs(
-                    svc,
-                    cfg,
-                    geo.sample_net(net, ds=self._ds(geo, (net,), cfg)),
-                    (net,),
-                    ni.target_z_se,
-                    tol,
-                    diff=False,
-                )
+                samples = geo.sample_net(net, ds=self._ds(geo, (net,), cfg))
+                job = self._prepare(svc, cfg, samples, (net,), ni.target_z_se, tol, diff=False)
+            else:
+                continue
+            if job is not None:
+                yield job
+
+    def _flush(self, svc: Any, cfg: IM002Config, jobs: Sequence[_NetJob]) -> Iterable[Violation]:
+        self._solve_batch(svc, cfg, [(s, j.diff) for j in jobs for s in j.todo])
+        for job in jobs:
+            yield from self._finish(svc, cfg, job)
 
     @staticmethod
     def _ds(geo: Any, nets: tuple[str, ...], cfg: IM002Config) -> float:
         total = sum(sg.length for n in nets for sg in geo.segments(n))
         return float(max(cfg.min_ds, total / cfg.max_samples_per_net))
 
-    def _runs(
+    def _prepare(
         self,
         svc: Any,
         cfg: IM002Config,
@@ -288,13 +319,13 @@ class ImpedanceOutOfTolerance(ErcRule):
         tol: float,
         *,
         diff: bool,
-    ) -> Iterable[Violation]:
+    ) -> _NetJob | None:
         if diff:
             samples = tuple(
                 s for s in samples if sum(c.role == "signal" for c in s.xs.conductors) >= 2
             )
         if not samples:
-            return
+            return None
         # key() hashes the section. Samples cut from one signature share their conductor and
         # dielectric tuples (``sample_net``), so those are hashed once.
         seen: dict[tuple[object, ...], str] = {}
@@ -314,7 +345,13 @@ class ImpedanceOutOfTolerance(ErcRule):
             step = len(keys) / cfg.max_sections
             keys = [keys[int(i * step)] for i in range(cfg.max_sections)]
         lo, hi = target * (1 - tol), target * (1 + tol)
-        secs = self._evaluate(svc, cfg, keys, by_key, lo, hi, diff=diff)
+        secs, todo = self._evaluate(svc, cfg, keys, by_key, lo, hi, diff=diff)
+        return _NetJob(samples, sample_keys, secs, todo, nets, target, tol, diff)
+
+    def _finish(self, svc: Any, cfg: IM002Config, job: _NetJob) -> Iterable[Violation]:
+        samples, sample_keys, secs = job.samples, job.sample_keys, job.secs
+        target, tol, diff = job.target, job.tol, job.diff
+        lo, hi = target * (1 - tol), target * (1 + tol)
         solved = [i for i, k in enumerate(sample_keys) if k in secs]
         sec_of: list[_Sec | None] = []
         for idx in range(len(samples)):
@@ -332,7 +369,7 @@ class ImpedanceOutOfTolerance(ErcRule):
             if run:
                 if cfg.exact_values:
                     self._refine(svc, cfg, [sec_of[j] for j in run], target, diff)  # type: ignore[misc]
-                yield self._report(samples, sec_of, run, nets, target, tol, (lo, hi), diff)
+                yield self._report(samples, sec_of, run, job.nets, target, tol, (lo, hi), diff)
                 run = []
 
     def _evaluate(
@@ -345,18 +382,18 @@ class ImpedanceOutOfTolerance(ErcRule):
         hi: float,
         *,
         diff: bool,
-    ) -> dict[str, _Sec]:
-        """The impedance of every kept section: screened where the closed form decides it, the
-        BEM otherwise. Only a section whose result has the judged quantity (Z0 / Zdiff) is
-        solved: the others (a neighbouring signal in the section) are never compared, so the
-        BEM would only discard its answer."""
+    ) -> tuple[dict[str, _Sec], list[_Sec]]:
+        """Every kept section, and those that still need the BEM: screened where the closed
+        form decides it, the BEM otherwise (``_flush`` solves them in one batch). Only a section
+        whose result has the judged quantity (Z0 / Zdiff) is solved: the others (a neighbouring
+        signal in the section) are never compared, so the BEM would only discard its answer."""
         secs = {k: _Sec(xs=by_key[k], key=k) for k in keys}
         if cfg.method != "bem":  # a chosen method is used as given, on every section
             results = svc.solve_many([by_key[k] for k in keys], None, method=cfg.method)
             for k, r in zip(keys, results, strict=True):
                 z = _z_of(r, diff)
                 secs[k].verdict, secs[k].exact, secs[k].z, secs[k].res = z is not None, True, z, r
-            return secs
+            return secs, []
         need = 2 if diff else 1
         todo: list[_Sec] = []
         for sec in secs.values():
@@ -366,8 +403,7 @@ class ImpedanceOutOfTolerance(ErcRule):
             if cfg.screen and self._screen(svc, sec, diff) and sec.status(lo, hi) is not None:
                 continue
             todo.append(sec)
-        self._solve(svc, cfg, todo, diff)
-        return secs
+        return secs, todo
 
     @staticmethod
     def _has_verdict(xs: Any, need: int) -> bool:
@@ -392,11 +428,15 @@ class ImpedanceOutOfTolerance(ErcRule):
 
     @staticmethod
     def _solve(svc: Any, cfg: IM002Config, secs: Sequence[_Sec], diff: bool) -> None:
-        if not secs:
+        ImpedanceOutOfTolerance._solve_batch(svc, cfg, [(s, diff) for s in secs])
+
+    @staticmethod
+    def _solve_batch(svc: Any, cfg: IM002Config, items: Sequence[tuple[_Sec, bool]]) -> None:
+        """BEM for every (section, diff) item in one ``solve_many`` (it drops duplicates)."""
+        if not items:
             return
-        for sec, r in zip(
-            secs, svc.solve_many([s.xs for s in secs], None, method=cfg.method), strict=True
-        ):
+        results = svc.solve_many([s.xs for s, _ in items], None, method=cfg.method)
+        for (sec, diff), r in zip(items, results, strict=True):
             sec.res, sec.exact, sec.z, sec.bound = r, True, _z_of(r, diff), None
 
     def _refine(
