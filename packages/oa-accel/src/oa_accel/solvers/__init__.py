@@ -7,6 +7,9 @@
 - :func:`spd_solve`: sparse SPD solve, cuDSS or CG + Jacobi on the GPU, SciPy on the CPU (DC IR,
   raster FVM, thermal).
 - :func:`cg_stencil`: matrix-free CG on a uniform 2D/3D grid (raster FVM).
+- :func:`lu_functions`: ``lu_factor`` / ``lu_solve`` of the active backend, for callers that keep a
+  factorisation and solve against it repeatedly (BEM conductor block, WP-519).
+- :func:`run_guarded`: a multi-kernel device section under one memory check and one CPU fallback.
 
 ``THRESHOLDS`` are the crossover sizes measured on the reference machine (RTX 4080 SUPER, see
 ``docs/change-requests/WP-504-thresholds.md``); callers pass them to ``DevicePolicy``.
@@ -17,12 +20,21 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-__all__ = ["THRESHOLDS", "batched_dense_solve", "cg_stencil", "spd_solve"]
+__all__ = [
+    "THRESHOLDS",
+    "batched_dense_solve",
+    "cg_stencil",
+    "lu_functions",
+    "run_guarded",
+    "spd_solve",
+]
 
 _LAZY = {
     "batched_dense_solve": "oa_accel.solvers.dense",
     "spd_solve": "oa_accel.solvers.sparse",
     "cg_stencil": "oa_accel.solvers.raster",
+    "lu_functions": "oa_accel.solvers.lu",
+    "run_guarded": "oa_accel.solvers.guarded",
 }
 
 

@@ -11,7 +11,7 @@ import os
 import threading
 from collections import OrderedDict
 from collections.abc import MutableMapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import asdict
 from typing import Literal
@@ -22,6 +22,8 @@ from oa_impedance import methods as _methods
 from oa_impedance import topology as topo_mod
 from oa_impedance._dielectric import eps_at
 from oa_impedance.bem import MeshParams, solve_bem
+from oa_impedance.bem import meshpool as _meshpool
+from oa_impedance.bem.geometry import Problem
 from oa_impedance.bem.solver import batch as _bem_batch
 from oa_impedance.errors import ImpedanceUnsupported
 from oa_impedance.modal import modal_decomposition
@@ -45,6 +47,34 @@ SOLVER_VERSION = "oa-impedance 0.1.0"
 Method = Literal["auto", "closed_form", "bem", "fem"]
 
 
+def _default_workers() -> int:
+    """Threads of ``solve_many``: ``OA_IMPEDANCE_WORKERS``, else ``OA_NUM_THREADS``, else the CPU
+    count (at most 8). The dense factorisations release the GIL, so they scale with threads."""
+    for key in ("OA_IMPEDANCE_WORKERS", "OA_NUM_THREADS"):
+        try:
+            n = int(os.environ.get(key, "0") or 0)
+        except ValueError:
+            n = 0
+        if n > 0:
+            return min(n, 32)
+    return max(1, min(os.cpu_count() or 1, 8))
+
+
+def _prob_of(meshed: list[Future[Problem | None]] | None, i: int) -> Future[Problem | None] | None:
+    return None if meshed is None else meshed[i]
+
+
+def _wait_mesh(fut: Future[Problem | None] | None) -> Problem | None:
+    """The mesh a pool worker built, or None (no pool, or the worker failed on this section:
+    the in-process path then meshes it again and meets the same error)."""
+    if fut is None:
+        return None
+    try:
+        return fut.result()
+    except Exception:
+        return None
+
+
 def _freqs(freqs: Sequence[float] | None) -> tuple[float, ...]:
     if freqs is None or len(freqs) == 0:
         return (0.0,)
@@ -66,23 +96,21 @@ def bem_to_result(
     freqs: tuple[float, ...],
     mesh: MeshParams | None = None,
     budget: int | None = None,
+    prob: Problem | None = None,
 ) -> ImpedanceResult:
-    sol = solve_bem(xs, list(freqs), mesh, budget=budget)
+    sol = solve_bem(xs, list(freqs), mesh, budget=budget, prob=prob)
     fs = sol.freqs
-    nf, n = len(fs), len(sol.conductor_ids)
+    n = len(sol.conductor_ids)
     w = 2.0 * np.pi * fs
     C = sol.C.real
     with np.errstate(all="ignore"):
         G = np.where(w[:, None, None] > 0, -w[:, None, None] * sol.C.imag, 0.0)
-    R = np.zeros((nf, n, n))
-    L = np.zeros((nf, n, n))
-    for i in range(nf):
-        rac = sol.R_ac[i]
-        r = rac.copy()
-        d = np.arange(n)
-        r[d, d] = np.sqrt(sol.R_dc**2 + np.diag(rac) ** 2)
-        R[i] = r
-        L[i] = sol.L_ext + (rac / w[i] if w[i] > 0 else 0.0)
+    rac = sol.R_ac
+    R = rac.copy()
+    d = np.arange(n)
+    R[:, d, d] = np.sqrt(sol.R_dc**2 + rac[:, d, d] ** 2)
+    with np.errstate(all="ignore"):
+        L = sol.L_ext[None] + np.where(w[:, None, None] > 0, rac / w[:, None, None], 0.0)
     modal = modal_decomposition(fs, R, L, G, C)
     params_kwargs: dict[str, Floats] = {}
     for name in ("z0", "z_diff", "z_comm", "z_odd", "z_even"):
@@ -244,14 +272,14 @@ class ImpedanceServiceImpl:
         cache_size: int = 512,
         mesh: MeshParams | None = None,
         job_cache: MutableMapping[str, str] | None = None,
-        max_workers: int = 4,
+        max_workers: int | None = None,
         section_budget_mb: float | None = None,
     ) -> None:
         self._lru: OrderedDict[str, ImpedanceResult] = OrderedDict()
         self._size = cache_size
         self.mesh = mesh or MeshParams()
         self.job_cache = job_cache
-        self.max_workers = max_workers
+        self.max_workers = _default_workers() if max_workers is None else max_workers
         if section_budget_mb is None:
             section_budget_mb = float(os.environ.get("OA_IMPEDANCE_SECTION_MB", "512"))
         self.section_budget = int(section_budget_mb * 2**20)
@@ -327,16 +355,24 @@ class ImpedanceServiceImpl:
             else:
                 todo.append((k, xs))
         # BLAS limit and device-pool release once per batch, not per section
-        with _bem_batch(small=len(todo) < _SMALL_BATCH) if todo else nullcontext():
-            if len(todo) > 1 and self.max_workers > 1:
+        par = len(todo) > 1 and self.max_workers > 1
+        with _bem_batch(small=len(todo) < _SMALL_BATCH, parallel=par) if todo else nullcontext():
+            # a large BEM batch is meshed by worker processes while the threads below solve
+            meshed: list[Future[Problem | None]] | None = None
+            if method == "bem" and len(todo) > 1:
+                meshed = _meshpool.mesh_many([xs for _, xs in todo], self.mesh)
+            if par:
                 with ThreadPoolExecutor(max_workers=min(self.max_workers, len(todo))) as ex:
-                    futs = [(k, ex.submit(self._compute, xs, fs, method)) for k, xs in todo]
+                    futs = [
+                        (k, ex.submit(self._compute, xs, fs, method, _prob_of(meshed, i)))
+                        for i, (k, xs) in enumerate(todo)
+                    ]
                     for k, fut in futs:
                         out[k] = fut.result()
                         self._put(k, out[k])
             else:
-                for k, xs in todo:
-                    out[k] = self._compute(xs, fs, method)
+                for i, (k, xs) in enumerate(todo):
+                    out[k] = self._compute(xs, fs, method, _prob_of(meshed, i))
                     self._put(k, out[k])
         return [out[k] for k in keys]
 
@@ -345,7 +381,13 @@ class ImpedanceServiceImpl:
         return self.solve(xs, None, method="closed_form")
 
     # -- dispatch ---------------------------------------------------------------------
-    def _compute(self, xs: CrossSection, fs: tuple[float, ...], method: str) -> ImpedanceResult:
+    def _compute(
+        self,
+        xs: CrossSection,
+        fs: tuple[float, ...],
+        method: str,
+        prob: Future[Problem | None] | None = None,
+    ) -> ImpedanceResult:
         if method in ("auto", "closed_form"):
             topo = topo_mod.extract(xs)
             if topo is not None:
@@ -363,7 +405,8 @@ class ImpedanceServiceImpl:
             method = "bem"
         if method == "bem":
             self.stats["bem"] += 1
-            return bem_to_result(xs, fs, self.mesh, self.section_budget)
+            mesh = _wait_mesh(prob)
+            return bem_to_result(xs, fs, self.mesh, self.section_budget, mesh)
         solver = _methods.get(method)  # raises MethodNotAvailable for unknown / unregistered
         self.stats["plugin"] += 1
         return solver(xs, fs)

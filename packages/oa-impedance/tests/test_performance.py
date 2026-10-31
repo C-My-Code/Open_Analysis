@@ -54,3 +54,21 @@ def test_closed_form_quick_under_1ms() -> None:
     med = _median_s(lambda: ImpedanceServiceImpl().quick(xs), n=25)
     assert med < 2e-3  # target < 1 ms on a quiet machine; 2 ms allows CI noise
     del svc
+
+
+@pytest.mark.perf
+def test_batch_throughput_per_section_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """B-IMP-04 (BENCHMARKS.md): 1000 sections x 50 f in 20 s on the CPU, that is 20 ms per
+    section. 96 mix-like sections (smaller than the real ones: about 600 panels) through
+    ``solve_many``; the headline number is measured by tools/bench on the reference machine."""
+    import impedance_mix_helpers as mix
+
+    monkeypatch.setenv("OA_DEVICE", "cpu")
+    sections = mix.mix_sections(96, seed0=2000)
+    freqs = list(np.logspace(6, 10, 50))
+    t0 = time.perf_counter()
+    out = ImpedanceServiceImpl().solve_many(sections, freqs, method="bem")
+    per_section = (time.perf_counter() - t0) / len(sections)
+    print(f"\nB-IMP-04 proxy: {per_section * 1e3:.1f} ms per section")
+    assert len(out) == len(sections)
+    assert per_section < 0.020

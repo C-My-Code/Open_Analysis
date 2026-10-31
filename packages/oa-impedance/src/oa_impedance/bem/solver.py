@@ -14,11 +14,18 @@ Formulation (all lengths SI, eps0 = 1 inside, charges are sigma~ = sigma / eps0)
 - L = mu0 C0^-1 with C0 the vacuum (all eps = 1) capacitance, which needs conductor panels only;
 - R(f) from the Wheeler / surface-impedance perturbation using the vacuum current distribution.
 
-Device path (WP-504): when ``oa_accel`` selects a GPU for the section (``OA_DEVICE``; ``auto`` above
-the measured dense crossover), the influence matrices are evaluated on the device, the system is
-assembled there and factored by cuSOLVER (float64/complex128). Memory is bounded by the device
-budget, so sections that exceed the host section budget stay dense on the GPU. Any device failure
-falls back to the host path.
+Block elimination (WP-519): the conductor rows carry no permittivity, so ``P_cc`` is factored once
+per section and serves the vacuum solve (C0, sigma0) and every dielectric solve; only the small
+interface Schur complement is rebuilt per permittivity (``OA_BEM_BLOCK=0``: whole-system oracle).
+
+Device path (WP-504, WP-519): when ``oa_accel`` selects a GPU for the section (``OA_DEVICE``;
+``auto`` above the measured dense crossover), P and D are evaluated on the device by one fused
+kernel, and the same elimination runs there in float64 (cuSOLVER ``getrf`` / ``getrs``) as one
+guarded section.
+Memory is bounded by the device budget, so sections that exceed the host section budget stay dense
+on the GPU. Any device failure falls back to the host path. Inside a parallel ``batch``, sections
+below ``OA_IMPEDANCE_BATCH_GPU_N`` panels only have P and D evaluated on the device and are factored
+by the host threads.
 """
 
 from __future__ import annotations
@@ -35,7 +42,7 @@ import numpy.typing as npt
 from scipy.interpolate import CubicSpline  # type: ignore[import-untyped,unused-ignore]
 
 import oa_physics as phys
-from oa_accel.errors import AccelError
+from oa_accel.errors import AccelError, ErrorInfo
 from oa_impedance._dielectric import eps_at, is_frequency_independent
 from oa_impedance.errors import ImpedanceUnsupported, SectionTooLarge
 from oa_model.xsection import CrossSection
@@ -51,7 +58,7 @@ from .geometry import (
     build_problem,
 )
 from .iterative import EpsOperator, gmres_lockstep
-from .kernels import influence_blocks
+from .kernels import influence_blocks, set_native_thread_cap
 
 if TYPE_CHECKING:
     from oa_accel import Backend
@@ -77,6 +84,8 @@ _COARSEN_STEP = 1.25
 ITERATIVE_MAX_PANELS = 20_000  # beyond this the matrix-free sweeps are too slow to be useful
 
 _MAX_ANCHORS = 6
+_BLOCK = os.environ.get("OA_BEM_BLOCK", "1").strip() != "0"  # "0": factor the whole system (oracle)
+_PIVOT_RATIO = 1e-12  # smallest |U_ii| / largest |U_ii| of the conductor block that is trusted
 
 try:  # BLAS thread pools oversubscribe badly for these small (N ~ 300) dense systems
     from threadpoolctl import threadpool_limits  # type: ignore[import-untyped,unused-ignore]
@@ -108,6 +117,7 @@ class _MemoryGate:
 _GATE = _MemoryGate(GATE_BYTES)
 _DEV_GATES: dict[int, _MemoryGate] = {}
 _DEV_LOCK = threading.Lock()
+_SELECT_LOCK = threading.Lock()
 _DEV_FRACTION = 0.8  # share of the device budget the concurrent BEM solves may hold
 
 
@@ -119,6 +129,8 @@ _SMALL_BATCH_CPU = (
     0  # open ``batch(small=True)`` contexts: a few sections do not repay GPU start-up
 )
 _SMALL_BATCH_N = 1500  # panels below which a small batch stays on the host (device 'auto' only)
+_PAR_BATCH = 0  # open ``batch(parallel=True)`` contexts: host threads work in parallel
+_PAR_BATCH_N = int(os.environ.get("OA_IMPEDANCE_BATCH_GPU_N", "3000"))  # see ``batch``
 _BATCH_DEV: dict[int, Any] = {}  # backends whose pool free is deferred to the end of a batch
 
 
@@ -160,22 +172,32 @@ def _single_thread() -> Iterator[None]:
 
 
 @contextmanager
-def batch(*, small: bool = False) -> Iterator[None]:
+def batch(*, small: bool = False, parallel: bool = False) -> Iterator[None]:
     """Many solves in a row (``solve_many``): the BLAS limit is set once, and the device memory
     pool is returned to the driver once at the end instead of after every section. ``small``:
     the batch has only a few sections, so with ``OA_DEVICE=auto`` the sections of fewer than
-    ``_SMALL_BATCH_N`` panels stay on the host (the first CUDA call costs about 0.8 s)."""
-    global _BATCH_DEPTH, _SMALL_BATCH_CPU
+    ``_SMALL_BATCH_N`` panels stay on the host (the first CUDA call costs about 0.8 s).
+    ``parallel``: host threads solve sections side by side, so the influence kernel runs on one
+    thread each. With a GPU selected, the sections of fewer than ``_PAR_BATCH_N`` panels then only
+    have their influence matrices evaluated on the device (a few ms instead of about 0.2 core
+    seconds) and are factored by the host threads: in fp64, eight host threads factor them as
+    fast as the GPU does, and both work at once."""
+    global _BATCH_DEPTH, _SMALL_BATCH_CPU, _PAR_BATCH
     _enter_single_thread()
     with _ST_LOCK:
         _BATCH_DEPTH += 1
         _SMALL_BATCH_CPU += small
+        _PAR_BATCH += parallel
+    cap = set_native_thread_cap(1) if parallel else None
     try:
         yield
     finally:
+        if cap is not None:
+            set_native_thread_cap(cap)
         with _ST_LOCK:
             _BATCH_DEPTH -= 1
             _SMALL_BATCH_CPU -= small
+            _PAR_BATCH -= parallel
             pending = list(_BATCH_DEV.values()) if _BATCH_DEPTH == 0 else []
             if pending:
                 _BATCH_DEV.clear()
@@ -201,6 +223,7 @@ class BemGeometry:
     reserved: int = 0  # bytes held in the memory gate (released by solve_bem)
     be: Backend | None = None  # GPU backend when P / D live on the device
     reserved_dev: int = 0  # bytes held in the device gate
+    fac: Any = None  # LU of the conductor block of P, shared by C0 and every C(f)
 
     @property
     def n_panels(self) -> int:
@@ -251,10 +274,14 @@ def _device_backend(n: int, est: int) -> Backend | None:
         problem=Problem(kind="dense", n=n, estimate_bytes=est), thresholds=THRESHOLDS
     )
     try:
-        be = select(pol)
+        with _SELECT_LOCK:  # the first call probes the driver and creates the context
+            be = select(pol)
     except Exception:  # device string or driver problems never fail a CPU-capable solve
         return None
     return None if be.name == "cpu" else be
+
+
+_KERNEL_ENTRIES = 1 << 22  # matrix entries per influence launch (about 5 ms on the reference GPU)
 
 
 def _dev_gate(be: Backend) -> _MemoryGate:
@@ -265,35 +292,55 @@ def _dev_gate(be: Backend) -> _MemoryGate:
         return _DEV_GATES[key]
 
 
+_INFLUENCE_BODY = """
+    double rx = mx - ax, ry = my - ay;
+    double x0 = rx * tx + ry * ty;
+    double y0 = rx * nx + ry * ny;
+    double s1 = -x0, s2 = ln - x0, y2 = y0 * y0;
+    double l1 = log(fmax(s1 * s1 + y2, 1e-300));
+    double l2 = log(fmax(s2 * s2 + y2, 1e-300));
+    double aby = fabs(y0);
+    double f2 = 0.5 * s2 * l2 - s2 + aby * atan2(s2, aby);
+    double f1 = 0.5 * s1 * l1 - s1 + aby * atan2(s1, aby);
+    p = -0.15915494309189535 * (f2 - f1);
+    double ex = 0.15915494309189535 * 0.5 * (l1 - l2);
+    double ey = 0.15915494309189535 * atan2(y0 * (s2 - s1), y2 + s1 * s2);
+    d = ex * (tx * ntx + ty * nty) + ey * (nx * ntx + ny * nty);
+"""
+_INFLUENCE_KERNELS: dict[int, Any] = {}
+
+
+def _influence_kernel(xp: Any) -> Any:
+    """One fused kernel for P and D: the same expressions as ``kernels.influence``, no temporaries
+    (the CuPy pool is per stream, so the former row-block temporaries multiplied by the number of
+    sections in flight), one launch instead of about 200."""
+    key = id(xp)
+    if key not in _INFLUENCE_KERNELS:
+        _INFLUENCE_KERNELS[key] = xp.ElementwiseKernel(
+            "float64 mx, float64 my, float64 ntx, float64 nty, float64 ax, float64 ay, "
+            "float64 tx, float64 ty, float64 nx, float64 ny, float64 ln",
+            "float64 p, float64 d",
+            _INFLUENCE_BODY,
+            "oa_bem_influence",
+        )
+    return _INFLUENCE_KERNELS[key]
+
+
 def _influence_dev(xp: Any, geo_p: Problem, p: Any, d: Any) -> None:
-    """``kernels.influence`` on the device, in row blocks, written into ``p`` and ``d``."""
+    """``kernels.influence`` on the device, written into ``p`` and ``d``. Row blocks keep every
+    launch short (the Windows watchdog kills a kernel that runs for about 2 s)."""
     pan = geo_p.panels
-    mid, nrm_t, a, tan, nrm, ln = (
-        xp.asarray(v) for v in (pan.mid, pan.normal, pan.a, pan.tangent, pan.normal, pan.length)
-    )
     n = pan.n
-    inv2pi = 1.0 / (2.0 * np.pi)
-    rows = max(8, (1 << 22) // n)
+    row = [xp.asarray(np.ascontiguousarray(v))[:, None] for v in (*pan.mid.T, *pan.normal.T)]
+    col = [
+        xp.asarray(np.ascontiguousarray(v))[None, :]
+        for v in (*pan.a.T, *pan.tangent.T, *pan.normal.T, pan.length)
+    ]
+    kern = _influence_kernel(xp)
+    rows = max(64, _KERNEL_ENTRIES // n)
     for r0 in range(0, n, rows):
         r1 = min(n, r0 + rows)
-        rx = mid[r0:r1, None, 0] - a[None, :, 0]
-        ry = mid[r0:r1, None, 1] - a[None, :, 1]
-        x0 = rx * tan[None, :, 0] + ry * tan[None, :, 1]
-        y0 = rx * nrm[None, :, 0] + ry * nrm[None, :, 1]
-        s1 = -x0
-        s2 = ln[None, :] - x0
-        y2 = y0 * y0
-        l1 = xp.log(xp.maximum(s1 * s1 + y2, 1e-300))
-        l2 = xp.log(xp.maximum(s2 * s2 + y2, 1e-300))
-        ay = xp.abs(y0)
-        f2 = 0.5 * s2 * l2 - s2 + ay * xp.arctan2(s2, ay)
-        f1 = 0.5 * s1 * l1 - s1 + ay * xp.arctan2(s1, ay)
-        p[r0:r1] = -inv2pi * (f2 - f1)
-        ex = inv2pi * 0.5 * (l1 - l2)
-        ey = inv2pi * xp.arctan2(y0 * (s2 - s1), y2 + s1 * s2)
-        d[r0:r1] = ex * (
-            tan[None, :, 0] * nrm_t[r0:r1, None, 0] + tan[None, :, 1] * nrm_t[r0:r1, None, 1]
-        ) + ey * (nrm[None, :, 0] * nrm_t[r0:r1, None, 0] + nrm[None, :, 1] * nrm_t[r0:r1, None, 1])
+        kern(*(v[r0:r1] for v in row), *col, p[r0:r1], d[r0:r1])
     idx = xp.arange(n)
     d[idx, idx] = 0.0
 
@@ -333,13 +380,15 @@ def prepare(
     budget: int | None = None,
     *,
     reserve: bool = False,
+    prob0: Problem | None = None,
 ) -> BemGeometry:
+    """Mesh (or take the ``prob0`` meshed elsewhere with the same ``mesh``) and assemble."""
     mesh = mesh or MeshParams()
     limit = DEFAULT_BUDGET_BYTES if budget is None else budget
     notes: list[str] = []
     n0 = 0
     for step in range(_MAX_COARSEN + 1):
-        prob = build_problem(xs, mesh)
+        prob = prob0 if (step == 0 and prob0 is not None) else build_problem(xs, mesh)
         pan = prob.panels
         n = pan.n
         n0 = n0 or n
@@ -374,7 +423,9 @@ def prepare(
     d: Any = None
     mode = "dense"
     peak = est
-    if be is not None:
+    # a parallel batch: the device assembles, the host threads factor (``batch``)
+    asm_only = be is not None and _PAR_BATCH > 0 and n < _PAR_BATCH_N and est <= limit
+    if be is not None and not asm_only:
         peak = 16 << 20  # host side: the device holds the matrices
     elif est > limit:
         # the conductor-only vacuum system stays dense
@@ -400,12 +451,24 @@ def prepare(
             peak = est
             notes.append(f"GPU assembly failed ({type(exc).__name__}); host dense path used")
     dev_held = 0
-    if be is not None:
+    if be is not None and not asm_only:
         dev_held = dev_est
         notes.append(f"{n} panels: dense LU on {be.name} ({be.report().device_name})")
     if reserve:
         _GATE.acquire(peak)
-    if mode == "dense" and be is None:
+    if be is not None and asm_only:
+        try:
+            p, d = np.ascontiguousarray(be.to_host(p)), np.ascontiguousarray(be.to_host(d))
+        except Exception as exc:  # the device is gone: assemble on the host below
+            p = d = None
+            notes.append(f"GPU assembly failed ({type(exc).__name__}); host dense path used")
+        else:
+            notes.append(f"{n} panels: influence matrices on {be.name}, dense LU on the host")
+        finally:
+            _dev_gate(be).release(dev_est)
+            _release_pool(be)
+        be = None
+    if mode == "dense" and be is None and p is None:
         p = np.empty((n, n))
         d = np.empty((n, n))
         # source "normal" in kernels is the panel normal; targets use their own normal
@@ -444,15 +507,42 @@ def _chunks(idx: npt.NDArray[np.intp], size: int = 256) -> Iterator[npt.NDArray[
         yield idx[k : k + size]
 
 
-def _lu_solve(a: Any, rhs: Any) -> Any:
-    from scipy.linalg import solve as _solve  # type: ignore[import-untyped,unused-ignore]
+def _host_lu_factor(a: Any, overwrite_a: bool = True, check_finite: bool = False) -> Any:
+    """LAPACK ``getrf`` of a Fortran-ordered ``a`` (destroyed): ``(lu, piv)``. Raises
+    ``LinAlgError`` for an exactly zero pivot instead of the ``LinAlgWarning`` of
+    ``scipy.linalg.lu_factor`` (a warning that a test run turns into an error). Like
+    ``lu_factor`` it releases the GIL, so the threads of ``solve_many`` factor in parallel, which
+    ``scipy.linalg.solve`` (SciPy >= 1.17) does not."""
+    from scipy.linalg.lapack import dgetrf, zgetrf  # type: ignore[import-untyped,unused-ignore]
 
-    return _solve(a, rhs, overwrite_a=True, check_finite=False)
+    del check_finite
+    lu, piv, info = (zgetrf if np.iscomplexobj(a) else dgetrf)(a, overwrite_a=overwrite_a)
+    if info > 0:
+        raise np.linalg.LinAlgError("Matrix is singular.")
+    return lu, piv
+
+
+def _host_lu_solve(lu_piv: Any, b: Any, check_finite: bool = False) -> Any:
+    """``getrs``: ``a^-1 b`` from ``_host_lu_factor``."""
+    from scipy.linalg.lapack import dgetrs, zgetrs  # type: ignore[import-untyped,unused-ignore]
+
+    del check_finite
+    lu, piv = lu_piv
+    cplx = np.iscomplexobj(lu) or np.iscomplexobj(b)
+    x, info = (zgetrs if cplx else dgetrs)(lu, piv, b)
+    if info != 0:
+        raise np.linalg.LinAlgError("getrs failed.")
+    return x
+
+
+def _lu_solve(a: Any, rhs: Any) -> Any:
+    """``a^-1 rhs`` (``a`` Fortran ordered, destroyed)."""
+    return _host_lu_solve(_host_lu_factor(a), rhs)
 
 
 def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
     """Maxwell C (in eps0 units) for the signal conductors with zone permittivities ``ez``."""
-    prob, pan = geo.prob, geo.prob.panels
+    pan = geo.prob.panels
     n = pan.n
     kind, cond = pan.kind, pan.cond
     is_if = kind == KIND_INTERFACE
@@ -465,7 +555,24 @@ def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
         return _solve_eps_gmres(geo, ez_in, rhs)
     assert geo.D is not None
     if geo.be is not None:
-        return _solve_eps_dev(geo, ez_in, rhs)
+        return _solve_eps_block(geo, ez_in)
+    if _BLOCK and _cond_factor(geo).ok:
+        try:
+            return _solve_eps_block(geo, ez_in)
+        except np.linalg.LinAlgError:  # a singular Schur complement: the whole system decides
+            pass
+    return _solve_eps_full(geo, ez_in, rhs)
+
+
+def _solve_eps_full(geo: BemGeometry, ez_in: C128, rhs: Any) -> C128:
+    """The whole (n + 1 + nf) system factored at once: the reference for ``_solve_eps_block``."""
+    prob, pan = geo.prob, geo.prob.panels
+    n = pan.n
+    kind, cond = pan.kind, pan.cond
+    is_if = kind == KIND_INTERFACE
+    nf = len(geo.float_idx)
+    size = n + 1 + nf
+    assert geo.P is not None and geo.D is not None
     real = not np.any(ez_in.imag)
     ez: Any = ez_in.real if real else ez_in
     e1 = ez[pan.zone1]
@@ -500,53 +607,209 @@ def _solve_eps(geo: BemGeometry, ez_in: C128) -> C128:
     return np.asarray(Q[geo.sig_idx] @ x[:n]).astype(np.complex128)
 
 
-def _solve_eps_dev(geo: BemGeometry, ez_in: C128, rhs: Any) -> C128:
-    """``_solve_eps`` with the system assembled on the device and factored by cuSOLVER."""
+@dataclass
+class _CondFactor:
+    """LU of the conductor block ``P_cc`` of the influence matrix (on the host or the device).
+
+    The conductor rows of the BEM system do not depend on the permittivities, so ``P_cc`` is
+    factored once per section: it solves the vacuum system (C0) and, as the leading block of a
+    block elimination, every ``C(f)`` solve (THEORY.md 2.2.1)."""
+
+    cidx: npt.NDArray[np.intp]  # conductor (non-interface) panels
+    iidx: npt.NDArray[np.intp]  # dielectric-interface panels
+    lu: Any
+    piv: Any
+    ok: bool  # the pivots are healthy; otherwise the host callers use the whole-system path
+    pivots: Any = None  # device: (min, max) of |diag U|, read with the first host transfer
+
+
+def _lu_funcs(geo: BemGeometry) -> tuple[Any, Any]:
+    """``lu_factor`` / ``lu_solve`` of LAPACK (host) or cuSOLVER through CuPy (device)."""
+    if geo.be is None:
+        return _host_lu_factor, _host_lu_solve
+    from oa_accel.solvers.lu import lu_functions
+
+    return lu_functions(geo.be)
+
+
+def _cond_factor(geo: BemGeometry) -> _CondFactor:
+    if geo.fac is None:
+        be = geo.be
+        xp = be.xp if be is not None else np
+        lu_factor, _ = _lu_funcs(geo)
+        assert geo.P is not None
+        is_if = geo.prob.panels.kind == KIND_INTERFACE
+        ci, ii = np.nonzero(~is_if)[0], np.nonzero(is_if)[0]
+        cx = xp.asarray(ci)
+        a = geo.P[cx[:, None], cx[None, :]]
+        if be is None:
+            a = np.asfortranarray(a)
+        try:
+            lu, piv = lu_factor(a, overwrite_a=True, check_finite=False)
+        except np.linalg.LinAlgError:  # exactly singular: the whole-system path decides
+            geo.fac = _CondFactor(ci, ii, a, None, False)
+            fac0: _CondFactor = geo.fac
+            return fac0
+        d = xp.abs(xp.diagonal(lu))
+        pair = xp.stack([d.min(), d.max()])
+        if be is None:  # on the device the check waits for the first transfer: no sync here
+            geo.fac = _CondFactor(ci, ii, lu, piv, _pivots_ok(pair, len(ci)))
+        else:
+            geo.fac = _CondFactor(ci, ii, lu, piv, True, pair)
+    fac: _CondFactor = geo.fac
+    return fac
+
+
+def _pivots_ok(pair: Any, n: int) -> bool:
+    lo_hi = np.asarray(pair)
+    return bool(n and np.all(np.isfinite(lo_hi)) and lo_hi[0] > _PIVOT_RATIO * lo_hi[1])
+
+
+def _singular_block(what: str) -> AccelError:
+    return AccelError(
+        ErrorInfo(
+            code="ACCEL_SINGULAR",
+            message=f"block elimination: {what} is singular or the result is not finite.",
+            path="bem.solve",
+            hint="Check the model for coincident conductors or floating conductors.",
+        )
+    )
+
+
+def _fetch(geo: BemGeometry, array: Any) -> Any:
+    """A device array to the host. This is the only synchronisation of a section's solve step.
+    The first transfer also checks the pivots of ``P_cc``; every transfer checks finiteness."""
     be = geo.be
     assert be is not None
+    fac = _cond_factor(geo)
     xp = be.xp
-    prob, pan = geo.prob, geo.prob.panels
-    n = pan.n
+    flat = array.ravel().astype(xp.complex128)
+    pair = fac.pivots
+    if pair is not None:
+        flat = xp.concatenate([pair.astype(xp.complex128), flat])
+    host = np.asarray(be.to_host(flat))
+    if pair is not None:
+        if not _pivots_ok(host[:2].real, len(fac.cidx)):
+            raise _singular_block("the conductor block")
+        fac.pivots = None
+        host = host[2:]
+    if not np.all(np.isfinite(host)):
+        raise _singular_block("the system")
+    out = host.reshape(array.shape)
+    return out if np.iscomplexobj(array) else out.real
+
+
+def _charge_q(
+    xp: Any, pan: Any, e1: Any, avg: Any, diff: Any, d_mat: Any, ncnd: int, dt: Any
+) -> Any:
+    """Free-charge functional per conductor, ``(ncnd, n)``: thick panels on the diagonal, ribbons
+    (zero-thickness, two media) through their D rows. ``e1``, ``avg`` and ``diff`` are host
+    arrays; ``d_mat`` and the result live where ``xp`` does."""
     kind, cond = pan.kind, pan.cond
-    is_if = kind == KIND_INTERFACE
-    nf = len(geo.float_idx)
-    size = n + 1 + nf
+    q = xp.zeros((ncnd, pan.n), dtype=dt)
+    thick = np.nonzero(kind == KIND_THICK)[0]
+    q[xp.asarray(cond[thick]), xp.asarray(thick)] = xp.asarray(e1[thick] * pan.length[thick])
+    rib = np.nonzero((kind != KIND_THICK) & (kind != KIND_INTERFACE))[0]
+    if len(rib):
+        sel = xp.zeros((ncnd, len(rib)), dtype=dt)
+        sel[xp.asarray(cond[rib]), xp.arange(len(rib))] = xp.asarray(pan.length[rib] * diff[rib])
+        q += sel @ d_mat[xp.asarray(rib)]
+        q[xp.asarray(cond[rib]), xp.asarray(rib)] += xp.asarray(pan.length[rib] * avg[rib])
+    return q
+
+
+def _border_cols(geo: BemGeometry, cc: npt.NDArray[np.intp], m2: int, lead: int) -> F64:
+    """Columns ``[.. | c | v_float ..]`` of the conductor rows (``lead`` columns precede)."""
+    a = np.zeros((len(cc), m2))
+    a[:, lead] = 1.0  # the additive constant of the log kernel
+    for j, fi in enumerate(geo.float_idx):
+        a[cc == fi, lead + 1 + j] = -1.0
+    return a
+
+
+def _eps_split(pan: Any, ez_in: C128) -> tuple[Any, Any, Any, Any]:
+    """``(e1, e2, avg, diff)``: the permittivity on the two sides of every panel (real when the
+    materials are lossless)."""
     real = not np.any(ez_in.imag)
     ez: Any = ez_in.real if real else ez_in
     e1 = ez[pan.zone1]
     e2 = np.where(pan.zone2 >= 0, ez[np.maximum(pan.zone2, 0)], 0.0)
-    avg = 0.5 * (e1 + e2)
-    diff = e1 - e2
-    dt = np.float64 if real else np.complex128
-    ci = np.nonzero(~is_if)[0]
-    ii = np.nonzero(is_if)[0]
-    ncnd = len(prob.cond_ids)
-    P: Any = geo.P
-    D: Any = geo.D
-    a = xp.zeros((size, size), dtype=dt, order="F")
-    a[xp.asarray(ci), :n] = P[xp.asarray(ci)]
-    a[xp.asarray(ci), n] = 1.0
-    a[xp.asarray(ii), :n] = xp.asarray(diff[ii])[:, None] * D[xp.asarray(ii)]
-    a[xp.asarray(ii), xp.asarray(ii)] += xp.asarray(avg[ii])
-    # free-charge functional per conductor: thick panels on the diagonal, ribbons via D rows
-    q = xp.zeros((ncnd, n), dtype=dt)
-    thick = np.nonzero(kind == KIND_THICK)[0]
-    q[xp.asarray(cond[thick]), xp.asarray(thick)] = xp.asarray(e1[thick] * pan.length[thick])
-    rib = np.nonzero((kind != KIND_THICK) & ~is_if)[0]
-    if len(rib):
-        sel = xp.zeros((ncnd, len(rib)), dtype=dt)
-        sel[xp.asarray(cond[rib]), xp.arange(len(rib))] = xp.asarray(pan.length[rib] * diff[rib])
-        q += sel @ D[xp.asarray(rib)]
-        q[xp.asarray(cond[rib]), xp.asarray(rib)] += xp.asarray(pan.length[rib] * avg[rib])
+    return e1, e2, 0.5 * (e1 + e2), e1 - e2
+
+
+def _solve_eps_block(geo: BemGeometry, ez_in: C128) -> C128:
+    """Maxwell C (eps0 units) by block elimination on the cached ``P_cc`` factor.
+
+    Unknowns are ordered ``[sigma_c | sigma_i, c, v_float]``. The conductor rows are
+    ``[P_cc | P_ci, 1, -1_float]``, so with ``Y = P_cc^-1 [P_ci, 1, -1_float | rhs]`` only the
+    small Schur complement (interface + border unknowns) depends on the permittivities."""
+    xp = geo.be.xp if geo.be is not None else np
+    _, lu_solve = _lu_funcs(geo)
+    prob, pan = geo.prob, geo.prob.panels
+    fac = _cond_factor(geo)
+    ci, ii = fac.cidx, fac.iidx
+    nc, ni = len(ci), len(ii)
+    m2 = ni + 1 + len(geo.float_idx)
+    e1, _, avg, diff = _eps_split(pan, ez_in)
+    dt = np.float64 if not np.any(ez_in.imag) else np.complex128
+    d_mat: Any = geo.D
+    p_mat: Any = geo.P
+    cx, ix = xp.asarray(ci), xp.asarray(ii)
+    cc = pan.cond[ci]
+    a12 = xp.asarray(_border_cols(geo, cc, m2, ni))
+    a12[:, :ni] = p_mat[cx[:, None], ix[None, :]]
+    rhs_c = xp.asarray((cc[:, None] == np.asarray(geo.sig_idx)[None, :]).astype(np.float64))
+    y = lu_solve((fac.lu, fac.piv), xp.concatenate([a12, rhs_c], axis=1), check_finite=False)
+    ya, z = y[:, :m2], y[:, m2:]
+    q = _charge_q(xp, pan, e1, avg, diff, d_mat, len(prob.cond_ids), dt)
+    qsum = q.sum(axis=0)
+    dif_i = xp.asarray(diff[ii])
+    a21 = xp.empty((m2, nc), dtype=dt)
+    a21[:ni] = dif_i[:, None] * d_mat[ix[:, None], cx[None, :]]
+    a21[ni] = qsum[cx]
+    a22 = xp.zeros((m2, m2), dtype=dt)
+    a22[:ni, :ni] = dif_i[:, None] * d_mat[ix[:, None], ix[None, :]]
+    a22[xp.arange(ni), xp.arange(ni)] += xp.asarray(avg[ii])
+    a22[ni, :ni] = qsum[ix]
     for j, fi in enumerate(geo.float_idx):
-        rows = np.nonzero((cond == fi) & ~is_if)[0]
-        a[xp.asarray(rows), n + 1 + j] = -1.0
-        a[n + 1 + j, :n] = q[fi]
-    a[n, :n] = q.sum(axis=0)
-    x = be.dense_solve(a, xp.asarray(rhs.astype(dt)), host=False)
-    xd = xp.asarray(x)
-    sig = xp.asarray(np.asarray(geo.sig_idx, dtype=np.intp))
-    return np.asarray(be.to_host(q[sig] @ xd[:n])).astype(np.complex128)
+        a21[ni + 1 + j] = q[fi][cx]
+        a22[ni + 1 + j, :ni] = q[fi][ix]
+    x2 = xp.linalg.solve(a22 - a21 @ ya, -(a21 @ z))
+    x1 = z - ya @ x2
+    qs = q[xp.asarray(np.asarray(geo.sig_idx, dtype=np.intp))]
+    out = qs[:, cx] @ x1 + qs[:, ix] @ x2[:ni]
+    host = _fetch(geo, out) if geo.be is not None else out
+    return np.asarray(host).astype(np.complex128)
+
+
+def _vacuum_block(geo: BemGeometry) -> tuple[F64, F64, npt.NDArray[np.intp]]:
+    """``_vacuum`` on the cached ``P_cc`` factor (the vacuum system is ``P_cc`` plus its border)."""
+    xp = geo.be.xp if geo.be is not None else np
+    _, lu_solve = _lu_funcs(geo)
+    prob, pan = geo.prob, geo.prob.panels
+    fac = _cond_factor(geo)
+    ci = fac.cidx
+    nf = len(geo.float_idx)
+    cc = pan.cond[ci]
+    length = pan.length[ci]
+    q = np.zeros((len(prob.cond_ids), len(ci)))
+    for k in range(len(prob.cond_ids)):
+        q[k, cc == k] = length[cc == k]
+    a12 = _border_cols(geo, cc, 1 + nf, 0)
+    a21 = np.zeros((1 + nf, len(ci)))
+    a21[0] = q.sum(axis=0)
+    for j, fi in enumerate(geo.float_idx):
+        a21[1 + j] = q[fi]
+    rhs_c = (cc[:, None] == np.asarray(geo.sig_idx)[None, :]).astype(np.float64)
+    y = lu_solve(
+        (fac.lu, fac.piv), xp.asarray(np.concatenate([a12, rhs_c], axis=1)), check_finite=False
+    )
+    ya, z = y[:, : 1 + nf], y[:, 1 + nf :]
+    a21x = xp.asarray(a21)
+    x2 = xp.linalg.solve(-(a21x @ ya), -(a21x @ z))
+    sig = z - ya @ x2
+    sig_h = np.asarray(_fetch(geo, sig) if geo.be is not None else sig)
+    return q[geo.sig_idx] @ sig_h, sig_h, ci
 
 
 def _solve_eps_gmres(geo: BemGeometry, ez_in: C128, rhs: Any) -> C128:
@@ -566,17 +829,20 @@ def _solve_eps_gmres(geo: BemGeometry, ez_in: C128, rhs: Any) -> C128:
 
 def _vacuum(geo: BemGeometry) -> tuple[F64, F64, npt.NDArray[np.intp]]:
     """C0 (dimensionless, eps0 units) and conductor-panel charges sigma~ (Nc, Ns)."""
+    if geo.P is not None and geo.be is not None:
+        return _vacuum_block(geo)
+    if _BLOCK and geo.P is not None and _cond_factor(geo).ok:
+        try:
+            return _vacuum_block(geo)
+        except np.linalg.LinAlgError:
+            pass
     prob, pan = geo.prob, geo.prob.panels
     cidx = np.nonzero(pan.kind != KIND_INTERFACE)[0]
     nc = len(cidx)
     nf = len(geo.float_idx)
     size = nc + 1 + nf
     A = np.zeros((size, size))
-    if geo.P is not None and geo.be is not None:
-        xp = geo.be.xp
-        ci_d = xp.asarray(cidx)
-        A[:nc, :nc] = geo.be.to_host(geo.P[ci_d[:, None], ci_d[None, :]])
-    elif geo.P is not None:
+    if geo.P is not None:
         A[:nc, :nc] = geo.P[np.ix_(cidx, cidx)]
     else:
         p_blk = np.empty((nc, nc))
@@ -633,18 +899,18 @@ def _loss(
     c_cond = classes // 8
     c_face = classes % 8
     c_sigma = np.array([prob.cond_sigma[int(k)] for k in c_cond])
-    for fi, f in enumerate(freqs):
-        if f <= 0.0:
-            continue
-        rs_c = np.sqrt(np.pi * f * MU0 / c_sigma)  # surface resistance 1/(sigma delta) [ohm/sq]
-        k_c = np.ones(len(classes))
+    live = np.nonzero(freqs > 0.0)[0]
+    if len(live):
+        fl = freqs[live]
+        rs_c = np.sqrt(np.pi * fl[:, None] * MU0 / c_sigma[None, :])  # [ohm/sq], (F, classes)
+        k_c = np.ones((len(live), len(classes)))
         for q in range(len(classes)):
             top, bot, side = prob.cond_rough[int(c_cond[q])]
             rough = top if c_face[q] == FACE_TOP else (bot if c_face[q] == FACE_BOTTOM else side)
-            k_c[q] = float(phys.roughness_factor(rough, f, float(c_sigma[q]))[0])
-        w = (rs_c * k_c)[inv] * length
-        s_mat = (sig * w[:, None]).T @ sig
-        r_ac[fi] = c0inv @ s_mat @ c0inv
+            k_c[:, q] = phys.roughness_factor(rough, fl, float(c_sigma[q]))
+        w = (rs_c * k_c)[:, inv] * length[None, :]  # (F, panels)
+        s_mat = (sig[None] * w[:, :, None]).transpose(0, 2, 1) @ sig  # (F, ns, ns)
+        r_ac[live] = c0inv @ s_mat @ c0inv
     r_dc = np.zeros(ns)
     if rdc_on:
         for m, ci in enumerate(geo.sig_idx):
@@ -660,13 +926,15 @@ def solve_bem(
     *,
     geo: BemGeometry | None = None,
     budget: int | None = None,
+    prob: Problem | None = None,
 ) -> BemSolution:
     """Solve the cross-section at ``freqs`` [Hz] (0.0 = static, lossless).
 
     ``budget`` [B] is the per-section working-memory limit (default 512 MB): above it the
-    matrix-free GMRES path is used, and above its limits ``SectionTooLarge`` is raised."""
+    matrix-free GMRES path is used, and above its limits ``SectionTooLarge`` is raised. ``prob``
+    is the mesh of ``xs`` for ``mesh``, when it was built elsewhere (the meshing pool)."""
     with _single_thread():
-        return _solve_bem(xs, freqs, mesh, geo, budget)
+        return _solve_bem(xs, freqs, mesh, geo, budget, prob)
 
 
 def _singular(detail: str) -> ImpedanceUnsupported:
@@ -684,8 +952,9 @@ def _solve_bem(
     mesh: MeshParams | None,
     geo: BemGeometry | None,
     budget: int | None,
+    prob: Problem | None = None,
 ) -> BemSolution:
-    geo = geo or prepare(xs, mesh, budget, reserve=True)
+    geo = geo or prepare(xs, mesh, budget, reserve=True, prob0=prob)
     try:
         return _solve_prepared(geo, freqs)
     except np.linalg.LinAlgError as exc:
@@ -699,21 +968,64 @@ def _solve_bem(
             _GATE.release(geo.reserved)
             geo.reserved = 0
         if geo.reserved_dev and geo.be is not None:
-            _dev_gate(geo.be).release(geo.reserved_dev)
-            geo.reserved_dev = 0
-            geo.P = geo.D = None  # free the device matrices
-            # return the blocks to the driver: on Windows the CuPy pool counts as committed
-            # memory of the process (a job-object cap then fails unrelated host allocations);
-            # inside a ``batch()`` this happens once, when the batch ends
-            with _ST_LOCK:
-                deferred = _BATCH_DEPTH > 0
-                if deferred:
-                    _BATCH_DEV[id(geo.be)] = geo.be
-            if not deferred:
-                geo.be.xp.get_default_memory_pool().free_all_blocks()
+            _release_device(geo)
+
+
+def _release_pool(be: Backend) -> None:
+    """Return the pool blocks to the driver, at the end of the batch inside a ``batch()``."""
+    with _ST_LOCK:
+        deferred = _BATCH_DEPTH > 0
+        if deferred:
+            _BATCH_DEV[id(be)] = be
+    if not deferred:
+        be.xp.get_default_memory_pool().free_all_blocks()
+
+
+def _release_device(geo: BemGeometry) -> None:
+    """Give the device gate and the device matrices of ``geo`` back."""
+    be = geo.be
+    assert be is not None
+    _dev_gate(be).release(geo.reserved_dev)
+    geo.reserved_dev = 0
+    geo.P = geo.D = geo.fac = None  # free the device matrices and the factor
+    _release_pool(be)
+
+
+def _to_host(geo: BemGeometry, reason: str) -> BemGeometry:
+    """The device failed (out of memory, driver error): rebuild P and D on the host, which does
+    not trust anything left on the device."""
+    pan = geo.prob.panels
+    n = pan.n
+    p = np.empty((n, n))
+    d = np.empty((n, n))
+    influence_blocks(
+        pan.mid, pan.normal, pan.a, pan.b, pan.tangent, pan.normal, pan.length, p, d, same=True
+    )
+    try:
+        _release_device(geo)
+    except Exception:  # a dead device may refuse even the clean-up
+        geo.reserved_dev = 0
+    geo.be, geo.P, geo.D, geo.fac, geo.mode = None, p, d, None, "dense"
+    geo.notes.append(f"GPU solve failed ({reason}); host dense path used")
+    return geo
 
 
 def _solve_prepared(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:
+    be = geo.be
+    if be is None:
+        return _solve_core(geo, freqs)
+    from oa_accel.solvers.guarded import run_guarded
+
+    return run_guarded(
+        be,
+        "bem_block",
+        geo.reserved_dev,
+        lambda: _solve_core(geo, freqs),
+        lambda reason: _solve_core(_to_host(geo, reason), freqs),
+    )
+
+
+def _solve_core(geo: BemGeometry, freqs: list[float] | F64) -> BemSolution:
     prob = geo.prob
     fs = np.asarray(freqs, dtype=float)
     ns = len(geo.sig_idx)

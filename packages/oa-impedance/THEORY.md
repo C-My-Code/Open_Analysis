@@ -54,6 +54,20 @@ $$\bar\varepsilon_i\,\sigma_i+(\varepsilon_{1,i}-\varepsilon_{2,i})\sum_j D_{ij}
 
 Floating conductors are extra unknowns with a zero-charge constraint. The Maxwell capacitance matrix $C$ (in units of $\varepsilon_0$) is the free-charge functional of the solution. Complex permittivity $\varepsilon=\varepsilon'-j\varepsilon''$ is used as is, giving $C(f)$ and $G(f)=-\omega\,\mathrm{Im}\,C$.
 
+**Block elimination (`_solve_eps_block`, `_vacuum_block`, WP-519).** Order the unknowns as $x=[\sigma_c\,|\,\sigma_i,\ \phi_0,\ v_f]$: conductor-panel charges, then the interface-panel charges, the common potential and the floating-conductor potentials. The conductor rows of the system read $[P_{cc}\ |\ P_{ci},\ 1,\ -1_f]\,x=\text{rhs}$ and **contain no permittivity**, so $P_{cc}$ is the same matrix for $C_0$ (the vacuum problem is $P_{cc}$ with its border) and for every $C[\varepsilon]$. Writing the system as
+
+$$\begin{pmatrix}P_{cc}&B\\ E_{21}&E_{22}\end{pmatrix}\begin{pmatrix}\sigma_c\\ x_2\end{pmatrix}=\begin{pmatrix}r\\ 0\end{pmatrix},\qquad B=[P_{ci},\ 1,\ -1_f],$$
+
+and with $Y=P_{cc}^{-1}[B\,|\,r]$, the Schur complement $S=E_{22}-E_{21}Y_B$ (size = interface panels + 1 + floating conductors, a few hundred) is the only matrix that depends on $\varepsilon$:
+
+$$x_2=-S^{-1}E_{21}Y_r,\qquad \sigma_c=Y_r-Y_B\,x_2 .$$
+
+This is Gaussian elimination in a different order; it is exact in exact arithmetic and the unknowns are the same. $P_{cc}$ is factored once per section (LAPACK `getrf`; `getrs` for $Y$), so $C_0$ and all $C(f)$ anchors (up to six) share one $O(n_c^3)$ factorisation and the cost of a dispersive sweep is a few small solves. The work per section drops from $\tfrac23 n^3+\tfrac23 n_c^3$ (whole system plus vacuum system) to $\tfrac23 n_c^3+2n_c^2m_2$ with $m_2=n_i+1+n_f$ ($n_c\approx0.85n$ on PCB sections). The reference path (`OA_BEM_BLOCK=0`, also the fallback when the pivots of $P_{cc}$ are unhealthy: smallest/largest $|U_{ii}|<10^{-12}$) factors the whole bordered system.
+
+*Error bound.* Both orders are backward stable for the diagonally dominant interface block and the (nearly symmetric, positive) log-kernel block $P_{cc}$; they differ by rounding only. On the 383 mix sections the whole-system and the block solution agree to $4\times10^{-10}$ ($C$: $1.4\times10^{-10}$) of the largest entry of each section, which is the conditioning noise of the system (condition numbers of $10^{5}$ to $10^{6}$ times $\epsilon_{64}$). Against the code before WP-519 the difference is $2.1\times10^{-10}$ in $C$, $4.9\times10^{-10}$ in $G$, $5.8\times10^{-11}$ in $Z_c$. `tests/test_bem_block.py` bounds it at $2\times10^{-9}$.
+
+**Device path.** With a GPU selected the same elimination runs on the device in float64 (`cupyx` `lu_factor`/`lu_solve`: cuSOLVER `getrf`/`getrs`); only the final $n_s\times n_s$ result is transferred, together with the pivot check. In a parallel batch (`batch(parallel=True)`), sections under `OA_IMPEDANCE_BATCH_GPU_N` panels only have $P$ and $D$ evaluated on the device (one fused kernel) and are factored by the host threads: in float64 the RTX 4080 SUPER (1/64 rate) factors a 1500-panel system no faster than eight host cores, but its influence kernel is 80 times faster than the native CPU one. A float32 factorisation with float64 iterative refinement was tried and rejected: at these sizes the device is latency bound, each refinement step (a skinny float64 product, a `getrs` and a norm) costs about as much as the float64 `getrs` it replaces, and the batch got slower (17 s against 9 s).
+
 **Inductance.** $L_\text{ext}=\mu_0\varepsilon_0\,C_0^{-1}$, with $C_0$ from the vacuum (all dielectrics replaced by air) solve. This is exact for a TEM line in a homogeneous medium and the quasi-TEM definition for an inhomogeneous one.
 
 **Conductor loss** (`_loss`). Surface-impedance perturbation using the vacuum charge distribution $\sigma^0$ (the generalised Wheeler incremental-inductance rule):
@@ -129,7 +143,7 @@ For $f>0$ the BEM needs per frequency (i) $C(f)$ and (ii) $R_{ac}(f)$.
 - $C(f)=C[\varepsilon_z(f)]$ depends on $f$ only through the zone permittivities. If every zone is frequency-independent (`ConstantDkDf`, a constant complex $\varepsilon=\varepsilon'(1-j\tan\delta)$), $C$ is one complex solve and $G(f)=-\omega\,\mathrm{Im}\,C$ is exact for every $f$. This is implemented (`_freq_independent`, `n_solves == 1`): a 50-point sweep costs one vacuum solve and one dielectric solve, plus the analytic loss and modal steps (about 7 ms of 130 ms per mix section).
 - For a dispersive material $C[\varepsilon]$ is a rational function of $\varepsilon$ (the system matrix is affine in $\varepsilon$), not of low degree, so no exact one-solve form exists. The code solves at up to six log-spaced anchors and interpolates; that stays as it is.
 
-So the per-frequency path is already "one static solve plus the analytic loss/roughness model" wherever that is exact, and the B-IMP-04 cost is the static per-section cost (meshing, influence matrices, LU), not the number of frequencies.
+So the per-frequency path is already "one static solve plus the analytic loss/roughness model" wherever that is exact, and the B-IMP-04 cost is the static per-section cost (meshing, influence matrices, LU), not the number of frequencies. WP-519 attacks that cost: one factorisation of the permittivity-free conductor block serves the vacuum solve and every dielectric solve (section 2.2, block elimination), the loss and modal steps run on all frequencies at once, and the meshing of a large batch moves to worker processes (`bem/meshpool.py`); see `docs/perf/PROFILE-519.md`.
 
 ## 3. Assumptions and validity range
 

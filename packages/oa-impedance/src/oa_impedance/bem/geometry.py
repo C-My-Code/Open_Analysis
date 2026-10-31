@@ -425,6 +425,7 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
     z_gaps = z_gaps[z_gaps > 1e-11]
     probe_max = min(0.25 * h_char, 0.1 * float(z_gaps.min())) if len(z_gaps) else 0.25 * h_char
 
+    cbound = {ci: cond_polys[ci].boundary for ci in cpoly_idx}  # type: ignore[union-attr]
     recs: list[tuple[F64, int, int, int, int]] = []  # (coords, cond, kind, zone1, zone2)
     for pc in pieces:
         coords = np.asarray(pc.coords, dtype=float)
@@ -444,7 +445,7 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
         for ci in cpoly_idx:
             cp = cond_polys[ci]
             assert cp is not None
-            on_edge = shapely.distance(cp.boundary, mpts) <= tol
+            on_edge = shapely.distance(cbound[ci], mpts) <= tol
             inside = shapely.contains_xy(cp, mids[:, 0], mids[:, 1]) & ~on_edge
             dropped |= inside & (owner < 0)
             owner = np.where((owner < 0) & on_edge & ~dropped, ci, owner)
@@ -547,16 +548,21 @@ def build_problem(xs: CrossSection, params: MeshParams) -> Problem:
 
     def gap_distance(pts: F64, own_pid: int, own_grp: int, own_curved: bool) -> tuple[F64, F64]:
         """Distance to pieces of other conductors/interfaces, and to other pieces of this one."""
-        rel = pts[:, None, :] - SA[None, :, :]
-        tt = np.clip((rel * SD[None]).sum(axis=2) / SL2[None], 0.0, 1.0)
-        res = rel - tt[..., None] * SD[None]
-        dist = np.hypot(res[..., 0], res[..., 1])
         # only other conductors set the charge scale, and only where a curved boundary is
         # involved (flat parallel faces have a smooth, slowly varying charge)
-        other = (own_grp != SG) & (SG >= 10_000_000) & (SCV | own_curved)
-        same = (own_grp == SG) & (own_pid != SP)
-        d_o = np.min(dist[:, other], axis=1) if np.any(other) else np.full(len(pts), np.inf)
-        d_s = np.min(dist[:, same], axis=1) if np.any(same) else np.full(len(pts), np.inf)
+        other: Any = (own_grp != SG) & (SG >= 10_000_000) & (SCV | own_curved)
+        same: Any = (own_grp == SG) & (own_pid != SP)
+        cols = np.nonzero(other | same)[0]  # distances to the other segments are never used
+        if not len(cols):
+            return np.full(len(pts), np.inf), np.full(len(pts), np.inf)
+        sd = SD[cols]
+        rel = pts[:, None, :] - SA[cols][None, :, :]
+        tt = np.clip((rel * sd[None]).sum(axis=2) / SL2[cols][None], 0.0, 1.0)
+        res = rel - tt[..., None] * sd[None]
+        dist = np.hypot(res[..., 0], res[..., 1])
+        sel_o, sel_s = other[cols], same[cols]
+        d_o = np.min(dist[:, sel_o], axis=1) if np.any(sel_o) else np.full(len(pts), np.inf)
+        d_s = np.min(dist[:, sel_s], axis=1) if np.any(sel_s) else np.full(len(pts), np.inf)
         return np.asarray(d_o), np.asarray(d_s)
 
     plane_idx = {i for i, c in enumerate(xs.conductors) if isinstance(c.shape, XsPlane)}
