@@ -40,7 +40,8 @@ jobs:
         run: uv run pytest packages/oa-accel/tests/test_policy.py -q -k "rocm or precedence"
 
   cuda:
-    if: github.event_name != 'pull_request'
+    # Needs a registered self-hosted GPU runner; without one the job would sit queued for a day.
+    if: github.event_name != 'pull_request' && vars.OA_SELF_HOSTED_GPU == 'true'
     runs-on: [self-hosted, gpu, cuda]
     timeout-minutes: 20
     env:

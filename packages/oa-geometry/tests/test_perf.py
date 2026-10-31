@@ -41,6 +41,7 @@ def test_10k_tracks_build_and_reference_map_under_10s() -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.perf
 def test_50k_segments_benchmark() -> None:
     n, t = _run(10000, 5)
     print(f"\n[perf] {n} tracks: {t}")

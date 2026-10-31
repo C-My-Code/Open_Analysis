@@ -204,3 +204,5 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] The `open-analysis` meta-package lives in `packaging/` because the root project shares the name. Rename the root project at release time (WP-303 final).
 - [ ] Add `tests/e2e` to testpaths. It is not collected by CI yet; it takes about 2.3 min without slow tests.
 - [ ] Linux has not been checked for the stdio fix (WP-518) beyond CI.
+- [ ] On the Linux CI runner, the 50k-segment ReferenceMap took 196 s (build 11 s). Local 10k takes about 1.3 s, which extrapolates to about 5 s. Check whether oa_native is built and used on CI, or whether the fallback path has regressed. The benchmark's wall-clock assertion is now `perf`.
+- [ ] Self-hosted nightly jobs (bench `nightly`, wp-503-gpu `cuda`) run only when the repository variables `OA_SELF_HOSTED_BENCH` / `OA_SELF_HOSTED_GPU` are `true`. There is no registered runner. A self-hosted runner on a public repo is a security decision for the owner.

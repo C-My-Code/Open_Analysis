@@ -14,7 +14,12 @@ text by default; add `--json` (or set `OA_OUTPUT=json`) for one JSON object on s
 
 ## 1. Install
 
-You need Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).
+You need Python 3.11 or newer and [uv](https://docs.astral.sh/uv/). On Linux, the Gmsh mesher
+also needs a few system libraries (Debian/Ubuntu shown; Windows and macOS need nothing extra):
+
+```text
+sudo apt-get install libglu1-mesa libxcursor1 libxft2 libxinerama1
+```
 
 ```text
 uv tool install open-analysis

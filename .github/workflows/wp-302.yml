@@ -29,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # The PyPI gmsh wheel needs libGLU and X11 client libraries on Linux (see ci.yml).
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync
       - name: Tool self-test
         run: uv run pytest tools/validation -q
@@ -47,6 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # The PyPI gmsh wheel needs libGLU and X11 client libraries on Linux (see ci.yml).
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync
       - name: Run every validation case
         run: uv run python tools/validation/run_validation.py --skip-openems --page

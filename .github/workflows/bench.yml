@@ -33,7 +33,8 @@ jobs:
           path: ${{ runner.temp }}/validation
 
   nightly:
-    if: github.event_name != 'pull_request'
+    # Needs a registered self-hosted runner; without one the job would sit queued for a day.
+    if: github.event_name != 'pull_request' && vars.OA_SELF_HOSTED_BENCH == 'true'
     runs-on: [self-hosted, oa-bench]
     timeout-minutes: 120
     steps:

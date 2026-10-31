@@ -103,6 +103,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
+      # The PyPI gmsh wheel needs libGLU and X11 client libraries on Linux (see ci.yml).
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
       - uses: astral-sh/setup-uv@v5
       - uses: actions/download-artifact@v4
         with:
