@@ -70,6 +70,7 @@ def test_round_wire_matches_bessel() -> None:
     np.testing.assert_allclose(dl, dl_b, atol=2e-9)  # 2 nH/m of 250 nH/m external
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_dc_resistance_is_rho_over_area() -> None:
     # isolated conductor: single signal, near-ideal return
     r1, _, _ = solve_loss(wire_over_plane(), np.array([0.0]))
@@ -118,6 +119,7 @@ def test_fem_loss_replaces_bem_loss_and_is_flagged() -> None:
     assert new.rlgc.R.array[0, 0, 0] > 0
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_solve_fem_returns_eddy_rlgc() -> None:
     r = solve_fem(wire_over_plane(), [1e8])
     assert r.method == "fem" and r.rlgc is not None

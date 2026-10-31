@@ -44,6 +44,7 @@ def test_cohn_stripline_converges_and_richardson_is_tight() -> None:
         assert abs(z[-1] - z[-2]) / z[-1] < 1e-3
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_refinement_loop_reports_levels_and_convergence() -> None:
     sol = solve_fem_raw(
         tk.get_case("wire_over_plane_h2r").xs, np.array([0.0]), FemParams(loss="none")

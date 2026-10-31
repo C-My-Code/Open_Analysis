@@ -5,7 +5,10 @@ name: ci
 on:
   push:
     branches: [main]
+    # Documentation-only changes do not run the test matrix (the nightly run still covers them).
+    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
+    paths-ignore: ["docs/**", "**/*.md"]
   schedule:
     - cron: "0 7 * * *"  # nightly run of the slow suite
   workflow_dispatch:
@@ -58,7 +61,8 @@ jobs:
         run: uv run python -c "import oa_native, sys; s = oa_native.status(); print(s); sys.exit(1 if s['fallback'] else 0)"
       # Markers needing external tools (external, kicad) are opt-in. Slow tests (3D meshing,
       # large solves, convergence studies) run in the nightly `slow` job instead.
-      - run: uv run pytest -m "not external and not kicad and not slow"
+      # One xdist worker per core; every worker keeps the 2-thread and memory caps of conftest.py.
+      - run: uv run pytest -n auto -m "not external and not kicad and not slow"
 
   slow:
     name: slow tests (${{ matrix.os }})
@@ -109,7 +113,7 @@ jobs:
       - run: uv sync --all-packages --extra cuda12 --python 3.13
       - name: Native extension is built and current
         run: uv run python -c "import oa_native, sys; s = oa_native.status(); print(s); sys.exit(1 if s['fallback'] else 0)"
-      - run: uv run pytest -m "not external and not kicad and not slow"
+      - run: uv run pytest -n 4 -m "not external and not kicad and not slow"  # 4 x 2 threads, fits 12 GB
       - name: GPU tests
         run: uv run pytest -m "gpu and not external and not kicad and not slow"
         env:

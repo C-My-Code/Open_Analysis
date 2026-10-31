@@ -91,6 +91,7 @@ def _inner(c: object, st: object) -> bool:
     )
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.parametrize("name", ["microstrip", "stripline", "via"])
 def test_fixture_groups_ports_and_mesh(name: str, tmp_path: Path) -> None:
     p = PROBLEMS[name]()
@@ -133,6 +134,7 @@ def test_lumped_port_is_one_surface(tmp_path: Path) -> None:
         assert g.measure == pytest.approx(w * h, rel=1e-6)
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_wave_port_tiles_the_face(tmp_path: Path) -> None:
     """Wave port faces tile the port rectangle minus the copper cross-section, all coplanar."""
     p = stripline_thru_problem()
@@ -179,6 +181,7 @@ def via_cut():  # type: ignore[no-untyped-def]
     return g.cut_region(RegionSpec(nets=("SIG",), bbox=(5e-3, -4e-3, 20e-3, 4e-3)))
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_cut_region_via_meshes(via_cut, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     st = via_cut.structure
     model = build_occ_model(st, sheet_threshold=0.5 * 0.2e-3, options=OccOptions(f_max=10e9))

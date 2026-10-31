@@ -32,18 +32,21 @@ def z0_of(xs: CrossSection) -> float:
     return float(r.params.z0.array[0])
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.golden
 def test_coax_exact() -> None:
     z = [z0_of(tk.get_case("coax_lnba1_air").xs), z0_of(tk.get_case("coax_lnba1_er2p1").xs)]
     assert_close_to_golden({"z0": z}, SUITE, "coax_lnba1")
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.golden
 def test_wire_over_plane_exact() -> None:
     z = [z0_of(tk.get_case(f"wire_over_plane_h{h}r").xs) for h in ("2", "5")]
     assert_close_to_golden({"z0": z}, SUITE, "wire_over_plane")
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.golden
 def test_two_wire_exact() -> None:
     r = fem(tk.get_case("two_wire_D2p5d").xs)
@@ -51,6 +54,7 @@ def test_two_wire_exact() -> None:
     assert_close_to_golden({"zdiff": float(r.params.z0.array[0])}, SUITE, "two_wire")
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.golden
 def test_cohn_thin_stripline() -> None:
     case = load_case(SUITE, "cohn_thin_stripline")
@@ -75,6 +79,7 @@ def test_cohn_thin_edge_coupled() -> None:
     assert_close_to_golden({"zdiff": zd, "zcomm": zc}, SUITE, "cohn_thin_edge_coupled")
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.golden
 def test_cpw_on_half_space() -> None:
     case = load_case(SUITE, "cpw_halfspace")
@@ -109,6 +114,7 @@ def test_fem_agrees_with_bem(xs: CrossSection) -> None:
     np.testing.assert_allclose(f.eps_eff_modal.array[0], b.eps_eff_modal.array[0], rtol=5e-3)
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_homogeneous_lc_identity_and_symmetry() -> None:
     er = 3.0
     r = fem(_xs.homogeneous_pair(er))

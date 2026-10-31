@@ -172,13 +172,13 @@ class MeshPool:
 
 def _pool() -> MeshPool | None:
     global _POOL
+    n = pool_size()
+    if n <= 0:
+        return None  # disabled now, even if a pool started earlier is still idling out
     with _POOL_LOCK:
         if _POOL is not None and not _POOL.alive:
             _POOL = None
         if _POOL is None:
-            n = pool_size()
-            if n <= 0:
-                return None
             try:
                 _POOL = MeshPool(n)
             except OSError:

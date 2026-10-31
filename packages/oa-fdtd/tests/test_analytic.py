@@ -48,6 +48,7 @@ def _richardson(ratio: float, engine: str, dtype: str) -> tuple[list[float], flo
     [1.0, pytest.param(1.05, marks=pytest.mark.slow)],
     ids=["uniform", "graded"],
 )
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_cavity_richardson_numpy(ratio: float) -> None:
     err, order = _richardson(ratio, "numpy", "float64")
     assert max(err) < 5e-4  # 0.05 %

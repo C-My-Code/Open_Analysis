@@ -129,6 +129,7 @@ def _via_geometry_checks(model, via_ids) -> None:  # type: ignore[no-untyped-def
         assert g.n_entities >= 1 and g.measure > 0
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_via_through_planes_with_antipads_sheet_volumes(tmp_path: Path) -> None:
     """Sheet mode: the only removed copper is the barrels; FR4 matches the analytic value."""
     p = via_transition_problem()
@@ -151,6 +152,7 @@ def test_via_through_planes_with_antipads_sheet_volumes(tmp_path: Path) -> None:
     _check(model, tmp_path)
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_via_through_planes_solid(tmp_path: Path) -> None:
     p = via_transition_problem()
     model = build_occ_model(
@@ -162,6 +164,7 @@ def test_via_through_planes_solid(tmp_path: Path) -> None:
     _check(model, tmp_path)
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 @pytest.mark.parametrize("void", [None, 0.1e-3], ids=["dielectric", "void"])
 def test_backdrilled_stub(void: float | None, tmp_path: Path) -> None:
     """Signal via plated only L1..L3 (stub below removed); barrel ends inside the dielectric."""

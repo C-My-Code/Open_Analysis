@@ -83,6 +83,7 @@ def test_stripline_delay_matches_cohn_tem_numpy() -> None:
     assert abs(_delay_err(r, er, length, 10e9)) < 5e-3
 
 
+@pytest.mark.slow  # nightly: heavy reference case (CI time, 2026-10-31)
 def test_closed_lossless_via_box_conserves_energy() -> None:
     """PEC copper, lossless laminate of two permittivities, closed walls: after the source the
     leapfrog energy stays constant to 1e-3 (any SIBC, ADE or conductivity on an inner edge
