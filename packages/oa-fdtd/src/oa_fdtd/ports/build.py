@@ -41,6 +41,17 @@ def _in_box(
     return np.asarray(mu[:, None] & mv[None, :])
 
 
+def _overlap(
+    lo: tuple[float, float],
+    hi: tuple[float, float],
+    sig: tuple[tuple[float, float], tuple[float, float]],
+    tol: float,
+) -> bool:
+    """Whether the rectangle ``lo..hi`` and the signal rectangle share an interior point."""
+    (slo, shi) = sig
+    return all(lo[a] < shi[a] - tol and slo[a] < hi[a] - tol for a in (0, 1))
+
+
 def _physical_extent(g: Grid, c: Any, tol: float) -> tuple[list[float], list[float]]:
     """``(lo, hi)`` of a conductor box with its x/y faces moved out to the physical edge:
     ``e + edge_frac (e' - e)`` with ``e'`` the next mesh line outward (no move on the mesh ends)."""
@@ -129,9 +140,17 @@ def solve_port_modes(
     cv = np.clip(np.searchsorted(v, 0.5 * (va[1:] + va[:-1])) - 1, 0, v.size - 2)
     eps_aug = eps_cell[np.ix_(cu, cv)]
     labels = -np.ones((ua.size, va.size), dtype=np.int64)
+    sig_boxes: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
     for lo, hi in boxes:
         if lo[n] - tol <= pos <= hi[n] + tol:
-            labels[_in_box(ua, va, (lo[u_ax], lo[v_ax]), (hi[u_ax], hi[v_ax]), tol)] = 0
+            lo2, hi2 = (lo[u_ax], lo[v_ax]), (hi[u_ax], hi[v_ax])
+            # a box that overlaps a signal conductor is part of it (its raster may reach past
+            # the signal's bounding box by a cell), never ground next to it
+            k_sig = next((k for k, q in enumerate(port.signals) if _overlap(lo2, hi2, q, tol)), -1)
+            if k_sig >= 0:
+                sig_boxes.append((k_sig, lo2, hi2))
+            else:
+                labels[_in_box(ua, va, lo2, hi2, tol)] = 0
     for a, ax_lines, sl in ((u_ax, ua, 0), (v_ax, va, 1)):
         for side in (0, 1):
             if model.walls[2 * a + side] == "pec":
@@ -142,6 +161,8 @@ def solve_port_modes(
                 else:
                     labels[:, hit] = 0
     for k, (lo2, hi2) in enumerate(port.signals):
+        labels[_in_box(ua, va, lo2, hi2, tol)] = k + 1
+    for k, lo2, hi2 in sig_boxes:
         labels[_in_box(ua, va, lo2, hi2, tol)] = k + 1
     for k in range(len(port.signals)):
         if not np.any(labels[np.ix_(iu, iv)] == k + 1):

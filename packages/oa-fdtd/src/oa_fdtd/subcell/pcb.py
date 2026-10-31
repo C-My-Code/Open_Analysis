@@ -8,6 +8,9 @@ This is the geometry front end of ADR-0010 (the adapter of WP-507 calls :func:`b
   dielectric (N = 10/20/30 for coarse/medium/fine, or ``mesh.cells_per_wavelength``); fixed lines
   on every conductor edge, via and port coordinate, on dielectric interfaces (4 cells across each
   layer) and on both copper faces, which bound exactly one cell; grading from ``mesh.max_grading``.
+  Via barrels and their antipads get uniform cells of at most ``r_via / 8`` and
+  ``(r_antipad - r_via) / 12`` (``via_cells``, ``via_gap_cells``); grading fill lines never split
+  a conductor's edge cell.
   Absorbing faces get ``pml_cells`` cells of the boundary cell size outside the problem box.
 - **Dielectrics:** each model is evaluated by ``oa_physics`` and fitted by a multi-pole Debye sum
   (:mod:`oa_fdtd.materials`) over ``max(f_min, f_max / 100) .. f_max`` for the ADE kernels. A z gap
@@ -16,15 +19,15 @@ This is the geometry front end of ADR-0010 (the adapter of WP-507 calls :func:`b
   there is no copper.
 - **Copper:** polygons are rasterised on the mesh (cell centres) and merged into boxes, each a
   :class:`~oa_fdtd.model.Conductor` with the finite-slab surface impedance and the roughness of
-  the body; vias are solid PEC square barrels of the area of the round via
+  the body; vias are solid PEC square barrels with the conformal radius of the round via
   (:func:`_via_side`, the sub-cell via model). Planes and slabs that touch an absorbing face
   over at least half of it continue through the PML; traces end at the problem box.
 - **Ports:** ``EMLumpedPort`` becomes a :class:`~oa_fdtd.model.LumpedPort` on the terminal
   column; ``EMWavePort`` a quasi-TEM :class:`~oa_fdtd.model.ModePort` on the boundary face (the
   face becomes a PMC wall behind the port sheet, like a lumped port).
 
-Limits: staircased lateral conductor edges (the via barrels are exact on the mesh lines, as equal
-area squares; no Dey-Mittra cells), diagonal
+Limits: staircased lateral conductor edges (the via barrels are exact on the mesh lines, as
+equivalent squares; antipads are rasterised at cell centres; no Dey-Mittra cells), diagonal
 polygons are rasterised at cell centres, anisotropy and lumped RLC elements are ignored with a
 diagnostic.
 """
@@ -51,6 +54,7 @@ FloatArray = npt.NDArray[np.float64]
 _FACES = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
 _PRESET_N = {"coarse": 10.0, "medium": 20.0, "fine": 30.0}
 _BIG = 1.0  # [m] boxes reach this far past the grid so that no face edge lies on a wall
+_SQUARE_EQ_RADIUS = 0.5902  # conformal radius of a square of unit side, Gamma(1/4)^2 / (4 pi^1.5)
 
 
 @dataclass
@@ -132,6 +136,7 @@ def _edge_seeds(
     frac: float | None,
     lo3: tuple[float, float, float],
     hi3: tuple[float, float, float],
+    pairs: list[list[tuple[float, float]]] | None = None,
 ) -> list[list[tuple[float, float]]]:
     """Mesh seeds ``[x seeds, y seeds]`` for the edges of one polygon.
 
@@ -173,19 +178,40 @@ def _edge_seeds(
                 continue
             sign = -1.0 if inside[0] else 1.0  # outward normal of the metal along axis a
             out[a] += [(v + sign * (1.0 - frac) * size, size), (v - sign * frac * size, size)]
+            if pairs is not None:  # the edge cell: no mesh line may split it
+                lo_e, hi_e = sorted((v + sign * (1.0 - frac) * size, v - sign * frac * size))
+                pairs[a].append((lo_e, hi_e))
     return out
 
 
 def _via_side(r_outer: float) -> float:
     """Side [m] of the square PEC barrel that replaces a round via of radius ``r_outer``.
 
-    Equal cross-section area (``a = sqrt(pi) r``): the geometric-mean-distance radius of a square
-    is within 2 % of the round conductor's (0.792 r against 0.779 r), so the external inductance
-    and the capacitance to the antipad edge match to first order, and the barrel lies exactly on
-    mesh lines (the mesh places lines at the square's faces). A staircased circle at cell centres
-    changes its area, and with it the via inductance, with every mesh refinement.
+    The square whose external field matches the round barrel: the conformal (logarithmic
+    capacity) radius of a square of side ``a`` is ``Gamma(1/4)^2 / (4 pi^1.5) a = 0.5902 a``, so
+    ``a = r / 0.5902 = 1.694 r``. The barrel's capacitance to the antipad edges and to the plane
+    cavities and its inductance depend on it through ``ln(r_antipad / r)`` and
+    ``ln(r_cavity / r)``. The equal-area square used before (``sqrt(pi) r = 1.772 r``, right for the
+    DC inductance of a solid wire, not for the surface current at RF) is 4.6 % larger in this
+    radius: B-EM-03 converged 0.2 dB lower in SDD21 at 20 GHz with it, and a round barrel
+    rasterised at cell centres converges towards the 1.694 r square. The barrel lies exactly on
+    mesh lines (the mesh places lines at the square's faces).
     """
-    return float(np.sqrt(np.pi) * r_outer)
+    return float(r_outer / _SQUARE_EQ_RADIUS)
+
+
+def _hole_radius(st: Any, v: Any) -> float | None:
+    """Largest radius [m] of a plane hole centred on via ``v`` (its antipad), ``None`` without."""
+    r: float | None = None
+    for body in st.conductors:
+        for poly in body.polygons:
+            for h in poly.holes:
+                a = np.asarray(h.array)
+                c = a.mean(axis=0)
+                if np.hypot(c[0] - v.center[0], c[1] - v.center[1]) < v.r_outer:
+                    rh = float(np.max(np.hypot(a[:, 0] - c[0], a[:, 1] - c[1])))
+                    r = rh if r is None else max(r, rh)
+    return r
 
 
 def build_model(
@@ -199,6 +225,8 @@ def build_model(
     edge_frac: float | None = 1.0 / 3.0,
     edge_cells: float = 4.0,
     edge_h: float = 0.5,
+    via_cells: float = 8.0,
+    via_gap_cells: float = 12.0,
 ) -> BuiltModel:
     """Translate ``problem`` into an engine model; raises :class:`ModelError` on bad input.
 
@@ -209,6 +237,9 @@ def build_model(
     and ``edge_cells`` the number of edge cells across a conductor narrower than 8 cells; the
     edge cell is also at most ``edge_h`` times the thinnest dielectric slab the conductor touches
     (the edge field varies on the scale of the gap to the reference plane, not of the width).
+    Every via barrel and the antipad it passes through are meshed with uniform cells of at most
+    ``r_via / via_cells`` and ``(r_antipad - r_via) / via_gap_cells`` (``via_cells=0``: no via
+    refinement, the barrel faces only).
     """
     st = problem.structure
     box = st.bbox
@@ -265,6 +296,7 @@ def build_model(
     for a in range(3):
         seeds[a] += [(glo[a], d_max), (ghi[a], d_max)]
     locked: list[float] = []
+    edge_cells_xy: list[list[tuple[float, float]]] = [[], []]
     thin: list[tuple[ConductorBody, float]] = []
     for body in st.conductors:
         x0, y0, x1, y1 = _bbox2(body)
@@ -277,7 +309,7 @@ def build_model(
         s_narrow = min([d_max, w / edge_cells] + [edge_h * h for h in h_adj])
         s_edge = s_narrow if w < 8.0 * d_max else d_max
         for p in body.polygons:
-            for a, sd in enumerate(_edge_seeds(p, s_edge, edge_frac, lo3, hi3)):
+            for a, sd in enumerate(_edge_seeds(p, s_edge, edge_frac, lo3, hi3, edge_cells_xy)):
                 seeds[a] += [
                     (round(v, 12), sz) for v, sz in sd if lo3[a] - 1e-9 <= v <= hi3[a] + 1e-9
                 ]
@@ -285,9 +317,27 @@ def build_model(
         seeds[2] += [(body.z_bottom, min(t, d_max)), (body.z_top, min(t, d_max))]
         locked += [body.z_bottom, body.z_top]
         thin.append((body, t))
+    rseeds: list[list[tuple[float, float]]] = [[], [], []]
     for v in st.vias:
         half = 0.5 * _via_side(v.r_outer)
         s = min(d_max, half)
+        r_hole = _hole_radius(st, v)
+        if via_cells > 0:
+            # A staircased PEC barrel acts about a third of the next cell larger, and the gap to
+            # the antipad holds the via's radial E and its fringe into the plane cavities: at the
+            # d_max mesh (4 cells across the gap, return vias in 190 um cells) SDD21 of B-EM-03
+            # was 0.6 dB low at 20 GHz. Uniform cells over the barrel and its antipad.
+            cell = min(d_max, v.r_outer / via_cells)
+            r_ref = v.r_outer
+            if r_hole is not None and r_hole > v.r_outer:
+                cell = min(cell, (r_hole - v.r_outer) / via_gap_cells)
+                r_ref = r_hole
+            s = min(s, cell)
+            r_ref += 2.0 * cell
+            for a, c in ((0, v.center[0]), (1, v.center[1])):
+                rseeds[a] += [
+                    (float(u), cell) for u in c + np.arange(-r_ref, r_ref + 1e-12, 2 * cell)
+                ]
         for a, c in ((0, v.center[0]), (1, v.center[1])):
             seeds[a] += [(c - half, s), (c, s), (c + half, s)]
         seeds[2] += [(v.z_bottom, d_max), (v.z_top, d_max)]
@@ -314,8 +364,24 @@ def build_model(
     lines: list[FloatArray] = []
     for a in range(3):
         seeds_a = [s for s in seeds[a] if glo[a] - 1e-9 <= s[0] <= ghi[a] + 1e-9]
+        if rseeds[a]:  # refinement seeds give way to feature lines and edge cells (no slivers)
+            fx = [q[0] for q in seeds_a]
+            for q in sorted(rseeds[a]):
+                in_edge = a < 2 and any(e0 <= q[0] <= e1 for e0, e1 in edge_cells_xy[a])
+                if not in_edge and min(abs(u - q[0]) for u in fx) > 0.6 * q[1]:
+                    fx.append(q[0])
+                    seeds_a.append(q)
         mesh = smooth_axis(seeds_a, d_max, grading, locked if a == 2 else ())
         ln = np.asarray(mesh.lines, dtype=np.float64)
+        if a < 2 and edge_cells_xy[a]:
+            # a grading fill line may split an edge cell, which moves the cell-centre raster of
+            # the conductor out by a cell: keep every edge cell whole (seeded lines stay)
+            fixed = np.array([q[0] for q in seeds_a])
+            tol_l = 1e-9 * d_max
+            keep = np.array([np.min(np.abs(fixed - x)) <= 1e-12 + tol_l for x in ln]) | np.all(
+                [~((ln > e0 + tol_l) & (ln < e1 - tol_l)) for e0, e1 in edge_cells_xy[a]], axis=0
+            )
+            ln = ln[keep]
         n_lo = pml_cells if has_pml[_FACES[2 * a]] else 0
         n_hi = pml_cells if has_pml[_FACES[2 * a + 1]] else 0
         if n_lo:
