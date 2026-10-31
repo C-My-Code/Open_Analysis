@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+# WP-520: is the compiled oa-native module built and current on the runners, and how long does
+# the 50k-segment ReferenceMap benchmark take there (it was 196 s on ubuntu-latest before WP-520).
+name: wp-520
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/oa-native/**"
+      - "packages/oa-native/**"
+      - "packages/oa-geometry/**"
+      - ".github/workflows/wp-520.yml"
+
+jobs:
+  native-and-refmap:
+    name: native status + 50k ReferenceMap (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages --python 3.13
+      - name: The compiled module is importable and has every kernel (no silent fallback)
+        run: >
+          uv run --no-sync python -c "import json, sys, oa_native;
+          s = oa_native.status(); print(json.dumps(s, indent=1)); sys.exit(1 if s['fallback'] else 0)"
+      - name: 50k-segment ReferenceMap benchmark (prints the timings)
+        run: uv run --no-sync pytest packages/oa-geometry/tests/test_perf.py -q -s
+        env:
+          OA_RUN_PERF: "1"
+          OA_RUN_SLOW: "1"
+          OA_NUM_THREADS: "2"
+          OMP_NUM_THREADS: "2"

@@ -56,6 +56,26 @@ def pieces_by_net(geo: BoardGeometry) -> dict[str, list[Piece]]:
     return geo._memoized("pieces_by_net", make)  # type: ignore[no-any-return]
 
 
+def items_by_net(geo: BoardGeometry) -> tuple[dict[str, list[Any]], dict[str, list[Any]]]:
+    """Pads and vias of every net, each list in board order (cached).
+
+    Per-net code used to filter ``board.pads``/``board.vias`` for every net, which is
+    quadratic on large boards (WP-520: 16 s of the 50k-segment ReferenceMap)."""
+
+    def make() -> tuple[dict[str, list[Any]], dict[str, list[Any]]]:
+        pads: dict[str, list[Any]] = defaultdict(list)
+        vias: dict[str, list[Any]] = defaultdict(list)
+        for p in geo.board.pads:
+            if p.net is not None:
+                pads[p.net].append(p)
+        for v in geo.board.vias:
+            if v.net is not None:
+                vias[v.net].append(v)
+        return dict(pads), dict(vias)
+
+    return geo._memoized("items_by_net", make)  # type: ignore[no-any-return]
+
+
 def net_pieces(geo: BoardGeometry, net: str) -> list[Piece]:
     _check_net(geo, net)
     return pieces_by_net(geo).get(net, [])
@@ -94,10 +114,10 @@ def _contacts(
 
 def _build(geo: BoardGeometry, net: str, root: str | None) -> _Topo:
     _check_net(geo, net)
-    board = geo.board
     pieces = pieces_by_net(geo).get(net, [])
-    pads = [p for p in board.pads if p.net == net]
-    vias = [v for v in board.vias if v.net == net]
+    pads_of, vias_of = items_by_net(geo)
+    pads = pads_of.get(net, [])
+    vias = vias_of.get(net, [])
 
     nodes: dict[str, TopoNode] = {}
     pt_nodes: dict[tuple[str, int, int], str] = {}
@@ -498,17 +518,14 @@ def _islands(geo: BoardGeometry, net: str) -> tuple[Island, ...]:
         hit = trees[lid].query(shapely.points(pos), predicate="intersects")
         return (lid, int(hit[0])) if len(hit) else None
 
-    for v in geo.board.vias:
-        if v.net != net:
-            continue
+    pads_of, vias_of = items_by_net(geo)
+    for v in vias_of.get(net, []):
         lays = via_copper_layers(geo.idx, v, geo.idx.padstack(v.padstack))
         found = [part_at(lid, v.position) for lid in lays]
         keep = [f for f in found if f is not None]
         for a, b in itertools.pairwise(keep):
             uf.union(a, b)
-    for p in geo.board.pads:
-        if p.net != net:
-            continue
+    for p in pads_of.get(net, []):
         ps = geo.idx.padstack(p.padstack)
         if ps.drill is None or ps.drill.kind != "plated":
             continue

@@ -334,16 +334,25 @@ def _cover_native(
         return
     rings = geo._memoized(("rings-parts", cand), lambda: RingSet(rl.parts))
     cap = EDGE_FACTOR * np.maximum(h, 1e-6)
-    cov, dist = kern.rect_cover_edge(
-        np.ascontiguousarray(seg[pi]),
-        np.ascontiguousarray(r_foot[pi]),
-        np.ascontiguousarray(widths[pi] / 2.0),
-        np.ascontiguousarray(cap[pi]),
-        np.ascontiguousarray(pj, dtype=np.int64),
-        rings.xy,
-        rings.ring_start,
-        rings.geom_start,
-    )
+    # the kernel only looks at edges within `cap` of the footprint box: hand it the rings near
+    # that box (1 nm wider than the kernel's own box), not every antipad of the plane (WP-520)
+    pad = cap[pi] + 1e-9
+    near = np.concatenate((lo[pi] - pad[:, None], hi[pi] + pad[:, None]), axis=1)
+    cov = np.zeros(len(pi), dtype=bool)
+    dist = np.zeros(len(pi), dtype=np.float64)
+    for q, sub in rings.near(np.ascontiguousarray(pj, dtype=np.int64), near):
+        c_q, d_q = kern.rect_cover_edge(
+            np.ascontiguousarray(seg[pi[q]]),
+            np.ascontiguousarray(r_foot[pi[q]]),
+            np.ascontiguousarray(widths[pi[q]] / 2.0),
+            np.ascontiguousarray(cap[pi[q]]),
+            np.arange(len(q), dtype=np.int64),
+            sub.xy,
+            sub.ring_start,
+            sub.geom_start,
+        )
+        cov[q] = c_q
+        dist[q] = d_q
     first: dict[int, tuple[int, float]] = {}
     for i, j, c, d in zip(pi.tolist(), pj.tolist(), cov, dist, strict=True):
         if c:
@@ -351,6 +360,30 @@ def _cover_native(
     for i in sorted(first):
         j, d = first[i]
         out[(members[i][0].seg.id, f"{side}:{cand}")] = (cand, float(h[i]), rl.nets[j], float(d))
+
+
+def _covers_part(
+    rl: _RefLayer, parts: npt.NDArray[np.intp], foot: npt.NDArray[np.object_]
+) -> npt.NDArray[np.bool_]:
+    """``covers(rl.parts[parts[i]], foot[i])`` for every i.
+
+    A part covers a footprint when its shell does and no hole interior meets the footprint's
+    interior. GEOS' prepared ``covers`` of a polygon with holes tests a point of every hole
+    against the footprint, which is quadratic on a plane with one antipad per via (WP-520);
+    here only the holes the STRtree finds near each footprint are tested.
+    """
+    shapely.prepare(rl.shells)
+    cov = np.asarray(shapely.covers(rl.shells[parts], foot), dtype=bool)
+    if rl.hole_tree is None or not cov.any():
+        return cov
+    idx = np.flatnonzero(cov)
+    qi, qh = rl.hole_tree.query(foot[idx])
+    keep = rl.hole_part[qh] == parts[idx[qi]]
+    qi, qh = qi[keep], qh[keep]
+    if len(qi):
+        hit = np.asarray(shapely.relate_pattern(rl.holes[qh], foot[idx[qi]], "T********"))
+        cov[idx[qi[hit]]] = False
+    return cov
 
 
 def _bulk_cover(
@@ -386,8 +419,7 @@ def _bulk_cover(
         pi, pj = pi[keep], pj[keep]
         if len(pi) == 0:
             continue
-        shapely.prepare(rl.parts)
-        cov = shapely.covers(rl.parts[pj], foot[pi])
+        cov = _covers_part(rl, pj, foot[pi])
         pi, pj = pi[cov], pj[cov]
         if len(pi) == 0:
             continue

@@ -21,3 +21,14 @@ features = ["extension-module"]
 
 [dependency-groups]
 dev = ["maturin>=1.7,<2"]
+
+[tool.uv]
+# The Rust sources live outside this package directory. Without these keys `uv sync` reuses a
+# cached build after the crate changes, and the stale module silently lacks the newer kernels
+# (WP-520).
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "../../crates/oa-native/Cargo.toml" },
+    { file = "../../crates/oa-native/Cargo.lock" },
+    { file = "../../crates/oa-native/src/**/*.rs" },
+]
