@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# docker compose up -d --build     (first start: RUNNER_TOKEN=... in .env, see README.md)
+# The runner gets its own bridge network (oa-ci, 10.250.0.0/24). firewall.sh blocks that
+# network from the tailnet and private LAN ranges, so jobs reach the internet only.
+services:
+  runner:
+    build:
+      context: .
+      args:
+        RUNNER_VERSION: ${RUNNER_VERSION:?set RUNNER_VERSION in .env}
+        RUNNER_SHA256: ${RUNNER_SHA256:?set RUNNER_SHA256 in .env}
+    image: oa-ci-runner:latest
+    restart: unless-stopped
+    environment:
+      RUNNER_URL: https://github.com/C-My-Code/Open_Analysis
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: oa-linux-gpu
+      # Same machine-safety caps the project uses everywhere (TASKS.md rule 10).
+      OA_MEMCAP_GB: "16"
+    volumes:
+      - state:/home/runner/state      # runner registration only
+      - cache:/home/runner/.cache     # uv / pip caches (warm builds)
+      - cargo:/home/runner/.cargo/registry
+    networks: [oa-ci]
+    # Public resolvers: the host's resolver is often the router or Tailscale MagicDNS, both of
+    # which firewall.sh blocks from this network.
+    dns: [1.1.1.1, 9.9.9.9]
+    # No docker.sock, no privileged mode, no host network, no extra capabilities.
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: false
+    tmpfs: ["/tmp:size=8g"]
+    cpus: 12            # of 16; leaves headroom for Tailscale and the desktop
+    mem_limit: 24g      # of 32
+    memswap_limit: 24g
+    pids_limit: 4096
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]
+
+networks:
+  oa-ci:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-oa-ci
+    ipam:
+      config:
+        - subnet: 10.250.0.0/24
+
+volumes:
+  state:
+  cache:
+  cargo:

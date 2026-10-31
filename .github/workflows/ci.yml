@@ -85,6 +85,43 @@ jobs:
           OA_RUN_SLOW: "1"
           OA_TEST_MEM_GB: "12"
 
+  # Self-hosted Linux + NVIDIA runner (tools/ci-runner). Never runs for pull requests: only
+  # pushes to main, the nightly schedule and manual runs of this repository, and only when the
+  # repository variable OA_SELF_HOSTED_LINUX is 'true'.
+  linux-gpu:
+    name: linux + GPU (self-hosted)
+    if: >-
+      vars.OA_SELF_HOSTED_LINUX == 'true' &&
+      github.repository == 'C-My-Code/Open_Analysis' &&
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, oa-linux-gpu]
+    permissions:
+      contents: read
+    timeout-minutes: 150
+    env:
+      OA_DEVICE: auto
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --all-packages --extra cuda12 --python 3.13
+      - name: Native extension is built and current
+        run: uv run python -c "import oa_native, sys; s = oa_native.status(); print(s); sys.exit(1 if s['fallback'] else 0)"
+      - run: uv run pytest -m "not external and not kicad and not slow"
+      - name: GPU tests
+        run: uv run pytest -m "gpu and not external and not kicad and not slow"
+        env:
+          OA_RUN_GPU: "1"
+      - name: Slow tests (nightly and manual runs)
+        if: github.event_name != 'push'
+        run: uv run pytest -m "slow and not external and not kicad" --timeout 1800
+        env:
+          OA_RUN_SLOW: "1"
+          OA_RUN_GPU: "1"
+          OA_TEST_MEM_GB: "16"
+
   reuse:
     name: reuse lint
     runs-on: ubuntu-latest

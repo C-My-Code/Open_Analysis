@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Re-applies the runner network firewall after Docker starts (Docker recreates DOCKER-USER).
+# Install: sudo cp firewall.sh /usr/local/sbin/oa-ci-firewall && sudo cp oa-ci-firewall.service
+#          /etc/systemd/system/ && sudo systemctl enable --now oa-ci-firewall
+[Unit]
+Description=Open_Analysis CI runner network firewall
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/oa-ci-firewall apply
+ExecStop=/usr/local/sbin/oa-ci-firewall remove
+
+[Install]
+WantedBy=multi-user.target
