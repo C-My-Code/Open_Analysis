@@ -52,6 +52,10 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends
           libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync --all-packages --python ${{ matrix.python }}
+      # The Rust kernels must be built and current; a silent pure-Python fallback would test the
+      # slow path and hide native regressions (WP-520).
+      - name: Native extension is built and current
+        run: uv run python -c "import oa_native, sys; s = oa_native.status(); print(s); sys.exit(1 if s['fallback'] else 0)"
       # Markers needing external tools (external, kicad) are opt-in. Slow tests (3D meshing,
       # large solves, convergence studies) run in the nightly `slow` job instead.
       - run: uv run pytest -m "not external and not kicad and not slow"
