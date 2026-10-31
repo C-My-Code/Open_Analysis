@@ -40,7 +40,10 @@ adapter.
   `port_ext` [m] extrudes the wave-port faces (`meta["ref_planes"]`). Conductor edges follow the
   thirds rule (`edge_frac=1/3`: a line 1/3 cell inside each axis-aligned metal edge and one 2/3
   outside, no line on the edge; `None` = the old line-on-edge rule); the edge cell is `w / 4`
-  (`edge_cells`) and at most half the touching dielectric (`edge_h`).
+  (`edge_cells`) and at most half the touching dielectric (`edge_h`). Via barrels are PEC squares
+  of side `r / 0.5902` (the round via's conformal radius) meshed with uniform cells of at most
+  `r / via_cells` (8) over the barrel and `(r_anti - r) / via_gap_cells` (12) over its antipad
+  (`SolveOptions` / expert `fdtd.via_cells|via_gap_cells`; `via_cells=0` turns it off).
 - `oa-fdtd run job.json` (`oa_fdtd.cli`): engine-level job; no `oa_framework` import.
 
 ## Models implemented
@@ -104,7 +107,60 @@ steps, so they are inactive with `end_db=None`. Slow growth below 20 dB, or grow
 source is still on, is not detected. Tests: `tests/test_stability.py`.
 
 ## Known gaps
-- Dey-Mittra conformal PEC is not implemented: via barrels and diagonal polygons are staircased.
+- Dey-Mittra conformal PEC is not implemented: via barrels are squares with the conformal radius
+  of the round via on refined cells, antipads and diagonal polygons are staircased at cell centres.
+- FIXED (B-EM-03 not mesh-converged, WP-517): the remaining 0.2-0.6 dB to openEMS was mostly our
+  own discretisation, not the reference. A mesh study (`via_cells` / `via_gap_cells`, RTX 4080
+  SUPER, float32, -60 dB) found two errors at the old default mesh:
+  1. the gap between the signal barrel and its 0.3 mm antipad held 4 cells (the `d_max` mesh) and
+     the return vias sat in 190 um cells; a staircased PEC face acts about a third of the next cell
+     larger, so the barrels were too capacitive. Refining only the signal via region (25 / 12.5 /
+     6.25 um) moved SDD21 at 20 GHz from -2.90 to -2.53 / -2.51 / -2.50 dB; refining the return
+     vias too moves it by another 0.15-0.3 dB above 20 GHz.
+  2. the equal-area square barrel (`sqrt(pi) r = 1.772 r`, the DC inductance choice) is 4.6 %
+     larger than the round via in conformal radius (`0.5902 a`), the radius that sets the external
+     capacitance and inductance at RF. With `a = r / 0.5902` SDD21 at 20 GHz is 0.2 dB higher
+     (-2.30 against -2.51 at 12.5 um cells), and a round barrel rasterised at cell centres
+     converges towards it (-2.55 / -2.47 / -2.40 at 25 / 12.5 / 6.25 um, still moving).
+  Neither copper z resolution (8 instead of 4 cells per dielectric: < 0.02 dB) nor the global cell
+  size (20 to 80 cells per wavelength without via refinement: < 0.1 dB) matters. Now every barrel
+  gets cells of `r / 8` and its antipad gap `(r_anti - r) / 12` (`build_model(via_cells=8,
+  via_gap_cells=12)`, expert `fdtd.via_cells|via_gap_cells`). Two latent defects showed up and are
+  fixed: a grading fill line could split a conductor's thirds-rule edge cell, which moved the
+  cell-centre raster of the trace out by a cell (the edge cell is now kept whole), and the static
+  port solve labelled a signal box that reached past the signal rectangle as ground (0.5 ohm).
+  Self-convergence of SDD21 [dB] (via_cells 4 / 8 / 16 with gap 6 / 12 / 24; 1.1 / 2.7 / 8.4 M
+  cells; 28 / 72 / 345 s; 0.29 / 0.65 / 1.9 GiB) and the first-order Richardson extrapolation on
+  the complex S (observed ratio 2.4 per halving):
+
+  | f [GHz] | old default | 4 / 6 | 8 / 12 (default) | 16 / 24 | extrapolated |
+  |---|---|---|---|---|---|
+  | 5 | -0.61 | -0.517 | -0.494 | -0.486 | -0.476 |
+  | 10 | -1.69 | -1.390 | -1.334 | -1.313 | -1.292 |
+  | 20 | -2.90 | -2.350 | -2.309 | -2.294 | -2.279 |
+  | 30 | -2.06 | -1.478 | -1.534 | -1.557 | -1.578 |
+  | 40 | -0.54 | -0.495 | -0.492 | -0.496 | -0.489 |
+
+  The default is within 0.048 dB of the extrapolation to 20 GHz and 0.060 dB to 40 GHz (half of
+  the B-EM-03 tolerances); SDD11 within 1 dB to 37.5 GHz, but the null near 40 GHz (-23 dB
+  extrapolated) is not converged (-28.5 / -25.2 dB at 8 / 16), so SDD11 misses 1.5 dB over
+  38-40 GHz. Passive (max |S11|^2 + |S21|^2 0.99) and reciprocal. Regressions:
+  `tests/test_via_mesh.py`, `tests/verification/test_fdtd_via_convergence.py` (GPU).
+  B-EM-03 at the default: 2.71 M cells, 20 928 steps, 72 s wall, 0.65 GiB (float32); the stub
+  variant 70 s, B-EM-04 17 s (1.0 M cells; 88 k before).
+  The openEMS reference is not a valid B-EM-03 reference: it ran with
+  `openems.conductor_model = "sheet"` (zero-thickness copper: line Z 84.2 ohm, against 74.2 ohm
+  for the 35 um strip here and 71.8 ohm Kirschning-Jansen odd mode) and MUR walls, its via region
+  has the same coarse cells (lines every r/2, 3-4 cells across the antipad gap), and it fails its
+  own quality check (max singular value 1.19, reciprocity error 0.27; SDD21 and SDD12 differ by
+  0.25 dB at 4.5 GHz). oa-fdtd with the same sheet copper moves 0.3 dB further from it (-3.21 dB at
+  20 GHz on the old mesh), so the earlier 0.2 dB agreement was a cancellation of two errors. The
+  converged oa-fdtd is 0.25 dB above it on average (max 0.38 dB at 7-20 GHz, 0.41 dB at 20-40 GHz;
+  -2.28 against -2.70 dB at 20 GHz). A skin-copper openEMS run with the same via refinement
+  (2.2 M cells, 8 threads requested) ran at about one core (about 20 Mcell-steps/s with the Debye
+  and conducting-sheet extensions) and would have needed about 6 h per excitation, so it was
+  stopped. B-EM-03 has no independent converged reference yet: the Palace reference of WP-501 is
+  the gate, and the self-converged oa-fdtd values above are the provisional one.
 - Mode ports are static quasi-TEM (no full-wave 2-D eigenmode solve), single dielectric
   frequency (band-centre eps) for the template and impedance; the local `oa_fdtd.ports.modal`
   solver stands in for the `oa_impedance` FEM/BEM (change request WP-506-modal-solver).
@@ -200,7 +256,10 @@ so WP-506 can add the near-to-far-field transform without changing the kernels o
 `slow`). Inner layers (`test_inner_layers.py`): resin fill, stripline delay within 0.5 % of the
 TEM (Cohn) delay, closed lossless via-through-planes box energy constant to 1e-3 (measured 2e-11),
 wave planes confined to the uniform line, the edge rule (no line on a metal edge), the port
-extension; `test_pcb.py`: static port Z within 1.5 % of the FEM, B-EM-01 eps_eff within 0.5 %
+extension; `test_via_mesh.py`: the via square's conformal radius, the via and antipad cells, no
+fill line inside an edge cell, a signal box wider than the port's signal rectangle stays signal;
+`verification/test_fdtd_via_convergence.py` (GPU): B-EM-03 SDD21 at the default mesh within
+0.05 dB (to 20 GHz) / 0.1 dB of the mesh-converged values; `test_pcb.py`: static port Z within 1.5 % of the FEM, B-EM-01 eps_eff within 0.5 %
 (GPU); `verification/test_fdtd_inner_layers.py` (GPU): the closed lossless B-EM-03 with the port
 extension conserves power (0.97-1.02). Golden suites `tests/golden/fdtd/{cavity,cpml,tem_line}` (analytic cases) and
 `tests/golden/fdtd_physics/{ds_line,sibc_line,microstrip_thru}` (analytic ABCD lines and the FEM
