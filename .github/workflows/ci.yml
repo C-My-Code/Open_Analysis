@@ -120,7 +120,7 @@ jobs:
         env:
           OA_RUN_SLOW: "1"
           OA_RUN_GPU: "1"
-          OA_TEST_MEM_GB: "16"
+          OA_TEST_MEM_GB: "10"  # the runner container has 12 GB (tools/ci-runner)
 
   reuse:
     name: reuse lint

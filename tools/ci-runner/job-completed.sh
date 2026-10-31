@@ -6,5 +6,5 @@
 # next job starts clean even though the container is long-lived. The uv and cargo caches stay.
 set -u
 pkill -u runner -f 'python|pytest|openEMS|palace|gmsh' 2>/dev/null || true
-rm -rf /home/runner/work/_temp/* /tmp/* 2>/dev/null || true
+rm -rf /home/runner/work/_temp/* /home/runner/tmp/* /tmp/* 2>/dev/null || true
 exit 0

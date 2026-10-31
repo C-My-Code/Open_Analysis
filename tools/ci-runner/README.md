@@ -100,6 +100,9 @@ with internet access only. The same is true on any developer machine.
   `docker compose up -d --build`. The registration stays in the `state` volume.
 - **Removing:** run `docker compose down -v` (this deletes the registration), remove the runner
   under Settings → Actions → Runners, and run `sudo systemctl disable --now oa-ci-firewall`.
-- **Resources:** the container uses up to 12 of 16 CPUs and 24 of 32 GB, and the project's
-  `OA_MEMCAP_GB` caps each Python process at 16 GB. The RTX 2060 (6 GB, slow FP64) runs every
+- **Resources:** the container uses up to 12 of 16 CPUs and 12 of 16 GB of RAM, which leaves
+  about 4 GB for the desktop, Tailscale and Docker. It never swaps, and `/tmp` is a 1 GB
+  in-memory filesystem. The project's `OA_MEMCAP_GB` caps each Python process at 10 GB, and
+  the slow tests run with `OA_TEST_MEM_GB=10`. A job that goes beyond the container limit is
+  killed by the kernel inside the container; the host is not affected. The RTX 2060 (6 GB, slow FP64) runs every
   GPU test. FP64 timings are not comparable with the RTX 4080 SUPER reference machine.

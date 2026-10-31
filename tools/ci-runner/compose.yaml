@@ -18,7 +18,10 @@ services:
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: oa-linux-gpu
       # Same machine-safety caps the project uses everywhere (TASKS.md rule 10).
-      OA_MEMCAP_GB: "16"
+      # Per Python process; the container limit below is the hard ceiling.
+      OA_MEMCAP_GB: "10"
+      # Test scratch (meshes, pytest tmp_path) goes to disk, not the small in-memory /tmp.
+      TMPDIR: /home/runner/tmp
     volumes:
       - state:/home/runner/state      # runner registration only
       - cache:/home/runner/.cache     # uv / pip caches (warm builds)
@@ -31,10 +34,10 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     read_only: false
-    tmpfs: ["/tmp:size=8g"]
+    tmpfs: ["/tmp:size=1g"]  # tmpfs pages count against mem_limit
     cpus: 12            # of 16; leaves headroom for Tailscale and the desktop
-    mem_limit: 24g      # of 32
-    memswap_limit: 24g
+    mem_limit: 12g      # of 16 GB: about 4 GB stays with the host (desktop, Tailscale, Docker)
+    memswap_limit: 12g  # equal to mem_limit: the container never swaps
     pids_limit: 4096
     deploy:
       resources:
