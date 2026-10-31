@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "open-analysis"
+version = "0.1.0"
+description = "Open_Analysis: PCB signal, power and RF integrity (meta-package: `oa` and `oa-mcp`)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+dependencies = [
+    # model, results and the service layer
+    "oa-model",
+    "oa-results",
+    "oa-framework",
+    "oa-jobs",
+    "oa-service",
+    # adapters: `oa`, `oa-mcp` and the REST server behind `oa serve`
+    "oa-cli",
+    "oa-mcp",
+    "oa-server",
+    # board readers and geometry
+    "oa-geometry",
+    "oa-mesh",
+    "oa-ingest-kicad",
+    "oa-ingest-ipc2581",
+    "oa-kicad-bridge",
+    # M1 analyses
+    "oa-erc",
+    "oa-impedance",
+    "oa-pi",
+    "oa-physics",
+    "oa-network",
+    # full-wave EM (openEMS, Palace) and the GPU/CPU compute core
+    "oa-em",
+    "oa-em-openems",
+    "oa-em-palace",
+    "oa-fdtd",
+    "oa-accel",
+    "oa-native",
+]
+
+[project.optional-dependencies]
+# The optional in-app AI assistant; the only package allowed to make network calls.
+assistant = ["oa-assistant"]
+
+# A tool install exposes only the scripts of the installed package, so both entry points are
+# declared here and forward to the adapter packages.
+[project.scripts]
+oa = "oa_cli.main:main"
+oa-mcp = "oa_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/open_analysis"]
+
+[tool.uv.sources]
+oa-model = { workspace = true }
+oa-results = { workspace = true }
+oa-framework = { workspace = true }
+oa-jobs = { workspace = true }
+oa-service = { workspace = true }
+oa-cli = { workspace = true }
+oa-mcp = { workspace = true }
+oa-server = { workspace = true }
+oa-geometry = { workspace = true }
+oa-mesh = { workspace = true }
+oa-ingest-kicad = { workspace = true }
+oa-ingest-ipc2581 = { workspace = true }
+oa-kicad-bridge = { workspace = true }
+oa-erc = { workspace = true }
+oa-impedance = { workspace = true }
+oa-pi = { workspace = true }
+oa-physics = { workspace = true }
+oa-network = { workspace = true }
+oa-em = { workspace = true }
+oa-em-openems = { workspace = true }
+oa-em-palace = { workspace = true }
+oa-fdtd = { workspace = true }
+oa-accel = { workspace = true }
+oa-native = { workspace = true }
+oa-assistant = { workspace = true }

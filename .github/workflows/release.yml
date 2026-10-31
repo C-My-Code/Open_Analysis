@@ -1,0 +1,144 @@
+# SPDX-FileCopyrightText: 2026 Open_Analysis contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Release DRY RUN (WP-303). Builds the web UI, every wheel and the open-analysis meta-package,
+# installs the meta-package into a clean environment and checks the console scripts.
+# It is started by hand only and has no publish step: the M1 release does not ship until the
+# WP-511 gate passes, and publishing is added in a separate, reviewed change.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch or commit; tags are never created by this workflow)"
+        default: main
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: web/dist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+
+  wheels:
+    name: wheels (pure Python)
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      # oa-server serves the packaged copy before the source-tree fallback (default_web_dist)
+      - name: Bundle web/dist into the oa-server wheel
+        run: cp -r web/dist packages/oa-server/src/oa_server/web_dist
+      - name: Build workspace wheels and the meta-package
+        run: |
+          set -eu
+          for p in packages/*/; do
+            case "$p" in packages/oa-native/) continue ;; esac  # compiled: built by the matrix below
+            uv build --wheel --out-dir dist "$p"
+          done
+          uv build --wheel --out-dir dist packaging/open-analysis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-purepython
+          path: dist/*.whl
+          if-no-files-found: error
+
+  native:
+    name: oa-native wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: Build abi3 wheel
+        working-directory: packages/oa-native
+        run: uvx maturin build --release --out ../../dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-oa-native-${{ matrix.os }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  smoke:
+    name: clean install (${{ matrix.os }})
+    needs: [wheels, native]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-purepython
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-oa-native-${{ matrix.os }}
+          path: dist
+      # Installs from the freshly built wheels only; third-party dependencies come from PyPI.
+      - name: Install the meta-package as a tool
+        shell: bash
+        run: uv tool install --find-links dist --python 3.13 open-analysis
+      - name: Console scripts work (quick-start step 1)
+        shell: bash
+        run: |
+          oa --version
+          oa doctor --json
+          oa-mcp --help
+      - name: Analyse a board from the quick-start
+        shell: bash
+        env:
+          OA_DEVICE: cpu
+        run: |
+          set -eu
+          git clone --depth 1 "${{ github.server_url }}/${{ github.repository }}" src
+          mkdir work
+          cp src/tests/boards/kicad10/combined/board.kicad_pcb work/
+          cd work
+          oa init --yes .
+          oa erc --sarif erc.sarif --fail-on never --json
+          test -s erc.sarif
+
+  summary:
+    name: dry-run summary
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Dry run finished. Nothing was published and no tag was created."
