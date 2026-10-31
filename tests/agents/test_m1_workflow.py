@@ -155,7 +155,10 @@ async def agent_flow(c: ClientSession, boards: Path) -> McpRun:
     assert job["state"] == "succeeded", env
     dc_rid = job["result_id"]
     dc = check_summary(await call(c, "result_summary", result_id=dc_rid), "pi.dc")
-    await call(c, "list_violations", result_id=dc_rid)  # no violations is still a valid page
+    # pi.dc has no violations item: the agent gets a NOT_FOUND with a hint, not an empty page
+    res = await c.call_tool("list_violations", {"result_id": dc_rid})
+    page = res.structuredContent
+    assert page is not None and res.isError and page["errors"][0]["code"] == "NOT_FOUND", page
     await get_item(c, dc_rid, dc["items"][0]["item_id"])
     return McpRun(impedance=imp, erc=erc, erc_total=total, dc=dc, first_open=opened["data"])
 
