@@ -20,7 +20,13 @@ pytestmark = pytest.mark.gpu
 _FX = {"bem01": [5e9, 10e9, 15e9, 20e9], "bem03": [5e9, 10e9, 20e9, 30e9, 40e9]}
 
 
-@pytest.mark.parametrize("case", ["bem01", "bem03"])
+# bem03 is four full differential-via solves: about 270 s on an RTX 4080 SUPER and over the
+# 300 s default timeout on smaller GPUs, so it runs with the nightly slow tests. bem01 keeps
+# the regression covered on every push.
+@pytest.mark.parametrize(
+    "case",
+    ["bem01", pytest.param("bem03", marks=[pytest.mark.slow, pytest.mark.timeout(1800)])],
+)
 def test_s_independent_of_n_points(case: str) -> None:
     fx = _FX[case]
     ref = None

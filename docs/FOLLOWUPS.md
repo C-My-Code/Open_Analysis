@@ -200,7 +200,7 @@ The integrator tracks known gaps found while merging work packages here. Each it
 - [ ] cm5_minima ERC with its `.kicad_pro` net classes takes 88 s against 15 s without them (it took more than 5 min before WP-516). Profile the net-class path.
 - [ ] B-EM-03 is converged against our own mesh study only (WP-517). It needs an independent reference: Palace (WP-501), or openEMS with real copper thickness (about 6 h per excitation).
 - [ ] B-EM-03 SDD11 has not converged at 38-40 GHz (a null near -23 dB).
-- [ ] The `test_fdtd_n_points[bem03]` GPU test takes 270 s against the 300 s pytest timeout. Give it its own timeout or shrink it.
+- [x] The `test_fdtd_n_points[bem03]` GPU test takes 270 s against the 300 s pytest timeout (and timed out on the RTX 2060 runner). It is now `slow` with a 1800 s timeout and runs nightly; `bem01` still runs on every push.
 - [ ] The `open-analysis` meta-package lives in `packaging/` because the root project shares the name. Rename the root project at release time (WP-303 final).
 - [ ] Add `tests/e2e` to testpaths. It is not collected by CI yet; it takes about 2.3 min without slow tests.
 - [ ] Linux has not been checked for the stdio fix (WP-518) beyond CI.
