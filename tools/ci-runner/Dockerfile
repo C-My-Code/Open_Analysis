@@ -25,8 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libglu1-mesa libxcursor1 libxft2 libxinerama1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Volume mount points must exist and belong to the runner before the first mount: Docker
+# creates a missing mount point (and a new named volume on it) as root, which the runner user
+# then cannot write (uv cache, cargo registry, registration state).
 RUN useradd --create-home --shell /bin/bash runner \
-    && install -d -o runner -g runner /home/runner/tmp
+    && install -d -o runner -g runner /home/runner/tmp /home/runner/state /home/runner/.cache \
+        /home/runner/.cargo /home/runner/.cargo/registry
 WORKDIR /home/runner/actions-runner
 
 RUN test -n "$RUNNER_VERSION" && test -n "$RUNNER_SHA256" \

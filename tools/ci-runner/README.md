@@ -106,3 +106,23 @@ with internet access only. The same is true on any developer machine.
   the slow tests run with `OA_TEST_MEM_GB=10`. A job that goes beyond the container limit is
   killed by the kernel inside the container; the host is not affected. The RTX 2060 (6 GB, slow FP64) runs every
   GPU test. FP64 timings are not comparable with the RTX 4080 SUPER reference machine.
+
+## Troubleshooting
+
+- **`uv sync` fails, or there is "Permission denied" under `~/.cache` or `~/.cargo`.** Docker
+  created the cache volumes as root. Images built from this Dockerfile create the mount points
+  as the `runner` user, but existing volumes keep root ownership. Rebuild the image and
+  recreate the two cache volumes. They are caches only; the registration lives in `state` and
+  is kept:
+
+  ```bash
+  git pull
+  docker compose down
+  docker volume ls | grep -E '_(cache|cargo)$'    # names are <folder>_cache and <folder>_cargo
+  docker volume rm ci-runner_cache ci-runner_cargo
+  docker compose up -d --build
+  docker compose exec runner ls -ld /home/runner/.cache /home/runner/.cargo/registry  # owner: runner
+  ```
+- **The job is skipped.** The repository *variable* (not a secret, and not an environment
+  variable) `OA_SELF_HOSTED_LINUX` must be `true` before the run starts.
+- **The job waits as "queued".** The runner is offline. Check `docker compose logs -f`.
