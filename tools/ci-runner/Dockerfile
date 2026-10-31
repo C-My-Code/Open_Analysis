@@ -17,12 +17,16 @@ ARG RUNNER_VERSION
 ARG RUNNER_SHA256
 
 ENV DEBIAN_FRONTEND=noninteractive
-# gmsh (oa-mesh) needs libGLU and X11 client libraries, as on the hosted runners (ci.yml);
-# build-essential and pkg-config are for the oa-native Rust extension.
+# gmsh (oa-mesh) loads OpenGL, GLU and X11 client libraries even when headless. ci.yml installs
+# only libGLU and a few X11 libraries because the hosted image already has the rest (libGL,
+# fontconfig, ...); this minimal image needs all of them. build-essential and pkg-config are
+# for the oa-native Rust extension.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl git jq tar gzip unzip xz-utils \
         build-essential pkg-config \
-        libglu1-mesa libxcursor1 libxft2 libxinerama1 \
+        libgl1 libglu1-mesa libegl1 libx11-6 libxext6 libxrender1 libxfixes3 libxi6 \
+        libxcursor1 libxft2 libxinerama1 libfontconfig1 libfreetype6 libice6 libsm6 \
+        libxkbcommon0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Volume mount points must exist and belong to the runner before the first mount: Docker
