@@ -31,8 +31,8 @@ _PLANE_OFFSETS = (1.5e-3, 1.0e-3, 0.5e-3, 0.25e-3)  # [m] first that the mesh ca
 
 @dataclass(frozen=True)
 class SolveOptions:
-    """Options; ``mesh.expert`` keys ``fdtd.engine|dtype|copper|plane_offset|pulse|port_ext``
-    set these."""
+    """Options; ``mesh.expert`` keys
+    ``fdtd.engine|dtype|copper|plane_offset|pulse|port_ext|via_cells|via_gap_cells`` set these."""
 
     engine: str = "auto"
     dtype: str = "float32"
@@ -43,6 +43,8 @@ class SolveOptions:
     pulse: str = "gauss_mod"  # or "gauss" (DC content, better below 0.05 f_max)
     tail: bool = True  # matrix-pencil extrapolation when the run stops at max_steps
     port_ext: float | None = None  # [m] wave-port extension; None = only when planes need it
+    via_cells: float = 8.0  # cells across a via radius (0 = no via refinement)
+    via_gap_cells: float = 12.0  # cells across a via-to-antipad gap
 
 
 @dataclass
@@ -63,6 +65,8 @@ def options_from_problem(problem: EMProblem) -> SolveOptions:
     conv = problem.convergence
     off = ex.get("fdtd.plane_offset")
     pext = ex.get("fdtd.port_ext")
+    vgc = ex.get("fdtd.via_gap_cells")
+    vc = ex.get("fdtd.via_cells")
     return SolveOptions(
         engine=str(ex.get("fdtd.engine", "auto")),
         dtype=str(ex.get("fdtd.dtype", "float32")),
@@ -72,6 +76,8 @@ def options_from_problem(problem: EMProblem) -> SolveOptions:
         plane_offset=float(off) if isinstance(off, int | float) else None,
         pulse=str(ex.get("fdtd.pulse", "gauss_mod")),
         port_ext=float(pext) if isinstance(pext, int | float) else None,
+        via_cells=float(vc) if isinstance(vc, int | float) else 8.0,
+        via_gap_cells=float(vgc) if isinstance(vgc, int | float) else 12.0,
     )
 
 
@@ -119,13 +125,27 @@ def solve_problem(problem: EMProblem, opts: SolveOptions | None = None) -> Solve
     o = opts or options_from_problem(problem)
     t0 = time.perf_counter()
     ext = o.port_ext or 0.0
-    built = build_model(problem, copper=o.copper, pulse=o.pulse, port_ext=ext)
+    built = build_model(
+        problem,
+        copper=o.copper,
+        pulse=o.pulse,
+        port_ext=ext,
+        via_cells=o.via_cells,
+        via_gap_cells=o.via_gap_cells,
+    )
     model = built.model
     all_mode = bool(model.ports) and all(isinstance(p, ModePort) for p in model.ports)
     planes, plane_note = _planes(built, o.plane_offset) if all_mode else ([], None)
     if all_mode and not planes and o.port_ext is None:
         ext = port_extension(built)
-        built = build_model(problem, copper=o.copper, pulse=o.pulse, port_ext=ext)
+        built = build_model(
+            problem,
+            copper=o.copper,
+            pulse=o.pulse,
+            port_ext=ext,
+            via_cells=o.via_cells,
+            via_gap_cells=o.via_gap_cells,
+        )
         model = built.model
         planes, plane_note = _planes(built, o.plane_offset)
         if planes:

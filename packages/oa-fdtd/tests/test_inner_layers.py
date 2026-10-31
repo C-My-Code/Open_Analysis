@@ -86,8 +86,9 @@ def test_stripline_delay_matches_cohn_tem_numpy() -> None:
 def test_closed_lossless_via_box_conserves_energy() -> None:
     """PEC copper, lossless laminate of two permittivities, closed walls: after the source the
     leapfrog energy stays constant to 1e-3 (any SIBC, ADE or conductivity on an inner edge
-    would drain it)."""
-    built = build_model(via_box(), copper="pec")
+    would drain it). The via refinement is off: this checks the update, not the via mesh, and the
+    NumPy engine is slow on the refined grid."""
+    built = build_model(via_box(), copper="pec", via_cells=0.0)
     m = built.model
     assert built.meta["resin_fills"] == 2
     m.ports.clear()
