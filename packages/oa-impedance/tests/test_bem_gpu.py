@@ -61,8 +61,12 @@ def test_gpu_fault_falls_back_to_host(monkeypatch: pytest.MonkeyPatch) -> None:
     ref = _solve(xs, "cpu", monkeypatch)
     monkeypatch.setenv("OA_DEVICE", "cuda")
     geo = bem_solver.prepare(xs)
-    assert geo.be is not None
-    geo.be.inject_fault(RuntimeError("boom"))  # type: ignore[attr-defined]
+    be = geo.be
+    assert be is not None
+    be.inject_fault(RuntimeError("boom"))  # type: ignore[attr-defined]
     sol = solve_bem(xs, FREQS, geo=geo)
     assert np.allclose(sol.C, ref.C, rtol=1e-10, atol=0)
-    assert geo.be.report().fallbacks  # recorded
+    assert be.report().fallbacks  # recorded
+    assert geo.be is None and any("host dense path used" in n for n in sol.notes)
+    assert bem_solver._dev_gate(be).used == 0
+    be.inject_fault(None)  # type: ignore[attr-defined]

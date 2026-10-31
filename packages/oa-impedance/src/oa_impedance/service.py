@@ -69,20 +69,17 @@ def bem_to_result(
 ) -> ImpedanceResult:
     sol = solve_bem(xs, list(freqs), mesh, budget=budget)
     fs = sol.freqs
-    nf, n = len(fs), len(sol.conductor_ids)
+    n = len(sol.conductor_ids)
     w = 2.0 * np.pi * fs
     C = sol.C.real
     with np.errstate(all="ignore"):
         G = np.where(w[:, None, None] > 0, -w[:, None, None] * sol.C.imag, 0.0)
-    R = np.zeros((nf, n, n))
-    L = np.zeros((nf, n, n))
-    for i in range(nf):
-        rac = sol.R_ac[i]
-        r = rac.copy()
-        d = np.arange(n)
-        r[d, d] = np.sqrt(sol.R_dc**2 + np.diag(rac) ** 2)
-        R[i] = r
-        L[i] = sol.L_ext + (rac / w[i] if w[i] > 0 else 0.0)
+    rac = sol.R_ac
+    R = rac.copy()
+    d = np.arange(n)
+    R[:, d, d] = np.sqrt(sol.R_dc**2 + rac[:, d, d] ** 2)
+    with np.errstate(all="ignore"):
+        L = sol.L_ext[None] + np.where(w[:, None, None] > 0, rac / w[:, None, None], 0.0)
     modal = modal_decomposition(fs, R, L, G, C)
     params_kwargs: dict[str, Floats] = {}
     for name in ("z0", "z_diff", "z_comm", "z_odd", "z_even"):

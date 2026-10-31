@@ -48,45 +48,39 @@ def _sqrt_branch(lam: C128) -> C128:
 
 
 def modal_decomposition(freqs: F64, R: F64, L: F64, G: F64, C: F64) -> ModalResult:
-    nf, n, _ = L.shape
-    zc_modal = np.zeros((nf, n), dtype=np.complex128)
-    eps_eff = np.zeros((nf, n))
-    zc_mat = np.zeros((nf, n, n), dtype=np.complex128)
-    delay = np.zeros((nf, n))
-    loss = np.zeros((nf, n))
-    for i, f in enumerate(freqs):
-        w = 2.0 * np.pi * f
-        if f <= 0.0:
-            m = L[i] @ C[i]
-            y = C[i].astype(np.complex128)
-            lam, t = np.linalg.eig(m)
-            gam = np.sqrt(lam.astype(np.complex128))  # gamma / (j w)
-            gm = t @ np.diag(gam) @ np.linalg.inv(t)
-            zc = gm @ np.linalg.inv(y)
-            dly = gam.real
-            alpha = np.zeros(n)
-        else:
-            z = R[i] + 1j * w * L[i]
-            y = G[i] + 1j * w * C[i]
-            lam, t = np.linalg.eig(z @ y)
-            gam = _sqrt_branch(lam)
-            gm = t @ np.diag(gam) @ np.linalg.inv(t)
-            zc = gm @ np.linalg.inv(y)
-            dly = gam.imag / w
-            alpha = gam.real
-        zc = 0.5 * (zc + zc.T)
-        ee = (dly * C0) ** 2
-        # modal impedance of each eigenvector
-        zm = np.empty(n, dtype=np.complex128)
-        for k in range(n):
-            v = t[:, k]
-            zm[k] = (v @ zc @ v) / (v @ v)
-        order = np.argsort(ee) if n != 2 else _even_odd_order(t)
-        zc_modal[i] = zm[order]
-        eps_eff[i] = ee[order]
-        delay[i] = dly[order]
-        loss[i] = (alpha[order] if f > 0 else alpha) * _NEPER_TO_DB
-        zc_mat[i] = zc
+    """All frequencies at once: batched LAPACK calls (one per quantity, not one per frequency)."""
+    n = L.shape[1]
+    f = np.asarray(freqs, dtype=float)
+    w = 2.0 * np.pi * f
+    static = f <= 0.0
+    ws = np.where(static, 1.0, w)[:, None, None]  # static rows use the lossless product below
+    z = np.where(static[:, None, None], 0.0, R + 1j * ws * L)
+    y = np.where(static[:, None, None], C.astype(np.complex128), G + 1j * ws * C)
+    m = np.where(static[:, None, None], L @ C, z @ y)
+    lam, t = np.linalg.eig(m)
+    gam = np.sqrt(lam.astype(np.complex128))  # static: gamma / (j w)
+    dyn = np.where(gam.real < 0, -gam, gam)
+    gam = np.where(static[:, None], gam, dyn)
+    ti = np.linalg.inv(t)
+    gm = (t * gam[:, None, :]) @ ti
+    zc = gm @ np.linalg.inv(y)
+    dly = np.where(static[:, None], gam.real, gam.imag / ws[:, :, 0])
+    alpha = np.where(static[:, None], 0.0, gam.real)
+    zc = 0.5 * (zc + zc.transpose(0, 2, 1))
+    ee = (dly * C0) ** 2
+    # modal impedance of each eigenvector
+    zm = np.einsum("fik,fij,fjk->fk", t, zc, t) / np.einsum("fik,fik->fk", t, t)
+    if n == 2:
+        even_score = np.abs(t[:, 0, :] + t[:, 1, :]) - np.abs(t[:, 0, :] - t[:, 1, :])
+        i_even = np.argmax(even_score, axis=1)
+        order = np.stack([i_even, 1 - i_even], axis=1)
+    else:
+        order = np.argsort(ee, axis=1)
+    zc_modal = np.take_along_axis(zm, order, axis=1)
+    eps_eff = np.take_along_axis(ee, order, axis=1)
+    delay = np.take_along_axis(dly, order, axis=1)
+    loss = np.take_along_axis(alpha, order, axis=1) * _NEPER_TO_DB
+    zc_mat = zc
     z0 = z_diff = z_comm = z_odd = z_even = None
     if n == 1:
         z0 = np.abs(zc_mat[:, 0, 0])
@@ -96,10 +90,3 @@ def modal_decomposition(freqs: F64, R: F64, L: F64, G: F64, C: F64) -> ModalResu
         z_odd = z_diff / 2.0
         z_even = z_comm * 2.0
     return ModalResult(zc_modal, eps_eff, zc_mat, delay, loss, z0, z_diff, z_comm, z_odd, z_even)
-
-
-def _even_odd_order(t: C128) -> npt.NDArray[np.intp]:
-    """Index order [even-like, odd-like] for the eigenvector matrix of a 2-conductor line."""
-    even_score = np.abs(t[0, :] + t[1, :]) - np.abs(t[0, :] - t[1, :])
-    i_even = int(np.argmax(even_score))
-    return np.array([i_even, 1 - i_even])
