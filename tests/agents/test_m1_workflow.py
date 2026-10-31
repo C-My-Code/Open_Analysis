@@ -53,6 +53,7 @@ async def call(c: ClientSession, tool: str, **args: Any) -> dict[str, Any]:
     assert res.structuredContent is not None, res
     env: dict[str, Any] = res.structuredContent
     assert env["ok"] is (not res.isError)
+    assert env["ok"], f"{tool} failed: {env.get('errors')}"  # every step of the flow must succeed
     return env
 
 

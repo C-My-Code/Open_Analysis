@@ -14,6 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # The PyPI gmsh wheel needs libGLU and X11 client libraries on Linux (see ci.yml); the M1
+      # agent workflow meshes the power plane for pi.dc.
+      - if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update -qq &&
+          sudo apt-get install -y -qq --no-install-recommends
+          libglu1-mesa libxcursor1 libxft2 libxinerama1
       - run: uv sync
       - name: Bundled agent docs are in sync
         run: uv run python tools/agents/sync_docs.py && git diff --exit-code packages/oa-mcp/src/oa_mcp/data
